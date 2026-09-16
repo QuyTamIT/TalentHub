@@ -1334,6 +1334,23 @@ body.school-sidebar-open {
     grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
 }
 
+/* Vertical stack for sections that need full-width flow (form → table).
+   Uses the same 1.5rem gap as the 2-col grid for visual parity.
+   Children are stretched to equal width (align-items: stretch is default
+   for flex, but width:100% guards against any child with align-self). */
+.school-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+    min-width: 0;
+}
+
+.school-stack > .school-section-box {
+    width: 100%;
+    max-width: 100%;
+}
+
 .school-form__grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -2171,6 +2188,7 @@ textarea:focus-visible {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     background-color: rgba(255, 255, 255, 0.97);
+    z-index: 100;
 }
 
 /* ==========================================================================
@@ -2644,7 +2662,7 @@ textarea:focus-visible {
     inset: 0;
     background: rgba(15, 23, 42, 0.6);
     backdrop-filter: blur(4px);
-    z-index: 1000;
+    z-index: 999999;
     display: none;
     align-items: center;
     justify-content: center;
@@ -2658,11 +2676,15 @@ textarea:focus-visible {
     max-width: 580px;
     max-height: 90vh;
     overflow-y: auto;
+    position: relative;
+    z-index: 999999;
 }
 
 .school-guide-modal-header {
     padding: 1.5rem 1.5rem 1rem;
     text-align: center;
+    background: linear-gradient(135deg, #0369A1 0%, #0284C7 50%, #0EA5E9 100%);
+    border-radius: 16px 16px 0 0;
 }
 
 .school-guide-modal-step {
@@ -2734,7 +2756,7 @@ textarea:focus-visible {
     color: var(--text-primary);
 }
 
-/* ── Projects components (extracted from projects.php) ──────────────────── */
+/* ── Projects: Layout ──────────────────────────────────────────────────── */
 .school-projects-layout {
     display: grid;
     grid-template-columns: 1fr;
@@ -2742,52 +2764,94 @@ textarea:focus-visible {
     align-items: start;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 960px) {
     .school-projects-layout {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 2fr 3fr;
     }
 }
 
+/* ── Projects: Section headers ─────────────────────────────────────────── */
+.school-projects-layout .school-section-box__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.school-projects-layout .school-section-box__title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+/* ── Projects: Form groups ───────────────────────────────────────────── */
 .school-form-group {
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+    background: var(--card);
+    transition: border-color 0.2s;
+}
+
+.school-form-group:last-of-type {
+    margin-bottom: 0;
+}
+
+.school-form-group:focus-within {
+    border-color: var(--primary-coral);
 }
 
 .school-form-section-title {
-    font-size: 1.05rem;
-    color: #1E293B;
-    margin: 0 0 1rem 0;
+    font-size: 0.8rem;
     font-weight: 700;
-    border-bottom: 2px solid #E2E8F0;
-    padding-bottom: 0.5rem;
-    display: inline-block;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-secondary);
+    margin: 0 0 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
 }
 
+.school-form-section-title::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 14px;
+    background: var(--primary-coral);
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+/* ── Projects: Select & inputs ─────────────────────────────────────────── */
 .school-select-enhanced {
     width: 100%;
-    padding: 0.6rem 0.75rem;
-    border-radius: 8px;
-    border: 1px solid #CBD5E1;
-    background-color: #fff;
-    font-size: 0.95rem;
-    color: #334155;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    padding: 0.55rem 2.25rem 0.55rem 0.75rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background-color: var(--card);
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
 }
 
 .school-select-enhanced:focus {
     border-color: var(--primary-coral);
     outline: none;
-    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.18);
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.15);
 }
 
 .school-field-hint {
     display: block;
-    font-size: 0.8rem;
-    color: #64748B;
-    margin-top: 0.4rem;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-top: 0.35rem;
 }
 
 .school-input-icon {
@@ -2797,61 +2861,66 @@ textarea:focus-visible {
 }
 
 .school-input-icon input {
-    padding-left: 2.2rem;
+    padding-left: 2.25rem;
     width: 100%;
 }
 
 .school-input-icon__prefix {
     position: absolute;
-    left: 1rem;
-    color: #64748B;
-    font-weight: bold;
+    left: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.9rem;
     pointer-events: none;
 }
 
-.school-form-actions-bar {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 1.5rem;
-}
-
-.school-btn-lg {
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    border-radius: 8px;
-}
-
+/* ── Projects: Author box ─────────────────────────────────────────────── */
 .school-author-box {
-    border: 1px solid #CBD5E1;
-    border-radius: 8px;
-    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--card);
     overflow: hidden;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.school-author-search {
-    padding: 0.75rem;
-    border-bottom: 1px solid #E2E8F0;
-    background: #F8FAFC;
-}
-
-.school-author-search input {
+.school-author-search-input {
     width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid #CBD5E1;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    background: #fff;
-    transition: all 0.2s;
+    padding: 0.6rem 0.875rem;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.875rem;
+    background: var(--background);
+    color: var(--text-primary);
+    transition: background 0.15s;
 }
 
-.school-author-search input:focus {
-    border-color: var(--primary-coral);
+.school-author-search-input:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.18);
+    background: var(--card);
+}
+
+.school-author-select {
+    width: 100%;
+    border: none;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    background: var(--card);
+    padding: 0.25rem 0.5rem;
+    min-height: 160px;
+    cursor: pointer;
+}
+
+.school-author-select option:checked {
+    background: rgba(248, 63, 112, 0.1);
+    color: var(--primary-coral);
+}
+
+.school-author-hint {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    padding: 0.5rem 0.875rem;
+    background: var(--background);
+    border-top: 1px solid var(--border);
+    line-height: 1.5;
 }
 
 .school-author-list {
@@ -2872,7 +2941,7 @@ textarea:focus-visible {
 }
 
 .school-author-item:hover {
-    background: #F8FAFC;
+    background: var(--surface-hover);
 }
 
 .school-author-item input[type="checkbox"] {
@@ -2910,128 +2979,210 @@ textarea:focus-visible {
 }
 
 .school-author-item--active {
-    background: #FFF0EB;
-    border: 1px solid #FFDACB;
+    background: rgba(248, 63, 112, 0.06);
+    border: 1px solid rgba(248, 63, 112, 0.2);
 }
 
-/* Milestone row delete button: keep a 44px touch target */
+/* Milestone row: keep 44px touch target */
 .milestone-row .btn-outline {
     min-width: 44px;
     min-height: 44px;
     padding: 0.5rem;
 }
 
+/* ── Projects: Submit bar ─────────────────────────────────────────────── */
+.school-form-actions-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+}
+
+.school-btn-lg {
+    padding: 0.7rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s;
+}
+
+/* ── Projects: Card grid ─────────────────────────────────────────────── */
 .school-project-cards {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 0.875rem;
 }
 
+/* ── Projects: Card ──────────────────────────────────────────────────── */
 .school-project-card {
-    background: #fff;
-    border: 1px solid #E2E8F0;
-    border-radius: 12px;
-    padding: 1.25rem;
-    transition: transform 0.2s, box-shadow 0.2s;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition: box-shadow 0.2s, border-color 0.2s;
 }
 
 .school-project-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    border-color: #CBD5E1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: rgba(248, 63, 112, 0.3);
 }
 
 .school-project-card__header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 1rem;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem 0.75rem;
+}
+
+.school-project-title-area {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .school-project-title-area h3 {
-    margin: 0 0 0.25rem 0;
-    font-size: 1.15rem;
-    color: #0F172A;
+    margin: 0 0 0.4rem 0;
+    font-size: 0.95rem;
+    color: var(--text-primary);
     font-weight: 700;
+    line-height: 1.35;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .school-project-topic {
-    font-size: 0.85rem;
+    font-size: 0.72rem;
+    font-weight: 600;
     color: var(--primary-coral);
-    font-weight: 500;
-    background: #FFF0EB;
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
-    display: inline-block;
+    background: rgba(248, 63, 112, 0.08);
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-full);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
+.school-project-topic::before {
+    content: '';
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    background: var(--primary-coral);
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* ── Projects: Status badges ─────────────────────────────────────────── */
 .school-project-status-badge {
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.25rem 0.75rem;
-    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.3rem 0.7rem;
+    border-radius: var(--radius-full);
     text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .school-project-status-badge--draft {
-    background: #F1F5F9;
-    color: #475569;
+    background: var(--border);
+    color: var(--text-secondary);
 }
 
 .school-project-status-badge--in_progress {
-    background: #FFF0EB;
+    background: rgba(248, 63, 112, 0.1);
     color: var(--primary-coral);
 }
 
 .school-project-status-badge--completed {
-    background: #D1FAE5;
-    color: #047857;
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
 }
 
 .school-project-status-badge--archived {
-    background: #FEE2E2;
-    color: #B91C1C;
+    background: rgba(239, 68, 68, 0.1);
+    color: #DC2626;
 }
 
+/* ── Projects: Stats ─────────────────────────────────────────────────── */
 .school-project-card__stats {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    padding: 0.75rem;
-    background: #F8FAFC;
-    border-radius: 8px;
+    gap: 0.45rem;
+    padding: 0 1.25rem 0.875rem;
 }
 
 .school-project-card__stat {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    color: #475569;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    min-width: 0;
+}
+
+.school-project-card__stat > span {
+    min-width: 0;
+    flex-shrink: 1;
+}
+
+.school-project-card__stat svg {
+    color: var(--text-secondary);
+    flex-shrink: 0;
 }
 
 .school-project-card__stat--funding {
-    color: #047857;
+    color: #059669;
+    font-size: 0.8rem;
+    flex-wrap: wrap;
 }
 
 .school-project-card__stat--funding strong {
-    font-size: 1rem;
+    font-size: 0.88rem;
+    font-weight: 700;
 }
 
+.school-project-card__stat--funding small {
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+}
+
+/* ── Projects: Actions ───────────────────────────────────────────────── */
 .school-project-card__actions {
-    border-top: 1px solid #E2E8F0;
-    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    padding: 0.875rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
 }
 
 .school-status-select {
-    flex: 1;
-    padding: 0.4rem;
-    border: 1px solid #CBD5E1;
-    border-radius: 6px;
-    background: #F8FAFC;
-    font-size: 0.85rem;
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--background);
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.school-status-select:focus {
+    border-color: var(--primary-coral);
+    outline: none;
 }
 
 /* ── Grid extensions (extracted from classes.php / teachers.php) ─────────── */
@@ -3512,14 +3663,24 @@ body.school-dashboard .school-author-item:hover {
 }
 
 /* 9. BADGES, CHIPS & ACCENTS */
-body.school-dashboard :is(.school-badge--info, .school-skill-badge, .school-project-topic, .school-student-name-link, .school-project-status-badge--in_progress, .school-class-badge--primary, .school-talent-card__score-badge, .school-author-item--active) {
+body.school-dashboard :is(.school-badge--info, .school-skill-badge, .school-project-topic, .school-project-status-badge--in_progress, .school-class-badge--primary, .school-talent-card__score-badge, .school-author-item--active) {
     background-color: var(--primary-light);
     border-color: var(--primary-light-border);
     color: var(--primary-coral);
 }
 
+/* Student name link: keep brand color, NO background (was wrongly grouped with badges) */
+body.school-dashboard .school-student-name-link {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    color: var(--primary-coral);
+}
+
 body.school-dashboard .school-student-name-link:hover {
+    background-color: transparent;
     color: var(--primary-pink);
+    text-decoration: underline;
 }
 
 body.school-dashboard :is(.school-badge--purple, .school-avatar--blue, .school-guide-modal-number) {
@@ -3804,5 +3965,2679 @@ body.school-dashboard .school-pagination__info {
     .school-dashboard .page-header__title,
     .school-dashboard .school-page-title {
         font-size: 1.4rem;
+    }
+}
+
+/* ==========================================================================
+   SCHOOL UI/UX POLISH PATCH — SPACING, OVERFLOW & TYPOGRAPHY
+   ========================================================================== */
+
+/* ── School Layout Overflow Protection ── */
+body.school-dashboard,
+.school-dashboard {
+    overflow-x: hidden;
+}
+
+.school-layout,
+.school-main-wrapper,
+.school-body {
+    overflow-x: hidden;
+    min-width: 0;
+}
+
+/* ── School Body ── */
+.school-body {
+    padding: var(--space-6);
+}
+
+@media (max-width: 768px) {
+    .school-body {
+        padding: var(--space-4);
+    }
+}
+
+@media (max-width: 480px) {
+    .school-body {
+        padding: var(--space-3);
+    }
+}
+
+/* ── School Header ── */
+.school-header {
+    padding: 0 var(--space-5);
+}
+
+@media (max-width: 768px) {
+    .school-header {
+        padding: 0 var(--space-4);
+    }
+}
+
+@media (max-width: 480px) {
+    .school-header {
+        padding: 0 var(--space-3);
+    }
+}
+
+/* ── School Sidebar ── */
+.school-sidebar {
+    padding: var(--space-4) var(--space-3);
+}
+
+.school-sidebar__nav ul {
+    gap: var(--space-1);
+}
+
+.school-sidebar__link {
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-3);
+    min-height: var(--touch-target);
+}
+
+.school-sidebar__school-card {
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+
+/* ── KPI Cards ── */
+.school-kpis-grid {
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+}
+
+.school-kpi-card {
+    padding: var(--space-4);
+}
+
+@media (max-width: 1024px) {
+    .school-kpis-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-3);
+    }
+}
+
+@media (max-width: 480px) {
+    .school-kpis-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Section Box ── */
+.school-section-box {
+    padding: var(--space-5);
+    margin-bottom: var(--space-5);
+}
+
+@media (max-width: 768px) {
+    .school-section-box {
+        padding: var(--space-4);
+        margin-bottom: var(--space-4);
+    }
+}
+
+.school-section-box__header {
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
+}
+
+/* ── Grid Layout ── */
+.school-grid-layout {
+    gap: var(--space-5);
+}
+
+@media (max-width: 768px) {
+    .school-grid-layout {
+        gap: var(--space-4);
+    }
+}
+
+/* ── Talent Card ── */
+.school-talent-card {
+    padding: var(--space-4);
+    gap: var(--space-4);
+}
+
+.school-talent-card__left {
+    gap: var(--space-4);
+}
+
+.school-talent-card__details {
+    margin-bottom: var(--space-3);
+}
+
+.school-talent-card__skills {
+    gap: var(--space-2);
+}
+
+/* ── Welcome Banner ── */
+.school-welcome {
+    padding: var(--space-5) var(--space-6);
+    margin-bottom: var(--space-5);
+}
+
+@media (max-width: 768px) {
+    .school-welcome {
+        padding: var(--space-4);
+    }
+}
+
+.school-welcome__body {
+    gap: var(--space-4);
+}
+
+.school-welcome__actions {
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+}
+
+/* ── Form Grid ── */
+.school-form__grid {
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+}
+
+.school-form__field {
+    gap: var(--space-2);
+}
+
+.school-form__field input,
+.school-form__field select,
+.school-form__field textarea {
+    padding: var(--space-3) var(--space-4);
+}
+
+.school-form__actions {
+    gap: var(--space-3);
+    margin-top: var(--space-5);
+}
+
+/* ── Page Header ── */
+.school-dashboard .page-header,
+.school-dashboard .school-page-header {
+    padding: var(--space-5) 0 var(--space-4);
+    margin-bottom: var(--space-5);
+}
+
+@media (max-width: 768px) {
+    .school-dashboard .page-header,
+    .school-dashboard .school-page-header {
+        padding: var(--space-4) 0 var(--space-3);
+        margin-bottom: var(--space-4);
+    }
+}
+
+/* ── Table Spacing ── */
+.school-dashboard table thead th {
+    padding: var(--space-3) var(--space-4);
+}
+
+.school-dashboard table tbody td {
+    padding: var(--space-4);
+}
+
+@media (max-width: 768px) {
+    .school-dashboard table thead th {
+        padding: var(--space-2) var(--space-3);
+    }
+    
+    .school-dashboard table tbody td {
+        padding: var(--space-3);
+    }
+}
+
+/* ── Modal Spacing ── */
+.school-modal {
+    padding: var(--space-5);
+}
+
+.school-modal__header {
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+
+.school-modal__form {
+    padding: var(--space-4);
+}
+
+.school-modal__footer {
+    padding: var(--space-4);
+    margin-top: var(--space-4);
+    gap: var(--space-3);
+}
+
+/* ── Project Card ── */
+.school-project-card {
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+
+.school-project-card__header {
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
+}
+
+.school-project-card__stats {
+    padding: var(--space-3);
+    margin-bottom: var(--space-4);
+    gap: var(--space-2);
+}
+
+.school-project-card__actions {
+    padding-top: var(--space-3);
+}
+
+/* ── Class Table ── */
+.school-class-table th {
+    padding: var(--space-3) var(--space-4);
+}
+
+.school-class-table td {
+    padding: var(--space-4);
+}
+
+@media (max-width: 768px) {
+    .school-class-table th,
+    .school-class-table td {
+        padding: var(--space-2) var(--space-3);
+    }
+}
+
+/* ==========================================================================
+   🎨 SCHOOL PORTAL — REDESIGN v3.0 (Senior UI/UX Refactor)
+   Goals: Breathing whitespace, premium card depth, balanced typography,
+          responsive layout, 8px-grid spacing, zero content loss.
+   Note: Pure CSS-only — preserves HTML structure & PHP logic 100%.
+   ========================================================================== */
+
+/* ─── A. Design Tokens (local overrides for this surface) ─── */
+.school-dashboard {
+    --s-radius-sm: 10px;
+    --s-radius-md: 14px;
+    --s-radius-lg: 20px;
+    --s-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --s-shadow-md: 0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -2px rgba(15, 23, 42, 0.04);
+    --s-shadow-lg: 0 12px 32px -6px rgba(15, 23, 42, 0.10), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+    --s-shadow-coral: 0 8px 24px -4px rgba(248, 63, 112, 0.16), 0 2px 8px -2px rgba(255, 107, 69, 0.12);
+    --s-transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    --s-gap-1: 4px;
+    --s-gap-2: 8px;
+    --s-gap-3: 12px;
+    --s-gap-4: 16px;
+    --s-gap-5: 20px;
+    --s-gap-6: 24px;
+    --s-gap-8: 32px;
+}
+
+/* ─── B. Page Container & Body Spacing ─── */
+.school-dashboard .school-body {
+    padding: clamp(16px, 2vw, 28px);
+    background: linear-gradient(180deg, var(--background) 0%, var(--background) 100%);
+    background-color: var(--background);
+    min-height: calc(100vh - var(--header-height));
+}
+
+.school-dashboard .school-body > .container-fluid {
+    max-width: 1440px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(16px, 2vw, 24px);
+}
+
+/* ─── C. Welcome Banner — Premium Hero ─── */
+.school-dashboard .school-welcome {
+    background: linear-gradient(135deg, #FFFFFF 0%, #FFF7F2 50%, #FFF0EB 100%);
+    border: 1px solid var(--primary-light-border, #FFDACB);
+    border-left: 4px solid var(--primary, #F83F70);
+    border-radius: var(--s-radius-lg);
+    padding: clamp(20px, 2.5vw, 32px) clamp(20px, 3vw, 40px);
+    margin-bottom: clamp(16px, 2vw, 24px);
+    box-shadow: var(--s-shadow-coral);
+    position: relative;
+    overflow: hidden;
+}
+
+.school-dashboard .school-welcome::before {
+    content: '';
+    position: absolute;
+    width: 320px;
+    height: 320px;
+    top: -120px;
+    right: -60px;
+    background: radial-gradient(circle, rgba(248, 63, 112, 0.10) 0%, transparent 70%);
+    pointer-events: none;
+    border-radius: 50%;
+}
+
+.school-dashboard .school-welcome::after {
+    content: '';
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    bottom: -80px;
+    left: 10%;
+    background: radial-gradient(circle, rgba(161, 79, 201, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+    border-radius: 50%;
+}
+
+.school-dashboard .school-welcome__body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(16px, 3vw, 40px);
+    position: relative;
+    z-index: 1;
+}
+
+.school-dashboard .school-welcome__content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.school-dashboard .school-welcome__tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--primary, #F83F70);
+    background: linear-gradient(90deg, #FFF0EB 0%, #FAF5FF 100%);
+    border: 1px solid var(--primary-light-border, #FFDACB);
+    padding: 5px 12px;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.school-dashboard .school-welcome__title {
+    font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+    font-weight: 800;
+    color: var(--text-primary, #322014);
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    margin: 0;
+    overflow-wrap: anywhere;
+    background: linear-gradient(135deg, #322014 0%, #5B3D2A 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.school-dashboard .school-welcome__description {
+    font-size: 0.9375rem;
+    color: var(--text-secondary, #6B5548);
+    line-height: 1.65;
+    margin: 0;
+    max-width: 70ch;
+    overflow-wrap: anywhere;
+}
+
+.school-dashboard .school-welcome__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+
+/* ─── D. Compact Welcome (sub-pages) ─── */
+.school-dashboard .school-welcome--compact {
+    padding: clamp(16px, 2vw, 20px) clamp(20px, 3vw, 32px);
+    margin-bottom: clamp(16px, 2vw, 20px);
+}
+
+.school-dashboard .school-welcome--compact .school-welcome__title {
+    font-size: clamp(1.125rem, 2vw, 1.375rem);
+    margin-bottom: 0;
+}
+
+.school-dashboard .school-welcome--compact .school-welcome__description {
+    font-size: 0.875rem;
+    margin: 2px 0 0;
+}
+
+/* ─── E. KPI Grid — Premium Stat Cards ─── */
+.school-dashboard .school-kpis-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(12px, 1.5vw, 20px);
+    margin-bottom: clamp(16px, 2vw, 24px);
+}
+
+@media (max-width: 1199.98px) {
+    .school-dashboard .school-kpis-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 575.98px) {
+    .school-dashboard .school-kpis-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.school-dashboard .school-kpi-card {
+    background: var(--surface, #FFFFFF);
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: var(--s-radius-md);
+    padding: clamp(16px, 1.8vw, 22px);
+    box-shadow: var(--s-shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    overflow: hidden;
+    position: relative;
+    transition: transform var(--s-transition), box-shadow var(--s-transition), border-color var(--s-transition);
+}
+
+.school-dashboard .school-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--s-shadow-coral);
+    border-color: var(--primary-light-border, #FFDACB);
+}
+
+.school-dashboard .school-kpi-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.school-dashboard .school-kpi-card__label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary, #6B5548);
+    line-height: 1.4;
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.school-dashboard .school-kpi-card__icon {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #FFF0EB 0%, #FAF5FF 100%);
+    color: var(--primary, #F83F70);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--primary-light-border, #FFDACB);
+    transition: transform var(--s-transition);
+}
+
+.school-dashboard .school-kpi-card:hover .school-kpi-card__icon {
+    transform: scale(1.08) rotate(-4deg);
+}
+
+.school-dashboard .school-kpi-card__value {
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+    font-weight: 800;
+    color: var(--text-primary, #322014);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    font-variant-numeric: tabular-nums;
+}
+
+.school-dashboard .school-kpi-card__footer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.school-dashboard .school-kpi-card__change {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.school-dashboard .school-kpi-card__change--positive {
+    background: #F0FDF4;
+    color: #15803D;
+    border: 1px solid #BBF7D0;
+}
+
+.school-dashboard .school-kpi-card__change--neutral {
+    background: #F8FAFC;
+    color: var(--text-secondary, #6B5548);
+    border: 1px solid var(--border, #F0E6DD);
+}
+
+/* ─── F. Section Box — Content Card ─── */
+.school-dashboard .school-section-box {
+    background: var(--surface, #FFFFFF);
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: var(--s-radius-md);
+    padding: clamp(16px, 2vw, 24px);
+    margin-bottom: clamp(16px, 2vw, 20px);
+    box-shadow: var(--s-shadow-sm);
+    min-width: 0;
+    overflow: hidden;
+    transition: box-shadow var(--s-transition), border-color var(--s-transition);
+}
+
+.school-dashboard .school-section-box:hover {
+    box-shadow: var(--s-shadow-md);
+}
+
+.school-dashboard .school-section-box__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: clamp(14px, 1.5vw, 18px);
+    padding-bottom: clamp(12px, 1.5vw, 14px);
+    border-bottom: 1px solid var(--border, #F0E6DD);
+}
+
+.school-dashboard .school-section-box__header > div {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.school-dashboard .school-section-box__title {
+    font-size: clamp(0.9375rem, 1.5vw, 1.0625rem);
+    font-weight: 700;
+    color: var(--text-primary, #322014);
+    margin: 0 0 4px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.school-dashboard .school-section-box__subtitle {
+    font-size: 0.8125rem;
+    color: var(--text-secondary, #6B5548);
+    margin: 0;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.school-dashboard .school-section-box__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--primary, #F83F70);
+    padding: 0 12px;
+    border-radius: 8px;
+    transition: background-color var(--s-transition), color var(--s-transition);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.school-dashboard .school-section-box__link:hover {
+    background: var(--primary-light, #FFF0EB);
+    color: var(--primary-hover, #F83F70);
+}
+
+.school-dashboard .school-section-box__count {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    background: var(--primary-light, #FFF0EB);
+    border: 1px solid var(--primary-light-border, #FFDACB);
+    color: var(--primary, #F83F70);
+    white-space: nowrap;
+}
+
+/* ─── G. Grid Layout (Dashboard 2-col) ─── */
+.school-dashboard .school-grid-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: clamp(16px, 2vw, 24px);
+    margin-bottom: 0;
+}
+
+.school-dashboard .school-grid-layout__main,
+.school-dashboard .school-grid-layout__sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(16px, 2vw, 20px);
+    min-width: 0;
+}
+
+@media (max-width: 1199.98px) {
+    .school-dashboard .school-grid-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ─── H. Tables — Sharp, Spacious, Readable ─── */
+.school-dashboard .school-class-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    min-width: 640px;
+}
+
+.school-dashboard .table-scroll,
+.school-dashboard .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--s-radius-sm);
+    border: 1px solid var(--border, #F0E6DD);
+    background: var(--surface, #FFFFFF);
+}
+
+.school-dashboard .school-class-table thead th {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-secondary, #6B5548);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 14px 16px;
+    background: linear-gradient(180deg, #FAF8F6 0%, #F8FAFC 100%);
+    border-bottom: 1.5px solid var(--border, #F0E6DD);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.school-dashboard .school-class-table tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #F5EFE9;
+    font-size: 0.875rem;
+    color: var(--text-primary, #322014);
+    vertical-align: middle;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.school-dashboard .school-class-table tbody tr {
+    transition: background-color var(--s-transition);
+}
+
+.school-dashboard .school-class-table tbody tr:hover {
+    background: linear-gradient(90deg, rgba(255, 240, 235, 0.4) 0%, rgba(255, 247, 242, 0.2) 100%);
+}
+
+.school-dashboard .school-class-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.school-dashboard .school-class-table tbody td strong {
+    font-weight: 600;
+    color: var(--text-primary, #322014);
+}
+
+@media (max-width: 768px) {
+    .school-dashboard .school-class-table thead th {
+        padding: 10px 12px;
+        font-size: 0.6875rem;
+    }
+    .school-dashboard .school-class-table tbody td {
+        padding: 12px;
+        font-size: 0.8125rem;
+    }
+}
+
+/* ─── I. Badges & Status Pills ─── */
+.school-dashboard .school-class-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 90px;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    line-height: 1.4;
+    border: 1px solid transparent;
+}
+
+.school-dashboard .school-class-badge--success {
+    background: linear-gradient(90deg, #DCFCE7 0%, #F0FDF4 100%);
+    color: #15803D;
+    border-color: #BBF7D0;
+}
+
+.school-dashboard .school-class-badge--warning {
+    background: linear-gradient(90deg, #FEF3C7 0%, #FFFBEB 100%);
+    color: #B45309;
+    border-color: #FDE68A;
+}
+
+.school-dashboard .school-class-badge--primary {
+    background: linear-gradient(90deg, var(--primary-light, #FFF0EB) 0%, #FFF7F2 100%);
+    color: var(--primary, #F83F70);
+    border-color: var(--primary-light-border, #FFDACB);
+}
+
+.school-dashboard .school-class-badge--neutral {
+    background: linear-gradient(90deg, #F1F5F9 0%, #F8FAFC 100%);
+    color: var(--text-secondary, #6B5548);
+    border-color: var(--border, #F0E6DD);
+}
+
+.school-dashboard .school-class-name-badge {
+    display: inline-flex;
+    align-items: center;
+    font-weight: 600;
+    color: var(--text-primary, #322014);
+    background: linear-gradient(90deg, #F8FAFC 0%, #FFFFFF 100%);
+    border: 1px solid var(--border, #F0E6DD);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* ─── J. Talent Cards (Top Talents list) ─── */
+.school-dashboard .school-talents-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.school-dashboard .school-talent-card {
+    background: var(--surface, #FFFFFF);
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: var(--s-radius-sm);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    transition: transform var(--s-transition), box-shadow var(--s-transition), border-color var(--s-transition);
+    min-width: 0;
+}
+
+.school-dashboard .school-talent-card:hover {
+    border-color: var(--primary-light-border, #FFDACB);
+    box-shadow: var(--s-shadow-md);
+    transform: translateY(-1px);
+}
+
+.school-dashboard .school-talent-card__left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex: 1;
+}
+
+.school-dashboard .school-talent-card__avatar {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary-light, #FFF0EB) 0%, #FFF7F2 100%);
+    border: 1.5px solid var(--primary-light-border, #FFDACB);
+    color: var(--primary, #F83F70);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+    box-shadow: 0 2px 6px rgba(248, 63, 112, 0.10);
+}
+
+.school-dashboard .school-talent-card__details {
+    min-width: 0;
+    flex: 1;
+}
+
+.school-dashboard .school-talent-card__name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+}
+
+.school-dashboard .school-talent-card__name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary, #322014);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1;
+}
+
+.school-dashboard .school-talent-card__score-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #DCFCE7 0%, #F0FDF4 100%);
+    border: 1px solid #BBF7D0;
+    color: #15803D;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.school-dashboard .school-talent-card__meta-line {
+    font-size: 0.8125rem;
+    color: var(--text-secondary, #6B5548);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    flex-wrap: wrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.school-dashboard .school-talent-card__meta-divider {
+    opacity: 0.5;
+    color: var(--text-muted, #9E897D);
+}
+
+.school-dashboard .school-talent-card__exp {
+    color: var(--text-secondary, #6B5548);
+    font-weight: 500;
+    font-size: 0.8125rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.school-dashboard .school-talent-card__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 575.98px) {
+    .school-dashboard .school-talent-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    .school-dashboard .school-talent-card__left {
+        flex-direction: row;
+        align-items: center;
+    }
+    .school-dashboard .school-talent-card__actions {
+        width: 100%;
+    }
+    .school-dashboard .school-talent-card__actions .btn {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
+/* ─── K. Quick Action Rows ─── */
+.school-dashboard .school-actions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.school-dashboard .school-action-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px;
+    border-radius: var(--s-radius-sm);
+    border-bottom: 1px solid transparent;
+    transition: background-color var(--s-transition);
+    min-width: 0;
+}
+
+.school-dashboard .school-action-row:hover {
+    background: var(--surface-hover, #FFF7F2);
+}
+
+.school-dashboard .school-action-row__icon {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: var(--surface-hover, #FFF7F2);
+    color: var(--primary, #F83F70);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border, #F0E6DD);
+}
+
+.school-dashboard .school-action-row--warning .school-action-row__icon {
+    background: linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%);
+    color: #B45309;
+    border-color: #FDE68A;
+}
+
+.school-dashboard .school-action-row__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.school-dashboard .school-action-row__title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary, #322014);
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.school-dashboard .school-action-row__subtitle {
+    font-size: 0.8125rem;
+    color: var(--text-secondary, #6B5548);
+    margin-top: 2px;
+    overflow-wrap: anywhere;
+}
+
+.school-dashboard .school-action-row__btn {
+    flex-shrink: 0;
+}
+
+@media (max-width: 575.98px) {
+    .school-dashboard .school-action-row {
+        flex-wrap: wrap;
+    }
+    .school-dashboard .school-action-row__btn {
+        width: 100%;
+    }
+    .school-dashboard .school-action-row__btn .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ─── L. Activity Timeline ─── */
+.school-dashboard .school-activity-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    position: relative;
+    border-left: 2px solid #F5EFE9;
+    padding-left: 18px;
+    margin-left: 4px;
+}
+
+.school-dashboard .school-activity-item {
+    position: relative;
+    padding: 2px 0;
+}
+
+.school-dashboard .school-activity-item__indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--primary, #F83F70);
+    position: absolute;
+    left: -23px;
+    top: 6px;
+    box-shadow: 0 0 0 4px rgba(248, 63, 112, 0.15);
+    border: 2px solid var(--surface, #FFFFFF);
+}
+
+.school-dashboard .school-activity-item__text {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--text-primary, #322014);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.school-dashboard .school-activity-item__time {
+    font-size: 0.75rem;
+    color: var(--text-muted, #9E897D);
+    display: block;
+    margin-top: 4px;
+}
+
+/* ─── M. Empty State ─── */
+.school-dashboard .school-empty-state {
+    text-align: center;
+    color: var(--text-muted, #9E897D);
+    padding: clamp(28px, 4vw, 48px) 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.school-dashboard .school-empty-state__icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    background: var(--surface-hover, #FFF7F2);
+    color: var(--text-muted, #9E897D);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+}
+
+.school-dashboard .school-empty-state__title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary, #322014);
+    margin: 0;
+    line-height: 1.45;
+    max-width: 48ch;
+    overflow-wrap: anywhere;
+}
+
+.school-dashboard .school-empty-state__desc {
+    font-size: 0.8125rem;
+    color: var(--text-secondary, #6B5548);
+    margin: 0;
+    max-width: 56ch;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
+/* ─── N. Form Field — Clean & Spacious ─── */
+.school-dashboard .school-form__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.school-dashboard .school-form__field > span {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-primary, #322014);
+}
+
+.school-dashboard .school-form__field > span em {
+    color: var(--color-danger, #DC2626);
+    font-style: normal;
+    margin-left: 2px;
+}
+
+.school-dashboard .school-form__field input,
+.school-dashboard .school-form__field select,
+.school-dashboard .school-form__field textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border, #F0E6DD);
+    background: var(--surface, #FFFFFF);
+    color: var(--text-primary, #322014);
+    font-size: 0.9375rem;
+    font-family: inherit;
+    box-sizing: border-box;
+    min-height: 44px;
+    transition: border-color var(--s-transition), box-shadow var(--s-transition);
+}
+
+.school-dashboard .school-form__field input:hover,
+.school-dashboard .school-form__field select:hover,
+.school-dashboard .school-form__field textarea:hover {
+    border-color: var(--primary-light-border, #FFDACB);
+}
+
+.school-dashboard .school-form__field input:focus,
+.school-dashboard .school-form__field select:focus,
+.school-dashboard .school-form__field textarea:focus {
+    outline: none;
+    border-color: var(--primary, #F83F70);
+    box-shadow: 0 0 0 4px rgba(248, 63, 112, 0.12);
+}
+
+.school-dashboard .school-form__field textarea {
+    min-height: 96px;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+.school-dashboard .school-form__field--checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary, #6B5548);
+}
+
+.school-dashboard .school-form__field--checkbox input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary, #F83F70);
+    cursor: pointer;
+}
+
+.school-dashboard .school-form__field--full {
+    grid-column: 1 / -1;
+}
+
+.school-dashboard .school-form__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 8px;
+}
+
+.school-dashboard .school-form__grid--2col {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 640px) {
+    .school-dashboard .school-form__grid--2col {
+        grid-template-columns: 1fr;
+    }
+}
+
+.school-dashboard .school-form__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.school-dashboard .school-form__actions .btn {
+    min-width: 120px;
+}
+
+@media (max-width: 575.98px) {
+    .school-dashboard .school-form__actions {
+        flex-direction: column-reverse;
+    }
+    .school-dashboard .school-form__actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ─── O. Pagination ─── */
+.school-dashboard .school-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: clamp(16px, 2vw, 20px);
+    flex-wrap: wrap;
+}
+
+.school-dashboard .school-pagination__info {
+    font-size: 0.8125rem;
+    color: var(--text-muted, #9E897D);
+    padding: 0 8px;
+}
+
+@media (max-width: 575.98px) {
+    .school-dashboard .school-pagination {
+        justify-content: center;
+    }
+}
+
+/* ─── P. Flash Messages ─── */
+.school-dashboard .school-flash {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    border: 1px solid transparent;
+}
+
+.school-dashboard .school-flash--success {
+    background: linear-gradient(90deg, #F0FDF4 0%, #FFFFFF 100%);
+    border-left: 4px solid #16A34A;
+    border-color: #BBF7D0;
+    color: #166534;
+}
+
+.school-dashboard .school-flash--error {
+    background: linear-gradient(90deg, #FEF2F2 0%, #FFFFFF 100%);
+    border-left: 4px solid #DC2626;
+    border-color: #FECACA;
+    color: #991B1B;
+}
+
+.school-dashboard .school-flash a {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* ─── Q. Modal System ─── */
+.school-dashboard .school-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 1050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    opacity: 0;
+    animation: schoolFadeIn 0.2s ease forwards;
+}
+
+.school-dashboard .school-modal {
+    background: #FFFFFF;
+    border-radius: var(--s-radius-lg);
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
+    width: 100%;
+    max-width: 560px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    transform: translateY(12px);
+    animation: schoolSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    position: relative;
+}
+
+.school-dashboard .school-modal--detail {
+    max-width: 720px;
+}
+
+.school-dashboard .school-modal__header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border, #F0E6DD);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.school-dashboard .school-modal__title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #0F172A;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.school-dashboard .school-modal__desc {
+    font-size: 0.875rem;
+    color: #64748B;
+    margin: 4px 0 0;
+    line-height: 1.5;
+}
+
+.school-dashboard .school-modal__close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: var(--surface-hover, #FFF7F2);
+    border-radius: 10px;
+    cursor: pointer;
+    color: #64748B;
+    font-size: 1.25rem;
+    line-height: 1;
+    transition: background-color var(--s-transition), color var(--s-transition);
+    flex-shrink: 0;
+}
+
+.school-dashboard .school-modal__close:hover {
+    background: #FEE2E2;
+    color: #B91C1C;
+}
+
+.school-dashboard .school-modal__form {
+    padding: 20px 24px;
+}
+
+.school-dashboard .school-modal__template-box {
+    background: linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%);
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.school-dashboard .school-modal__template-info {
+    font-size: 0.8125rem;
+    color: #475569;
+    line-height: 1.55;
+    flex: 1;
+    min-width: 200px;
+}
+
+.school-dashboard .school-modal__dropzone {
+    border: 2px dashed #CBD5E1;
+    border-radius: 14px;
+    padding: 24px 16px;
+    text-align: center;
+    background: #FAFBFC;
+    cursor: pointer;
+    transition: border-color var(--s-transition), background-color var(--s-transition);
+}
+
+.school-dashboard .school-modal__dropzone:hover {
+    border-color: var(--primary, #F83F70);
+    background: var(--primary-light, #FFF0EB);
+}
+
+.school-dashboard .school-modal__footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border, #F0E6DD);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    background: #FAFBFC;
+    border-radius: 0 0 var(--s-radius-lg) var(--s-radius-lg);
+    flex-wrap: wrap;
+}
+
+@media (max-width: 575.98px) {
+    .school-dashboard .school-modal__footer {
+        flex-direction: column-reverse;
+    }
+    .school-dashboard .school-modal__footer .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ─── R. Project Card (Projects page) ─── */
+.school-dashboard .school-project-card {
+    background: var(--surface, #FFFFFF);
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: var(--s-radius-md);
+    padding: clamp(16px, 2vw, 22px);
+    transition: transform var(--s-transition), box-shadow var(--s-transition), border-color var(--s-transition);
+    box-shadow: var(--s-shadow-sm);
+    min-width: 0;
+}
+
+.school-dashboard .school-project-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--s-shadow-md);
+    border-color: var(--primary-light-border, #FFDACB);
+}
+
+.school-dashboard .school-project-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px dashed var(--border, #F0E6DD);
+    flex-wrap: wrap;
+}
+
+.school-dashboard .school-project-card__title-area {
+    min-width: 0;
+    flex: 1;
+}
+
+.school-dashboard .school-project-card__title-area h3 {
+    margin: 0 0 6px;
+    font-size: clamp(1rem, 1.5vw, 1.125rem);
+    color: var(--text-primary, #322014);
+    font-weight: 700;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+.school-dashboard .school-project-card__stats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%);
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: 10px;
+}
+
+.school-dashboard .school-project-card__actions {
+    border-top: 1px solid var(--border, #F0E6DD);
+    padding-top: 12px;
+}
+
+/* ─── S. Inline select / textarea (Students page) ─── */
+.school-dashboard .school-inline-select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border, #F0E6DD);
+    border-radius: 10px;
+    font-size: 0.875rem;
+    background: var(--surface, #FFFFFF);
+    color: var(--text-primary, #322014);
+    min-height: 44px;
+    transition: border-color var(--s-transition), box-shadow var(--s-transition);
+}
+
+.school-dashboard .school-inline-select:focus {
+    outline: none;
+    border-color: var(--primary, #F83F70);
+    box-shadow: 0 0 0 4px rgba(248, 63, 112, 0.12);
+}
+
+.school-dashboard .school-inline-textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border, #F0E6DD);
+    border-radius: 10px;
+    font-size: 0.875rem;
+    resize: vertical;
+    min-height: 88px;
+    font-family: inherit;
+    color: var(--text-primary, #322014);
+    line-height: 1.55;
+    box-sizing: border-box;
+}
+
+.school-dashboard .school-inline-textarea:focus {
+    outline: none;
+    border-color: var(--primary, #F83F70);
+    box-shadow: 0 0 0 4px rgba(248, 63, 112, 0.12);
+}
+
+/* ─── T. Skill Badge ─── */
+.school-dashboard .school-skill-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--primary-light, #FFF0EB);
+    color: var(--primary, #F83F70);
+    border: 1px solid var(--primary-light-border, #FFDACB);
+    white-space: nowrap;
+}
+
+/* ─── U. Student Detail Modal Header (gradient banner) ─── */
+.school-dashboard #studentDetailModal .school-modal__header {
+    background: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%);
+    padding: 18px 24px;
+    border-bottom: none;
+    color: #FFFFFF;
+}
+
+.school-dashboard #studentDetailModal .school-modal__close {
+    background: rgba(255, 255, 255, 0.18);
+    color: #FFFFFF;
+}
+
+.school-dashboard #studentDetailModal .school-modal__close:hover {
+    background: rgba(255, 255, 255, 0.32);
+    color: #FFFFFF;
+}
+
+/* ─── V. Grid 2-col / 3-col ─── */
+.school-dashboard .school-grid-2col {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(16px, 2vw, 20px);
+    margin-bottom: clamp(16px, 2vw, 20px);
+}
+
+@media (max-width: 991.98px) {
+    .school-dashboard .school-grid-2col {
+        grid-template-columns: 1fr;
+    }
+}
+
+.school-dashboard .school-grid-3col {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(16px, 2vw, 20px);
+}
+
+@media (max-width: 991.98px) {
+    .school-dashboard .school-grid-3col {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 575.98px) {
+    .school-dashboard .school-grid-3col {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ─── W. Generic utility polish ─── */
+.school-dashboard .school-text-xs-upper {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--text-muted, #9E897D);
+    line-height: 1.4;
+}
+
+.school-dashboard .school-text-sm-muted {
+    font-size: 0.8125rem;
+    color: var(--text-secondary, #6B5548);
+    line-height: 1.55;
+}
+
+.school-dashboard .school-flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.school-dashboard .school-flex-center {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.school-dashboard .school-card-subtle {
+    background: linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%);
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: 12px;
+    padding: 14px 16px;
+    min-width: 0;
+}
+
+.school-dashboard .school-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    border: 1px solid transparent;
+    line-height: 1.4;
+}
+
+.school-dashboard .school-badge--info {
+    background: #FFF0EB;
+    color: var(--primary, #F83F70);
+    border-color: #FFDACB;
+}
+
+.school-dashboard .school-badge--success {
+    background: #DCFCE7;
+    color: #15803D;
+    border-color: #BBF7D0;
+}
+
+.school-dashboard .school-badge--warning {
+    background: #FEF3C7;
+    color: #92400E;
+    border-color: #FDE68A;
+}
+
+.school-dashboard .school-badge--danger {
+    background: #FEE2E2;
+    color: #B91C1C;
+    border-color: #FECACA;
+}
+
+.school-dashboard .school-badge--purple {
+    background: #F3E8FF;
+    color: #7E22CE;
+    border-color: #E9D5FF;
+}
+
+.school-dashboard .school-badge--muted {
+    background: #F3F4F6;
+    color: #374155;
+    border-color: transparent;
+}
+
+/* ─── X. Progress bar ─── */
+.school-dashboard .school-progress-track {
+    height: 8px;
+    background: #E2E8F0;
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.school-dashboard .school-progress-fill {
+    height: 100%;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, var(--primary, #F83F70) 0%, var(--primary-coral, #F83F70) 100%);
+    transition: width 0.4s ease;
+}
+
+.school-dashboard .school-progress-track--sm {
+    height: 4px;
+}
+
+/* ─── Y. Timeline (Internships page) ─── */
+.school-dashboard .school-timeline {
+    position: relative;
+    padding-left: 24px;
+    margin: 0;
+}
+
+.school-dashboard .school-timeline::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 4px;
+    bottom: 4px;
+    width: 2px;
+    background: var(--border, #F0E6DD);
+}
+
+.school-dashboard .school-timeline__item {
+    position: relative;
+    padding-bottom: 18px;
+}
+
+.school-dashboard .school-timeline__item:last-child {
+    padding-bottom: 0;
+}
+
+.school-dashboard .school-timeline__dot {
+    position: absolute;
+    left: -22px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--primary, #F83F70);
+    border: 3px solid var(--surface, #FFFFFF);
+    box-shadow: 0 0 0 2px rgba(248, 63, 112, 0.18);
+}
+
+.school-dashboard .school-timeline__date {
+    font-size: 0.75rem;
+    color: var(--text-muted, #9E897D);
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.school-dashboard .school-timeline__content {
+    font-size: 0.875rem;
+    color: var(--text-primary, #322014);
+    line-height: 1.55;
+}
+
+/* ─── Z. Form Group (Projects form) ─── */
+.school-dashboard .school-form-group {
+    background: linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%);
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: var(--s-radius-md);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.school-dashboard .school-form-section-title {
+    font-size: 1.0625rem;
+    color: var(--text-primary, #322014);
+    margin: 0 0 14px;
+    font-weight: 700;
+    border-bottom: 2px solid var(--border, #F0E6DD);
+    padding-bottom: 8px;
+    line-height: 1.35;
+}
+
+.school-dashboard .school-select-enhanced {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border, #F0E6DD);
+    background-color: var(--surface, #FFFFFF);
+    font-size: 0.9375rem;
+    color: var(--text-primary, #322014);
+    min-height: 44px;
+    transition: border-color var(--s-transition), box-shadow var(--s-transition);
+}
+
+.school-dashboard .school-select-enhanced:focus {
+    outline: none;
+    border-color: var(--primary, #F83F70);
+    box-shadow: 0 0 0 4px rgba(248, 63, 112, 0.12);
+}
+
+.school-dashboard .school-field-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted, #9E897D);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+.school-dashboard .school-input-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.school-dashboard .school-input-icon input {
+    padding-left: 36px;
+    width: 100%;
+}
+
+.school-dashboard .school-input-icon__prefix {
+    position: absolute;
+    left: 12px;
+    color: var(--text-secondary, #6B5548);
+    font-weight: 700;
+    pointer-events: none;
+}
+
+.school-dashboard .school-form-actions-bar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.school-dashboard .school-btn-lg {
+    padding: 12px 22px;
+    font-size: 0.9375rem;
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.school-dashboard .school-projects-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(16px, 2vw, 20px);
+    align-items: start;
+}
+
+@media (min-width: 900px) {
+    .school-dashboard .school-projects-layout {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ─── AA. Author Box (project collaborators) ─── */
+.school-dashboard .school-author-box {
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: 12px;
+    background: var(--surface, #FFFFFF);
+    overflow: hidden;
+    box-shadow: var(--s-shadow-sm);
+    min-width: 0;
+}
+
+.school-dashboard .school-author-search {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border, #F0E6DD);
+    background: linear-gradient(180deg, #FAF8F6 0%, #F8FAFC 100%);
+}
+
+.school-dashboard .school-author-search input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    background: var(--surface, #FFFFFF);
+    transition: border-color var(--s-transition), box-shadow var(--s-transition);
+}
+
+.school-dashboard .school-author-search input:focus {
+    outline: none;
+    border-color: var(--primary, #F83F70);
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.12);
+}
+
+.school-dashboard .school-author-list {
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.school-dashboard .school-author-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background-color var(--s-transition);
+    margin: 0;
+    border-bottom: 1px solid #F5EFE9;
+}
+
+.school-dashboard .school-author-item:last-child {
+    border-bottom: none;
+}
+
+.school-dashboard .school-author-item:hover {
+    background: #F8FAFC;
+}
+
+.school-dashboard .school-author-item input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary, #F83F70);
+    flex-shrink: 0;
+}
+
+.school-dashboard .school-author-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    width: auto;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.school-dashboard .school-author-name {
+    font-weight: 600;
+    color: var(--text-primary, #322014);
+    font-size: 0.875rem;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.school-dashboard .school-author-class {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6B5548);
+    background: var(--surface-hover, #FFF7F2);
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.school-dashboard .school-author-item--active {
+    background: var(--primary-light, #FFF0EB);
+    border-color: var(--primary-light-border, #FFDACB);
+}
+
+/* ─── BB. Class / Grade grid layouts ─── */
+.school-dashboard .school-grade-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+}
+
+.school-dashboard .school-class-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+}
+
+@media (max-width: 575.98px) {
+    .school-dashboard .school-grade-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    .school-dashboard .school-class-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ─── CC. Date input ─── */
+.school-dashboard .school-input-date {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border, #F0E6DD);
+    border-radius: 10px;
+    font-size: 0.875rem;
+    background: var(--surface, #FFFFFF);
+    color: var(--text-primary, #322014);
+    min-height: 44px;
+    transition: border-color var(--s-transition), box-shadow var(--s-transition);
+}
+
+.school-dashboard .school-input-date:focus {
+    outline: none;
+    border-color: var(--primary, #F83F70);
+    box-shadow: 0 0 0 4px rgba(248, 63, 112, 0.12);
+}
+
+/* ─── DD. Page header (compact pages) ─── */
+.school-dashboard .page-header,
+.school-dashboard .school-page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 16px 0 14px;
+    border-bottom: 1px solid var(--border, #F0E6DD);
+    margin-bottom: 18px;
+}
+
+.school-dashboard .page-header__title,
+.school-dashboard .school-page-title {
+    font-size: clamp(1.25rem, 2vw, 1.5rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-primary, #322014);
+    line-height: 1.2;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.school-dashboard .page-header__subtitle {
+    margin: 6px 0 0;
+    color: var(--text-secondary, #6B5548);
+    font-size: 0.875rem;
+    line-height: 1.55;
+    max-width: 60ch;
+    overflow-wrap: anywhere;
+}
+
+.school-dashboard .page-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .school-dashboard .page-header,
+    .school-dashboard .school-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 0 12px;
+        margin-bottom: 14px;
+    }
+    .school-dashboard .page-header__actions {
+        width: 100%;
+    }
+}
+
+/* ─── EE. Responsive table (mobile stacked) ─── */
+@media (max-width: 640px) {
+    .school-dashboard .school-class-table thead {
+        display: none;
+    }
+    .school-dashboard .school-class-table,
+    .school-dashboard .school-class-table tbody,
+    .school-dashboard .school-class-table tr,
+    .school-dashboard .school-class-table td {
+        display: block;
+        width: 100%;
+    }
+    .school-dashboard .school-class-table tbody tr {
+        margin-bottom: 12px;
+        border: 1px solid var(--border, #F0E6DD);
+        border-radius: 12px;
+        padding: 4px 0;
+        background: var(--surface, #FFFFFF);
+        box-shadow: var(--s-shadow-sm);
+    }
+    .school-dashboard .school-class-table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border: none;
+        border-bottom: 1px solid #F5EFE9;
+        text-align: left;
+        font-size: 0.8125rem;
+    }
+    .school-dashboard .school-class-table tbody td:last-child {
+        border-bottom: none;
+    }
+    .school-dashboard .school-class-table tbody td::before {
+        content: attr(data-label);
+        font-size: 0.6875rem;
+        font-weight: 700;
+        color: var(--text-muted, #9E897D);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        flex: 0 0 38%;
+        max-width: 38%;
+    }
+}
+
+/* ─── FF. Sidebar polish (preserved width, refined look) ─── */
+.school-dashboard .school-sidebar {
+    background: linear-gradient(180deg, #FFFFFF 0%, #FFFBF7 100%);
+    box-shadow: 1px 0 0 var(--border, #F0E6DD);
+}
+
+.school-dashboard .school-sidebar__brand {
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+}
+
+.school-dashboard .school-sidebar__school-card {
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+}
+
+.school-dashboard .school-sidebar__school-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    font-size: 0.875rem;
+}
+
+.school-dashboard .school-sidebar__link {
+    padding: 10px 12px;
+    border-radius: 10px;
+    min-height: 42px;
+    font-size: 0.875rem;
+}
+
+.school-dashboard .school-sidebar__nav-title {
+    padding-left: 12px;
+    margin-bottom: 8px;
+    margin-top: 4px;
+}
+
+/* ─── GG. Header refinement ─── */
+.school-dashboard .school-header {
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px) saturate(1.6);
+    -webkit-backdrop-filter: blur(12px) saturate(1.6);
+    border-bottom: 1px solid var(--border, #F0E6DD);
+}
+
+.school-dashboard .school-header__title {
+    font-size: clamp(1rem, 1.5vw, 1.25rem);
+    letter-spacing: -0.01em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 60vw;
+}
+
+.school-dashboard .school-header__account-wrapper {
+    position: relative;
+}
+
+/* ─── HH. Toast ─── */
+.school-dashboard .school-toast {
+    border-radius: 14px;
+    padding: 14px 18px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.school-dashboard .school-toast__content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* ─── II. Guide Modal ─── */
+.school-dashboard .school-guide-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 999999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.school-dashboard .school-guide-modal-box {
+    background: var(--surface, #FFFFFF);
+    border-radius: var(--s-radius-lg);
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
+    width: 100%;
+    max-width: 600px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    position: relative;
+    z-index: 999999;
+}
+
+.school-dashboard .school-guide-modal-header {
+    padding: 24px 24px 16px;
+    text-align: center;
+    background: linear-gradient(135deg, #0369A1 0%, #0284C7 50%, #0EA5E9 100%);
+    border-radius: var(--s-radius-lg) var(--s-radius-lg) 0 0;
+    color: #FFFFFF;
+}
+
+.school-dashboard .school-guide-modal-step {
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border, #F0E6DD);
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.school-dashboard .school-guide-modal-step:last-child {
+    border-bottom: none;
+}
+
+.school-dashboard .school-guide-modal-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-light, #FFF0EB) 0%, #FAF5FF 100%);
+    color: var(--primary, #F83F70);
+    font-weight: 700;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid var(--primary-light-border, #FFDACB);
+}
+
+/* ─── JJ. Status indicator dots (small) ─── */
+.school-dashboard .school-status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted, #9E897D);
+    flex-shrink: 0;
+}
+
+.school-dashboard .school-status-dot--success {
+    background: #10B981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+/* ─── KK. Mobile floating action button area (clear bottom safe area) ─── */
+@supports (padding: max(0px)) {
+    .school-dashboard .school-body {
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+}
+
+/* ─── LL. Print friendliness ─── */
+@media print {
+    .school-dashboard .school-sidebar,
+    .school-dashboard .school-header,
+    .school-dashboard .school-toast,
+    .school-dashboard .school-modal-backdrop,
+    .school-dashboard .school-section-box__link {
+        display: none !important;
+    }
+    .school-dashboard .school-body {
+        padding: 0;
+        background: white;
+    }
+    .school-dashboard .school-section-box {
+        break-inside: avoid;
+        box-shadow: none;
+        border-color: #CBD5E1;
+    }
+}
+
+/* ─── MM. Reduced motion ─── */
+@media (prefers-reduced-motion: reduce) {
+    .school-dashboard *,
+    .school-dashboard *::before,
+    .school-dashboard *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ─── NN. Final focus-visible polish ─── */
+.school-dashboard :where(button, a, input, select, textarea):focus-visible {
+    outline: 2px solid var(--primary, #F83F70);
+    outline-offset: 2px;
+}
+
+/* ─── OO. Missing utility classes (extracted from individual pages) ─── */
+
+/* account.php — school-org-hero (school identity hero banner) */
+.school-dashboard .school-org-hero {
+    background: var(--surface, #FFFFFF);
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: 14px;
+    padding: clamp(16px, 2vw, 24px);
+    margin-bottom: clamp(16px, 2vw, 24px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.school-dashboard .school-badge--neutral {
+    background: linear-gradient(90deg, #F1F5F9 0%, #F8FAFC 100%);
+    color: var(--text-secondary, #6B5548);
+    border: 1px solid var(--border, #F0E6DD);
+}
+
+/* activities.php — school-act-action-field (already covered by school-act-* in school-activities.css but ensure base) */
+.school-dashboard .school-act-action-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+    min-width: 0;
+}
+
+.school-dashboard .school-act-action-field > label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-primary, #322014);
+}
+
+/* analytics.php / index.php — school-text-secondary */
+.school-dashboard .school-text-secondary {
+    color: var(--text-secondary, #6B5548);
+    font-size: 0.8125rem;
+    line-height: 1.55;
+}
+
+/* audit-logs.php */
+.school-dashboard .school-audit-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.school-dashboard .school-audit-filter__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.school-dashboard .school-audit-table-box {
+    background: var(--surface, #FFFFFF);
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: 14px;
+    padding: clamp(16px, 2vw, 22px);
+    margin-bottom: 20px;
+    overflow-x: auto;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+/* classes.php — modal variants (used inside forms) */
+.school-dashboard .school-modal-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #0F172A;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.school-dashboard .school-modal-subtitle {
+    font-size: 0.875rem;
+    color: #64748B;
+    margin: 4px 0 0;
+    line-height: 1.5;
+}
+
+.school-dashboard .school-modal-desc {
+    font-size: 0.875rem;
+    color: #64748B;
+    line-height: 1.55;
+    margin: 0;
+}
+
+.school-dashboard .school-modal-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border, #F0E6DD);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.school-dashboard .school-modal-body {
+    padding: 20px 24px;
+}
+
+.school-dashboard .school-modal-actions {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border, #F0E6DD);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+    background: #FAFBFC;
+}
+
+.school-dashboard .school-modal-icon-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--primary-light, #FFF0EB) 0%, #FAF5FF 100%);
+    color: var(--primary, #F83F70);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid var(--primary-light-border, #FFDACB);
+}
+
+.school-dashboard .school-modal-note {
+    background: linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%);
+    border: 1px solid #FDE68A;
+    color: #92400E;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    margin: 12px 0;
+}
+
+.school-dashboard .school-modal-target-name {
+    font-weight: 700;
+    color: var(--text-primary, #322014);
+    background: var(--surface-hover, #FFF7F2);
+    padding: 4px 10px;
+    border-radius: 6px;
+    display: inline-block;
+    margin-left: 6px;
+}
+
+/* internships.php */
+.school-dashboard .school-mentor-select {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border, #F0E6DD);
+    background: var(--surface, #FFFFFF);
+    font-size: 0.875rem;
+    color: var(--text-primary, #322014);
+    min-height: 44px;
+    transition: border-color var(--s-transition), box-shadow var(--s-transition);
+}
+
+.school-dashboard .school-mentor-select:focus {
+    outline: none;
+    border-color: var(--primary, #F83F70);
+    box-shadow: 0 0 0 4px rgba(248, 63, 112, 0.12);
+}
+
+.school-dashboard .school-toast-msg {
+    flex: 1;
+    min-width: 0;
+}
+
+/* partnerships.php */
+.school-dashboard .school-status-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.school-dashboard .school-status-dropdown__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--surface, #FFFFFF);
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    color: var(--text-primary, #322014);
+    transition: border-color var(--s-transition), box-shadow var(--s-transition);
+    min-height: 36px;
+    font-weight: 600;
+}
+
+.school-dashboard .school-status-dropdown__toggle:hover {
+    border-color: var(--primary-light-border, #FFDACB);
+}
+
+.school-dashboard .school-status-dropdown__menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 180px;
+    background: var(--surface, #FFFFFF);
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+    padding: 6px;
+    z-index: 100;
+    display: none;
+}
+
+.school-dashboard .school-status-dropdown__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    color: var(--text-primary, #322014);
+    transition: background-color var(--s-transition);
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+}
+
+.school-dashboard .school-status-dropdown__item:hover {
+    background: var(--surface-hover, #FFF7F2);
+}
+
+/* projects.php */
+.school-dashboard .school-author-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted, #9E897D);
+    margin-top: 6px;
+    line-height: 1.45;
+}
+
+.school-dashboard .school-author-search-input {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    background: var(--surface, #FFFFFF);
+    transition: border-color var(--s-transition), box-shadow var(--s-transition);
+    color: var(--text-primary, #322014);
+}
+
+.school-dashboard .school-author-search-input:focus {
+    outline: none;
+    border-color: var(--primary, #F83F70);
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.12);
+}
+
+.school-dashboard .school-author-select {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.school-dashboard .school-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: schoolSpin 0.8s linear infinite;
+}
+
+@keyframes schoolSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* account.php — sub-avatar size (used in school-org-hero) */
+.school-dashboard .school-avatar--lg {
+    width: 64px;
+    height: 64px;
+    font-size: 1.5rem;
+}
+
+.school-dashboard .school-avatar--blue {
+    background: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%);
+}
+
+/* account menu — company name & role label */
+.school-dashboard .school-account-menu__company-name {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-primary, #322014);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 180px;
+}
+
+/* ==========================================================================
+   MASTER BRANDING SYNC — Logo + Role-tag đồng bộ 100% mọi portal
+   Chuẩn hoá logo width, role-tag typography và brand wrapper spacing.
+   Lấy master từ "Khu vực sinh viên" (Learner) làm chuẩn.
+   ========================================================================== */
+
+:root {
+    --brand-master-logo-width: 178px;
+    --brand-master-padding-bottom: 0.875rem;
+    --brand-master-margin-bottom: 1rem;
+}
+
+/* — Logo image: width đồng bộ 178px — */
+.learner-sidebar__logo-img,
+.teacher-sidebar__logo-img,
+.school-sidebar__logo-img,
+.ent-sidebar__logo-img,
+img.admin-sidebar__logo-img {
+    width: var(--brand-master-logo-width) !important;
+    max-width: 100%;
+    height: auto !important;
+    object-fit: contain;
+    aspect-ratio: 401 / 122;
+    display: block;
+    margin: 0 auto;
+}
+
+/* — Role-tag: đồng bộ typography & spacing (Khu vực sinh viên / Giáo viên / Nhà trường / Doanh nghiệp) — */
+.learner-sidebar__role-tag,
+.teacher-sidebar__role-tag,
+.school-sidebar__role-tag,
+.ent-sidebar__role-tag {
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    color: var(--primary-coral, #F83F70) !important;
+    background-color: #FFF0EB !important;
+    border: 1px solid #FFDACB !important;
+    padding: 3px 12px !important;
+    border-radius: 999px !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1.4 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 8px auto 0 auto !important;
+    white-space: nowrap !important;
+}
+
+/* — Brand wrapper: đồng bộ alignment & spacing — */
+.learner-sidebar__brand,
+.teacher-sidebar__brand,
+.school-sidebar__brand,
+.ent-sidebar__brand {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100%;
+    text-align: center;
+    padding-bottom: var(--brand-master-padding-bottom) !important;
+    border-bottom: 1px solid var(--border, #F0E6DD) !important;
+    margin-bottom: var(--brand-master-margin-bottom) !important;
+    box-sizing: border-box;
+}
+
+/* — Brand link (clickable logo): đồng bộ hover effect — */
+.learner-sidebar__brand-link,
+.teacher-sidebar__brand-link,
+.school-sidebar__brand-link,
+.ent-sidebar__brand-link {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-decoration: none !important;
+    line-height: 1 !important;
+    margin: 0 auto !important;
+    transition: opacity 0.15s ease, transform 0.15s ease !important;
+}
+
+.learner-sidebar__brand-link:hover,
+.teacher-sidebar__brand-link:hover,
+.school-sidebar__brand-link:hover,
+.ent-sidebar__brand-link:hover {
+    opacity: 0.92 !important;
+    transform: translateY(-1px) !important;
+}
+
+/* — Header section separation: khoảng cách rõ ràng giữa brand và nav — */
+.learner-sidebar__brand + .learner-sidebar__nav,
+.teacher-sidebar__brand + .teacher-sidebar__nav,
+.school-sidebar__brand + .school-sidebar__nav,
+.ent-sidebar__brand + .ent-sidebar__nav {
+    margin-top: clamp(12px, 1.5vw, 16px);
+}
+
+/* — Responsive: thu nhỏ đồng bộ trên mobile & tablet — */
+@media (max-width: 480px) {
+    :root {
+        --brand-master-logo-width: 152px;
+        --brand-master-padding-bottom: 0.75rem;
+        --brand-master-margin-bottom: 0.875rem;
+    }
+    .learner-sidebar__role-tag,
+    .teacher-sidebar__role-tag,
+    .school-sidebar__role-tag,
+    .ent-sidebar__role-tag {
+        font-size: 0.625rem !important;
+        padding: 2px 10px !important;
+    }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    :root {
+        --brand-master-logo-width: 166px;
+    }
+}
+
+/* — Print & safety — */
+@media print {
+    .learner-sidebar__brand,
+    .teacher-sidebar__brand,
+    .school-sidebar__brand,
+    .ent-sidebar__brand {
+        border-bottom: 0.5pt solid #999 !important;
     }
 }
