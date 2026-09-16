@@ -72,6 +72,7 @@ final class EnterpriseAiGeminiMatcher
             . "   - Candidates who lack both direct professional skills and relevant practical projects MUST NOT be ranked high or classified as 'Rất phù hợp' or 'Phù hợp'. If included, they must receive low scores (<= 35) and 'Có liên quan'.\n"
             . "   - Do not include candidates who have 0 skills, no projects, and no relevance to the job.\n"
             . "3. FACTUAL REASONING FROM REAL DATA ONLY: In 'recommendation_reason', provide a concise, natural Vietnamese explanation strictly referencing ONLY the skills, projects, and metrics that the candidate ACTUALLY possesses. NEVER hallucinate.\n"
+            . "Entries with item_kind=skill_group are teacher grades of that whole competency group. Never infer individual technology scores or mastery from a group grade. Scores are current, including zero; a recorded skill does not imply high proficiency.\n"
             . "4. CLASSIFICATION:\n"
             . "   - 'Rất phù hợp': Score >= 75.0 (possesses multiple directly matching professional skills or strong relevant practical project experience).\n"
             . "   - 'Phù hợp': Score 45.0 - 74.9 (possesses at least 1 core matching professional skill or relevant practical project).\n"
@@ -79,7 +80,7 @@ final class EnterpriseAiGeminiMatcher
             . "Respond strictly in JSON format matching the schema without markdown formatting.";
 
         $userPayload = [
-            'prompt_version' => 'enterprise-match-3.0.0',
+            'prompt_version' => 'enterprise-match-3.1.0',
             'job' => $safeJob,
             'candidates' => $candidateProjections,
             'response_schema' => [

@@ -22,14 +22,7 @@ final class EvidenceBackedScoreService
     {
         $studentId = trim($studentId);
         $this->authorize($studentId, $viewer);
-        $result = $this->resolve($studentId);
-        $validIds = array_column($result['teacher_context_assessments'], 'assessment_id');
-        $groups = [];
-        foreach ((new \TalentHub\Modules\Skills\Repository\SkillGroupRepository($this->pdo))->publishedForStudent($studentId) as $group) {
-            if (!in_array($group['source_id'], $validIds, true) || isset($groups[$group['group_code']])) continue;
-            $groups[$group['group_code']] = $group;
-        }
-        $result['skill_groups'] = array_values($groups);
+        $result = $this->resolveIncludingGroups($studentId);
         if ($viewer->isShared()) {
             $share = $viewer->sharedProfile($this->pdo);
             $result['teacher_context_assessments'] = [];
@@ -51,6 +44,55 @@ final class EvidenceBackedScoreService
             }
             unset($group);
         }
+        return $result;
+    }
+
+    /**
+     * Discovery projection for the business repository. The enterprise ID must come
+     * from its authenticated membership, as for the repository's discovery queries.
+     * Revalidate recipient access on every read, and expose no private assessment data.
+     */
+    public function forEnterpriseDiscovery(string $studentId, string $enterpriseId): array
+    {
+        if (!$this->rows("SELECT id FROM enterprises WHERE id=? AND status='active' AND verificationStatus='verified'", [$enterpriseId])
+            || !$this->rows("SELECT sp.id FROM student_profiles sp JOIN users u ON u.id=sp.userId WHERE sp.id=? AND u.status='active'", [$studentId])) {
+            throw new DomainException('SCORE_ACCESS_DENIED');
+        }
+        // Existing discovery supports an open talent pool. Once recipient grants
+        // exist, require current consent; expiration must never reopen that pool.
+        if ($this->has('enterprise_talent_access_grants', 'enterpriseId') && $this->rows(
+            "SELECT id FROM enterprise_talent_access_grants WHERE enterpriseId=? AND scope='enterprise_talent_discovery' LIMIT 1", [$enterpriseId]
+        )) {
+            if (!$this->rows("SELECT g.id FROM enterprise_talent_access_grants g
+                JOIN privacy_consents c ON c.id=g.consentId AND c.studentId=g.studentId
+                WHERE g.enterpriseId=? AND g.studentId=? AND g.scope='enterprise_talent_discovery'
+                AND g.revokedAt IS NULL AND g.expiresAt>CURRENT_TIMESTAMP
+                AND c.scope='enterprise_talent_discovery' AND c.isGranted=1 AND c.revokedAt IS NULL", [$enterpriseId,$studentId])) {
+                throw new DomainException('SCORE_ACCESS_DENIED');
+            }
+        }
+        $result = $this->resolveIncludingGroups($studentId);
+        $skills = [];
+        foreach (array_merge($result['skills'], $result['skill_groups']) as $skill) {
+            if (!in_array($skill['state'], ['scored','evidence_only'], true)) continue;
+            $skills[] = array_intersect_key($skill, array_flip([
+                'skill_id','skill_name','name','code','category','score','max_score',
+                'state','item_kind','group_code','assessed_at','source_type',
+            ]));
+        }
+        return ['skills'=>$skills, 'summary'=>$result['summary']];
+    }
+
+    private function resolveIncludingGroups(string $studentId): array
+    {
+        $result = $this->resolve($studentId);
+        $validIds = array_column($result['teacher_context_assessments'], 'assessment_id');
+        $groups = [];
+        foreach ((new \TalentHub\Modules\Skills\Repository\SkillGroupRepository($this->pdo))->publishedForStudent($studentId) as $group) {
+            if (!in_array($group['source_id'], $validIds, true) || isset($groups[$group['group_code']])) continue;
+            $groups[$group['group_code']] = $group;
+        }
+        $result['skill_groups'] = array_values($groups);
         return $result;
     }
 
