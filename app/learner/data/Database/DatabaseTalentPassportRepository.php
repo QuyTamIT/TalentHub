@@ -247,7 +247,7 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
         $official = $this->officialScores($studentId);
         if ($official !== null) {
             $rows = [];
-            foreach ($official['skills'] as $skill) {
+            foreach (array_merge($official['skills'], $official['skill_groups'] ?? []) as $skill) {
                 if (!in_array($skill['state'], ['scored', 'evidence_only'], true)) continue;
                 $rows[] = array_merge($skill, [
                     'student_id' => $studentId,

@@ -8,6 +8,7 @@ use RuntimeException;
 use Throwable;
 
 require_once __DIR__ . '/ScoreViewer.php';
+require_once dirname(__DIR__, 4) . '/src/Modules/Skills/Repository/SkillGroupRepository.php';
 
 /** Canonical source reader. Projection rows are never proof of a score. */
 final class EvidenceBackedScoreService
@@ -22,11 +23,19 @@ final class EvidenceBackedScoreService
         $studentId = trim($studentId);
         $this->authorize($studentId, $viewer);
         $result = $this->resolve($studentId);
+        $validIds = array_column($result['teacher_context_assessments'], 'assessment_id');
+        $groups = [];
+        foreach ((new \TalentHub\Modules\Skills\Repository\SkillGroupRepository($this->pdo))->publishedForStudent($studentId) as $group) {
+            if (!in_array($group['source_id'], $validIds, true) || isset($groups[$group['group_code']])) continue;
+            $groups[$group['group_code']] = $group;
+        }
+        $result['skill_groups'] = array_values($groups);
         if ($viewer->isShared()) {
             $share = $viewer->sharedProfile($this->pdo);
             $result['teacher_context_assessments'] = [];
             if (!in_array('skills', $share['fields'], true)) {
                 $result['skills'] = [];
+                $result['skill_groups'] = [];
                 $result['summary'] = ['score'=>null, 'formula_version'=>self::FORMULA_SKILL_MEAN,
                     'scored_skills_count'=>0, 'total_skills_count'=>0, 'included_skill_ids'=>[]];
             }
@@ -37,6 +46,10 @@ final class EvidenceBackedScoreService
                 $skill['calculation'] = null;
             }
             unset($skill);
+            foreach ($result['skill_groups'] as &$group) {
+                unset($group['assessment_id'], $group['source_id']);
+            }
+            unset($group);
         }
         return $result;
     }

@@ -134,11 +134,12 @@ if (!empty($rawSkills)) {
         }
         $skCode = strtolower(trim((string) ($sk['code'] ?? $sk['name'] ?? '')));
         $skName = $skillNameMap[$skCode] ?? (string) ($sk['name'] ?? 'Kỹ năng chuyên môn');
+        if (($sk['item_kind'] ?? '') === 'skill_group') $skName = 'Nhóm · ' . $skName;
         $state = (string) ($sk['state'] ?? $sk['score_state'] ?? '');
         $rawVal = $sk['level_score'] ?? $sk['levelScore'] ?? $sk['score'] ?? $sk['level'] ?? null;
         $isEvidenceOnly = $state === 'evidence_only' || ($rawVal === null && $state !== 'scored');
         $skScore = !$isEvidenceOnly && $rawVal !== null && is_numeric($rawVal)
-            ? max(0, min(100, (int) round((float) $rawVal)))
+            ? max(0, min(100, round((float) $rawVal, 2)))
             : null;
         $skCategory = strtolower((string) ($sk['category'] ?? ''));
         $isSoft = in_array($skCategory, ['soft', 'general'], true) || in_array($skCode, ['teamwork', 'communication'], true);
@@ -1447,12 +1448,12 @@ if ($professionalSummary === '') {
                                                             <?php if (!empty($sk['is_evidence_only']) || $sk['score'] === null): ?>
                                                                 <span class="skill-val" style="font-size: 0.75rem; color: #6b7280;">Minh chứng đã duyệt</span>
                                                             <?php else: ?>
-                                                                <span class="skill-val"><?= (int)$sk['score']; ?>/100</span>
+                                                                <span class="skill-val"><?= learner_escape((string)$sk['score']); ?>/100</span>
                                                             <?php endif; ?>
                                                         </div>
                                                         <?php if (empty($sk['is_evidence_only']) && $sk['score'] !== null): ?>
                                                             <div class="skill-bar">
-                                                                <span style="width: <?= (int)$sk['score']; ?>%;"></span>
+                                                                <span style="width: <?= learner_escape((string)$sk['score']); ?>%;"></span>
                                                             </div>
                                                         <?php endif; ?>
                                                     </div>
@@ -1470,12 +1471,12 @@ if ($professionalSummary === '') {
                                                             <?php if (!empty($sk['is_evidence_only']) || $sk['score'] === null): ?>
                                                                 <span class="skill-val" style="font-size: 0.75rem; color: #6b7280;">Minh chứng đã duyệt</span>
                                                             <?php else: ?>
-                                                                <span class="skill-val" style="color: #059669;"><?= (int)$sk['score']; ?>/100</span>
+                                                                <span class="skill-val" style="color: #059669;"><?= learner_escape((string)$sk['score']); ?>/100</span>
                                                             <?php endif; ?>
                                                         </div>
                                                         <?php if (empty($sk['is_evidence_only']) && $sk['score'] !== null): ?>
                                                             <div class="skill-bar">
-                                                                <span style="width: <?= (int)$sk['score']; ?>%; background: #10B981;"></span>
+                                                                <span style="width: <?= learner_escape((string)$sk['score']); ?>%; background: #10B981;"></span>
                                                             </div>
                                                         <?php endif; ?>
                                                     </div>
