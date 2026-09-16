@@ -124,8 +124,8 @@ $audiences = [
     <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="FTalentHub - Nền tảng phát triển và kết nối năng khiếu hàng đầu dành cho Học sinh, Giáo viên, Nhà trường và Doanh nghiệp.">
-    <title>FTalentHub | Nền tảng phát triển và kết nối năng khiếu</title>
+    <meta name="description" content="TalentHub - Nền tảng phát triển và kết nối năng khiếu hàng đầu dành cho Học sinh, Giáo viên, Nhà trường và Doanh nghiệp.">
+    <title>TalentHub | Nền tảng phát triển và kết nối năng khiếu</title>
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="assets/css/home.css?v=<?= filemtime(__DIR__ . '/assets/css/home.css'); ?>">
@@ -160,7 +160,7 @@ $audiences = [
                     Đăng nhập
                 </a>
                 
-                <a href="./role-selection.php" class="btn btn-primary site-header__app-btn">
+                <a href="./role-selection.php" class="btn btn-primary site-header__app-btn" style="display: flex; align-items: center; gap: 8px;">
                     Đăng ký
                     <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -219,7 +219,7 @@ $audiences = [
                             Khám phá năng khiếu – <span class="hero-title-highlight">Bứt phá tương lai</span>
                         </h1>
                         <p class="hero-description">
-                            FTalentHub giúp học sinh ghi nhận hồ sơ năng lực 360°, kết nối nhà trường, giáo viên và doanh nghiệp nhằm định hướng và tối ưu hóa tiềm năng của thế hệ trẻ.
+                            TalentHub giúp học sinh ghi nhận hồ sơ năng lực 360°, kết nối nhà trường, giáo viên và doanh nghiệp nhằm định hướng và tối ưu hóa tiềm năng của thế hệ trẻ.
                         </p>
                         <div class="hero-cta-group">
                             <a href="./login.php" class="btn btn-primary" data-cta="app">
@@ -315,7 +315,7 @@ $audiences = [
                         <span class="section-tag">Thống kê Nền tảng</span>
                         <h2 class="section-title">Những Con Số Ấn Tượng</h2>
                         <p class="section-description">
-                            Minh chứng thực tế cho quy mô kết nối và giá trị mà FTalentHub mang lại cho cộng đồng giáo dục.
+                            Minh chứng thực tế cho quy mô kết nối và giá trị mà TalentHub mang lại cho cộng đồng giáo dục.
                         </p>
                     </div>
 
@@ -458,7 +458,7 @@ $audiences = [
                                 <span class="expansion-badge">Sắp ra mắt</span>
                             </h4>
                             <p>
-                                Đội ngũ FTalentHub đang phát triển và hoàn thiện 2 module tiếp theo nhằm mở rộng thêm khả năng định hướng sự nghiệp và kết nối quỹ tài trợ chuyên sâu.
+                                Đội ngũ TalentHub đang phát triển và hoàn thiện 2 module tiếp theo nhằm mở rộng thêm khả năng định hướng sự nghiệp và kết nối quỹ tài trợ chuyên sâu.
                             </p>
                         </div>
                         <a href="./role-selection.php" class="btn btn-primary expansion-btn" data-cta="register">
@@ -478,7 +478,7 @@ $audiences = [
                     <span class="section-tag">Đối tượng sử dụng</span>
                     <h2 class="section-title">Giải pháp cho mọi đối tượng</h2>
                     <p class="section-description">
-                        FTalentHub thiết kế hệ sinh thái chuyên biệt mang lại giá trị thiết thực và kết nối hiệu quả 4 nhóm người dùng.
+                        TalentHub thiết kế hệ sinh thái chuyên biệt mang lại giá trị thiết thực và kết nối hiệu quả 4 nhóm người dùng.
                     </p>
                 </div>
 
@@ -560,7 +560,7 @@ $audiences = [
         <section class="cta-section" id="app">
             <div class="container">
                 <div class="cta-box">
-                    <h2 class="cta-title">Sẵn sàng bứt phá cùng FTalentHub?</h2>
+                    <h2 class="cta-title">Sẵn sàng bứt phá cùng TalentHub?</h2>
                     <p class="cta-description">
                         Gia nhập nền tảng ngay hôm nay để khai phá tiềm năng, xây dựng hồ sơ năng lực 360° và kết nối hàng ngàn cơ hội phát triển đột phá.
                     </p>

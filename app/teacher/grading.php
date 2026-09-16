@@ -8,6 +8,7 @@ use TalentHub\Bootstrap\PortalGuard;
 use TalentHub\Database\Connection;
 use TalentHub\Modules\Teacher\Repository\TeacherGradingRepository;
 use TalentHub\Modules\Teacher\Service\TeacherGradingService;
+use TalentHub\Modules\Skills\Repository\SkillGroupRepository;
 use TalentHub\Rbac\RoleCodes;
 use TalentHub\Support\Uuid;
 
@@ -17,6 +18,10 @@ date_default_timezone_set('Asia/Ho_Chi_Minh');
 $user = PortalGuard::requireRole(RoleCodes::TEACHER, '/app/teacher/grading.php');
 $session = new SessionManager(array_merge(require dirname(__DIR__, 2) . '/config/session.php', ['name' => SessionManager::SESSION_TEACHER]));
 $session->start();
+
+// The rendered scores and optimistic-lock version must be a fresh snapshot.
+header('Cache-Control: no-store, private, max-age=0');
+header('Pragma: no-cache');
 
 $config = require dirname(__DIR__, 2) . '/config/database.php';
 $pdo = (new Connection($config))->connect();
@@ -110,39 +115,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $status = ($action === 'submit_assessment') ? 'published' : 'draft';
 
     $studentId = trim((string) ($_POST['studentId'] ?? ''));
-    $classId = trim((string) ($_POST['classId'] ?? ''));
+    $activityId = trim((string) ($_POST['activityId'] ?? ''));
     $comment = trim((string) ($_POST['comment'] ?? ''));
     $scoresInput = $_POST['criteria'] ?? [];
 
     // Pass raw values through; the shared service rejects unknown, malformed and out-of-range scores.
     $serviceCriteria = $scoresInput;
 
-    if (!empty($studentId) && !empty($classId)) {
+    if (!empty($studentId) && !empty($activityId)) {
         try {
-            $chkStmt = $pdo->prepare("SELECT id, version, status FROM assessments WHERE teacherId = ? AND studentId = ? AND classId = ? LIMIT 1");
-            $chkStmt->execute([$teacherId, $studentId, $classId]);
-            $existing = $chkStmt->fetch(PDO::FETCH_ASSOC);
-
-            $assessmentId = $existing ? (string) $existing['id'] : null;
-            $expectedVersion = $existing ? (int) $existing['version'] : 0;
+            $assessmentId = $_POST['assessmentId'] ?? null;
+            $expectedVersion = $_POST['expectedVersion'] ?? null;
+            $isUpdate = is_string($assessmentId) && $assessmentId !== '';
 
             $gradingRepo = new TeacherGradingRepository($pdo);
             $gradingService = new TeacherGradingService($gradingRepo);
 
             $gradingService->save((string) $user['id'], [
-                'mode' => 'class',
-                'contextId' => $classId,
+                'mode' => 'activity',
+                'contextId' => $activityId,
                 'studentId' => $studentId,
                 'assessmentId' => $assessmentId,
-                'expectedVersion' => (string) $expectedVersion,
+                'expectedVersion' => $expectedVersion,
                 'assessmentStatus' => $status,
                 'comment' => $comment,
                 'criteria' => $serviceCriteria,
+                // Preserve the existing skill API alongside the group-only form.
+                // Mixed payloads reach service validation instead of silently dropping skills.
+                ...(array_key_exists('skills', $_POST)
+                    ? ['skills' => $_POST['skills']]
+                    : ['skillGroups' => $_POST['skillGroups'] ?? []]),
+                ...(array_key_exists('skills', $_POST) && array_key_exists('skillGroups', $_POST)
+                    ? ['skillGroups' => $_POST['skillGroups']] : []),
             ]);
 
             // Query back the saved assessment to retrieve backend-calculated overallScore and assessmentId
-            $fetchSaved = $pdo->prepare("SELECT id, overallScore FROM assessments WHERE teacherId = ? AND studentId = ? AND classId = ? LIMIT 1");
-            $fetchSaved->execute([$teacherId, $studentId, $classId]);
+            $fetchSaved = $pdo->prepare("SELECT id, version, overallScore FROM assessments WHERE teacherId = ? AND studentId = ? AND activityId = ? LIMIT 1");
+            $fetchSaved->execute([$teacherId, $studentId, $activityId]);
             $savedRow = $fetchSaved->fetch(PDO::FETCH_ASSOC);
             $assessmentId = $savedRow ? (string) $savedRow['id'] : ($assessmentId ?? '');
             $overallScore = ($savedRow && is_numeric($savedRow['overallScore'])) ? (float) $savedRow['overallScore'] : null;
@@ -154,35 +163,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stName = $stNameStmt->fetchColumn() ?: 'Học viên';
             } catch (\Throwable $e) {}
 
-            $statusText = ($status === 'published') ? 'Đã gửi đánh giá chính thức' : 'Đã lưu bản nháp';
-            $msg = "{$statusText} cho học viên {$stName} thành công" . ($overallScore !== null ? " (Điểm: {$overallScore})" : "") . ".";
+            $statusText = $isUpdate ? 'Đã cập nhật đánh giá' : ($status === 'published' ? 'Đã gửi đánh giá' : 'Đã lưu bản nháp');
+            $msg = "{$statusText} thành công cho {$stName}.";
 
             if ($isAjax) {
                 header('Content-Type: application/json; charset=utf-8');
                 echo json_encode([
                     'success' => true,
+                    'updated' => $isUpdate,
                     'message' => $msg,
                     'status' => $status,
                     'overallScore' => $overallScore !== null ? number_format($overallScore, 1) : null,
                     'studentId' => $studentId,
                     'assessmentId' => $assessmentId,
+                    // Return the version THIS save committed, not a later concurrent save
+                    // that could already be visible to the post-commit SELECT above.
+                    'version' => (int) $expectedVersion + 1,
+                    'activityId' => $activityId,
                 ]);
                 exit;
             }
 
             $_SESSION['teacherGradingFlash'] = $msg;
             $classQuery = isset($_POST['className']) ? '&class=' . urlencode((string)$_POST['className']) : '';
-            header('Location: ' . app_href('/app/teacher/grading.php') . '?student_id=' . urlencode($studentId) . $classQuery);
+            header('Location: ' . app_href('/app/teacher/grading.php') . '?student_id=' . urlencode($studentId) . '&activity_id=' . urlencode($activityId) . $classQuery);
             exit;
         } catch (\Throwable $e) {
             if ($isAjax) {
                 header('Content-Type: application/json; charset=utf-8');
-                http_response_code(400);
-                echo json_encode(['success' => false, 'message' => 'Lỗi lưu dữ liệu: ' . $e->getMessage()]);
+                $isVersionConflict = $e instanceof \TalentHub\Modules\Teacher\Exception\TeacherGradingConflictException;
+                http_response_code($isVersionConflict
+                    ? 409 : ($e instanceof \TalentHub\Http\ApiException ? $e->status : 500));
+                echo json_encode([
+                    'success' => false,
+                    'code' => $isVersionConflict ? 'ASSESSMENT_VERSION_CONFLICT' : 'SAVE_FAILED',
+                    'message' => $isVersionConflict
+                        ? 'Đánh giá đã được cập nhật ở lần lưu khác. Hãy tải bản mới nhất, kiểm tra điểm rồi gửi lại.'
+                        : 'Lỗi lưu dữ liệu: ' . $e->getMessage(),
+                ]);
                 exit;
             }
             $_SESSION['teacherGradingFlash'] = 'Lỗi lưu đánh giá: ' . $e->getMessage();
         }
+    } else {
+        http_response_code(422);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success' => false, 'message' => 'Vui lòng chọn học viên và Activity cần chấm.']);
+        exit;
     }
 }
 
@@ -221,6 +248,7 @@ if ($selectedClass === null && !empty($classList)) {
 
 $activeClassId = (string) ($selectedClass['id'] ?? '');
 $activeClassName = (string) ($selectedClass['name'] ?? '');
+$requestedActivityId = trim((string) ($_GET['activity_id'] ?? $_GET['activity'] ?? ''));
 
 // 6. Đọc danh sách bài đánh giá trong HÀNG CHỜ từ dữ liệu thật
 $students = [];
@@ -239,31 +267,34 @@ if ($activeClassId !== '') {
                        FROM assessment_scores sc 
                        WHERE sc.assessmentId = a.id
                    ) AS scoreCount,
-                   (
-                       SELECT act.title
-                       FROM activity_registrations ar
-                       JOIN activities act ON act.id = ar.activityId
-                       WHERE ar.studentId = sp.id
-                       ORDER BY ar.registeredAt DESC
-                       LIMIT 1
-                   ) AS latestActivityTitle,
+                   act.id AS currentActivityId, act.title AS latestActivityTitle,
                    (
                        SELECT ar.registeredAt
                        FROM activity_registrations ar
-                       WHERE ar.studentId = sp.id
+                       WHERE ar.studentId = sp.id AND ar.activityId = act.id
                        ORDER BY ar.registeredAt DESC
                        LIMIT 1
                    ) AS latestActivityRegisteredAt
             FROM student_profiles sp
             JOIN users u ON u.id = sp.userId
             LEFT JOIN classes c ON c.id = sp.classId
-            LEFT JOIN assessments a ON a.studentId = sp.id AND a.teacherId = :teacherId AND a.classId = :activeClassIdAssessment
+            LEFT JOIN activities act ON act.id = (
+                SELECT ar.activityId FROM activity_registrations ar
+                JOIN activities eligible ON eligible.id = ar.activityId
+                WHERE ar.studentId = sp.id AND ar.status IN ('approved', 'attended')
+                  AND eligible.createdByTeacherId = :activityTeacherId AND eligible.schoolId = c.schoolId
+                  AND (:activityFilter = '' OR ar.activityId = :activityId)
+                ORDER BY ar.registeredAt DESC, ar.activityId ASC LIMIT 1
+            )
+            LEFT JOIN assessments a ON a.studentId = sp.id AND a.teacherId = :teacherId AND a.activityId = act.id
             WHERE sp.studyStatus = 'active'
               AND sp.classId = :activeClassIdStudent
             ORDER BY u.fullName ASC
         ");
         $stStmt->execute([
-            'activeClassIdAssessment' => $activeClassId,
+            'activityTeacherId' => $teacherId,
+            'activityFilter' => $requestedActivityId,
+            'activityId' => $requestedActivityId,
             'activeClassIdStudent' => $activeClassId,
             'activeClassName' => $activeClassName,
             'teacherId' => $teacherId,
@@ -309,6 +340,20 @@ if (!empty($students)) {
 // 8. Đọc thông tin chi tiết cho học viên ĐANG CHẤM (Điểm tiêu chí & Hoạt động thực tế)
 $studentSavedScores = [];
 $studentActivities = [];
+$skillGroups = [];
+$savedGroupScores = [];
+$skillLoadError = null;
+$currentActivityId = (string) ($selectedStudent['currentActivityId'] ?? '');
+
+try {
+    $groupRepository = new SkillGroupRepository($pdo);
+    $skillGroups = $groupRepository->forAssessment($selectedStudent['assessmentId'] ?? null);
+    if ($selectedStudent && !empty($selectedStudent['assessmentId'])) {
+        $savedGroupScores = $groupRepository->assessmentScores((string) $selectedStudent['assessmentId']);
+    }
+} catch (\Throwable $e) {
+    $skillLoadError = 'Không tải được nhóm kỹ năng đã lưu. Vui lòng tải lại trang trước khi đánh giá.';
+}
 
 if ($selectedStudent) {
     $stId = $selectedStudent['studentId'];
@@ -804,6 +849,45 @@ if (!function_exists('getStudentSingleInitial')) {
             color: #94A3B8;
         }
 
+        .verified-skills { min-width: 0; margin: 0 0 1.25rem; padding: 0; border: 0; }
+        .verified-skills legend { padding: 0; }
+        .verified-skills-help, .verified-skills-count, .verified-skills-empty {
+            margin: 0 0 0.65rem; color: #64748B; font-size: 0.82rem; line-height: 1.5;
+        }
+        .verified-skills-list {
+            display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.35rem;
+            max-height: 240px; overflow-y: auto; padding: 0.25rem;
+        }
+        .verified-skill-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.2rem 0.5rem; border-radius: 6px; }
+        .verified-skill-row:has(input[type="checkbox"]:checked) { background: #FFF7ED; }
+        .verified-skill-choice { display: flex; align-items: center; gap: 0.5rem; flex: 1 1 175px; min-height: 44px; cursor: pointer; color: #334155; font-size: 0.85rem; }
+        .verified-skill-choice span { overflow-wrap: anywhere; }
+        .verified-skill-choice input { width: 17px; height: 17px; flex-shrink: 0; accent-color: #EA580C; }
+        .verified-skill-score { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; color: #64748B; font-size: 0.8rem; }
+        .verified-skill-score input { width: 88px; min-height: 40px; border: 1px solid #CBD5E1; border-radius: 6px; padding: 0.4rem; font: inherit; color: #0F172A; background: #FFFFFF; }
+        .verified-skill-score input:disabled { background: #F8FAFC; color: #64748B; cursor: not-allowed; }
+        .verified-skills [hidden] { display: none; }
+        .verified-skills input:focus-visible { outline: 2px solid #EA580C; outline-offset: 2px; }
+        .verified-skills-count { margin: 0.5rem 0 0; }
+        .verified-skills-error { color: #B91C1C; }
+        .grading-toast {
+            position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 1100;
+            display: flex; align-items: center; gap: 0.75rem;
+            width: max-content; max-width: min(440px, calc(100vw - 2.5rem));
+            box-sizing: border-box; padding: 0.85rem 1rem; border-radius: 12px;
+            background: #166534; color: #FFFFFF; font-size: 0.9rem; line-height: 1.5;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+        }
+        .grading-toast[hidden] { display: none; }
+        .grading-toast svg { flex: 0 0 22px; }
+        .grading-toast span { overflow-wrap: anywhere; }
+        .grading-toast button { flex-shrink: 0; min-width: 44px; min-height: 44px; border: 0; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+        .grading-toast button:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
+        .action-buttons-footer button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+        @media (max-width: 600px) {
+            .verified-skills-list { grid-template-columns: minmax(0, 1fr); }
+        }
+
         /* NÚT THAO TÁC Ở CUỐI PANEL */
         .action-buttons-footer {
             display: flex;
@@ -891,7 +975,7 @@ if (!function_exists('getStudentSingleInitial')) {
                         </div>
                     <?php endif; ?>
 
-                    <div id="ajaxAlertNotification" style="display: none; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1.25rem; font-weight: 600; align-items: center; gap: 0.5rem; font-size: 0.88rem;"></div>
+                    <div id="ajaxAlertNotification" role="alert" style="display: none; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1.25rem; font-weight: 600; align-items: center; gap: 0.5rem; font-size: 0.88rem;"></div>
 
                     <?php if (empty($students)): ?>
                         <div style="text-align: center; color: #64748B; padding: 3.5rem 1.5rem; background: #FFFFFF; border-radius: 10px; border: 1px solid #E2E8F0;">
@@ -920,12 +1004,12 @@ if (!function_exists('getStudentSingleInitial')) {
 
                                     $actTitle = !empty($st['latestActivityTitle']) 
                                         ? $st['latestActivityTitle'] 
-                                        : ('Đánh giá Năng lực - Lớp ' . $activeClassName);
+                                        : 'Chưa có Activity phù hợp để chấm';
                                     
                                     $evalTimestamp = $st['assessmentUpdatedAt'] ?? ($st['assessmentCreatedAt'] ?? ($st['latestActivityRegisteredAt'] ?? ($st['studentCreatedAt'] ?? null)));
                                     $relTime = formatRelativeDate($evalTimestamp);
                                 ?>
-                                    <a href="grading.php?class=<?= urlencode($activeClassName); ?>&student_id=<?= urlencode($st['studentId']); ?>"
+                                    <a href="grading.php?class=<?= urlencode($activeClassName); ?>&student_id=<?= urlencode($st['studentId']); ?>&activity_id=<?= urlencode((string) ($st['currentActivityId'] ?? $requestedActivityId)); ?>"
                                        class="queue-card-item <?= $isSelected ? 'is-selected' : ''; ?>"
                                        id="queue-item-<?= htmlspecialchars($st['studentId']); ?>">
                                         <div class="queue-card-name">
@@ -964,7 +1048,7 @@ if (!function_exists('getStudentSingleInitial')) {
                                 
                                 $curActTitle = !empty($selectedStudent['latestActivityTitle']) 
                                     ? $selectedStudent['latestActivityTitle'] 
-                                    : (!empty($studentActivities) ? $studentActivities[0]['title'] : ('Đánh giá Năng lực - Lớp ' . $activeClassName));
+                                    : 'Chưa có Activity phù hợp để chấm';
                                 
                                 $curTimestamp = $selectedStudent['assessmentUpdatedAt'] ?? ($selectedStudent['assessmentCreatedAt'] ?? ($selectedStudent['latestActivityRegisteredAt'] ?? ($selectedStudent['studentCreatedAt'] ?? null)));
                                 $curRelTime = formatRelativeDate($curTimestamp);
@@ -972,7 +1056,9 @@ if (!function_exists('getStudentSingleInitial')) {
                                 <form id="studentGradingForm" method="post" action="grading.php">
                                     <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken()); ?>">
                                     <input type="hidden" name="studentId" value="<?= htmlspecialchars($selectedStudent['studentId']); ?>">
-                                    <input type="hidden" name="classId" value="<?= htmlspecialchars($activeClassId); ?>">
+                                    <input type="hidden" name="activityId" value="<?= htmlspecialchars($currentActivityId); ?>">
+                                    <input type="hidden" name="assessmentId" value="<?= htmlspecialchars((string) ($selectedStudent['assessmentId'] ?? '')); ?>">
+                                    <input type="hidden" name="expectedVersion" value="<?= (int) ($selectedStudent['assessmentVersion'] ?? 0); ?>">
                                     <input type="hidden" name="className" value="<?= htmlspecialchars($activeClassName); ?>">
                                     <input type="hidden" name="action" id="gradingActionInput" value="save_draft">
 
@@ -1061,12 +1147,42 @@ if (!function_exists('getStudentSingleInitial')) {
                                                   placeholder="Ghi nhận tiến bộ, góp ý cải thiện..."><?= htmlspecialchars($curComment); ?></textarea>
                                     </div>
 
+                                    <fieldset class="verified-skills" <?= $currentActivityId === '' || $skillLoadError !== null ? 'disabled' : ''; ?>>
+                                        <legend class="comment-label">Kỹ năng được xác thực</legend>
+                                        <p class="verified-skills-help" id="verifiedSkillsHelp">Chọn nhóm năng lực học viên đã thể hiện. Nhập điểm riêng cho mỗi nhóm (0–100).</p>
+                                        <?php if ($skillLoadError !== null || $currentActivityId === ''): ?>
+                                            <p class="verified-skills-help verified-skills-error" role="alert"><?= htmlspecialchars($skillLoadError ?? 'Học viên chưa có Activity thuộc phạm vi chấm của bạn.'); ?></p>
+                                        <?php elseif ($skillGroups === []): ?>
+                                            <p class="verified-skills-empty">Chưa có nhóm kỹ năng đang hoạt động.</p>
+                                        <?php else: ?>
+                                            <div class="verified-skills-list">
+                                                <?php foreach ($skillGroups as $groupIndex => $group):
+                                                    $groupCode = (string) $group['code'];
+                                                    $isGroupSelected = array_key_exists($groupCode, $savedGroupScores);
+                                                ?>
+                                                    <div class="verified-skill-row">
+                                                        <label class="verified-skill-choice">
+                                                            <input type="checkbox" name="skillGroups[<?= $groupIndex; ?>][groupCode]" value="<?= htmlspecialchars($groupCode); ?>" <?= $isGroupSelected ? 'checked' : ''; ?>>
+                                                            <span><?= htmlspecialchars($group['name']); ?></span>
+                                                        </label>
+                                                        <label class="verified-skill-score">
+                                                            <span>Điểm</span>
+                                                            <input type="number" name="skillGroups[<?= $groupIndex; ?>][score]" min="0" max="100" step="0.01" inputmode="decimal" placeholder="0–100" aria-label="Điểm <?= htmlspecialchars($group['name']); ?>" value="<?= $isGroupSelected ? htmlspecialchars($savedGroupScores[$groupCode]) : ''; ?>" <?= $isGroupSelected ? 'required' : 'disabled'; ?>>
+                                                            <span>/ 100</span>
+                                                        </label>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                            <p class="verified-skills-count" id="verifiedSkillsCount" role="status" aria-live="polite"></p>
+                                        <?php endif; ?>
+                                    </fieldset>
+
                                     <!-- 7. NÚT THAO TÁC Ở CUỐI PANEL -->
                                     <div class="action-buttons-footer">
-                                        <button type="button" class="btn-draft" onclick="executeGradingAction('save_draft')">
+                                        <button type="button" class="btn-draft" onclick="executeGradingAction('save_draft')" <?= $currentActivityId === '' || $skillLoadError !== null ? 'disabled' : ''; ?>>
                                             Lưu nháp
                                         </button>
-                                        <button type="button" class="btn-submit" onclick="executeGradingAction('submit_assessment')">
+                                        <button type="button" class="btn-submit" onclick="executeGradingAction('submit_assessment')" <?= $currentActivityId === '' || $skillLoadError !== null ? 'disabled' : ''; ?>>
                                             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                                 <circle cx="12" cy="12" r="10"></circle>
                                                 <polyline points="16 9 10 15 7 12"></polyline>
@@ -1085,7 +1201,28 @@ if (!function_exists('getStudentSingleInitial')) {
         </div>
     </div>
 
+    <div id="gradingSuccessToast" class="grading-toast" hidden>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+        <span id="gradingSuccessMessage" role="status" aria-live="polite" aria-atomic="true"></span>
+        <button type="button" aria-label="Đóng thông báo" onclick="dismissGradingToast()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    </div>
     <script>
+        let gradingToastTimer;
+        function dismissGradingToast() {
+            clearTimeout(gradingToastTimer);
+            document.getElementById('gradingSuccessToast').hidden = true;
+        }
+        function showGradingSuccess(message) {
+            const toast = document.getElementById('gradingSuccessToast');
+            clearTimeout(gradingToastTimer);
+            toast.hidden = false;
+            document.getElementById('gradingSuccessMessage').textContent = message;
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && toast.animate) {
+                toast.getAnimations().forEach(animation => animation.cancel());
+                toast.animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 200, easing: 'ease-out' });
+            }
+            gradingToastTimer = setTimeout(dismissGradingToast, 5500);
+        }
         // Cập nhật gradient màu fill của thanh trượt slider (cam TalentHub dịu + xám nhạt)
         function updateSliderFill(slider) {
             const hasVal = slider.getAttribute('data-has-value') === '1';
@@ -1159,7 +1296,8 @@ if (!function_exists('getStudentSingleInitial')) {
         // Xử lý gửi hành động Lưu nháp hoặc Gửi đánh giá
         async function executeGradingAction(actionType) {
             const form = document.getElementById('studentGradingForm');
-            if (!form) return;
+            if (!form || form.dataset.saving === '1' || form.dataset.versionConflict === '1' || form.querySelector('.verified-skills')?.disabled) return;
+            if (!form.reportValidity()) return;
 
             // Kiểm tra nếu gửi đánh giá chính thức nhưng chưa chấm đủ 4 tiêu chí
             if (actionType === 'submit_assessment') {
@@ -1181,6 +1319,12 @@ if (!function_exists('getStudentSingleInitial')) {
             formData.append('is_ajax', '1');
 
             const alertBox = document.getElementById('ajaxAlertNotification');
+            const buttons = form.querySelectorAll('.action-buttons-footer button');
+            form.dataset.saving = '1';
+            form.setAttribute('aria-busy', 'true');
+            buttons.forEach(button => { button.disabled = true; });
+            dismissGradingToast();
+            if (alertBox) alertBox.style.display = 'none';
 
             try {
                 const res = await fetch('grading.php', {
@@ -1190,15 +1334,14 @@ if (!function_exists('getStudentSingleInitial')) {
                 });
                 const data = await res.json();
 
-                if (data.success) {
-                    if (alertBox) {
-                        alertBox.style.display = 'flex';
-                        alertBox.style.background = '#DCFCE7';
-                        alertBox.style.border = '1px solid #BBF7D0';
-                        alertBox.style.color = '#15803D';
-                        alertBox.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span>' + data.message + '</span>';
-                        alertBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }
+                if (res.ok && data.success) {
+                    form.elements.assessmentId.value = data.assessmentId;
+                    form.elements.expectedVersion.value = String(data.version);
+                    const currentUrl = new URL(window.location.href);
+                    currentUrl.searchParams.set('student_id', data.studentId);
+                    currentUrl.searchParams.set('activity_id', data.activityId);
+                    history.replaceState(null, '', currentUrl);
+                    showGradingSuccess(data.message);
 
                     // Cập nhật huy hiệu trạng thái bên Đang chấm
                     const statusTagContainer = document.getElementById('evalStatusTagContainer');
@@ -1225,15 +1368,67 @@ if (!function_exists('getStudentSingleInitial')) {
                         }
                     }
                 } else {
+                    if (res.status === 409 && data.code === 'ASSESSMENT_VERSION_CONFLICT') {
+                        form.dataset.versionConflict = '1';
+                    }
                     throw new Error(data.message || 'Lưu đánh giá thất bại.');
                 }
             } catch (err) {
-                // Fallback submit thường nếu fetch gặp lỗi mạng
-                form.submit();
+                if (alertBox) {
+                    alertBox.style.display = 'flex';
+                    alertBox.style.background = '#FEF2F2';
+                    alertBox.style.border = '1px solid #FECACA';
+                    alertBox.style.color = '#B91C1C';
+                    alertBox.setAttribute('role', 'alert');
+                    alertBox.textContent = err instanceof SyntaxError || err instanceof TypeError
+                        ? 'Chưa xác nhận được kết quả lưu. Vui lòng tải lại để kiểm tra trước khi thử lại.'
+                        : (err.message || 'Không thể lưu đánh giá. Vui lòng kiểm tra kết nối.');
+                    if (form.dataset.versionConflict === '1') {
+                        const reload = document.createElement('a');
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('student_id', form.elements.studentId.value);
+                        url.searchParams.set('activity_id', form.elements.activityId.value);
+                        reload.href = url.toString();
+                        reload.textContent = 'Tải bản mới nhất';
+                        // Reload the full form, including scores, before accepting its new version.
+                        reload.addEventListener('click', event => { event.preventDefault(); window.location.replace(reload.href); });
+                        alertBox.append(' ', reload);
+                    }
+                    alertBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            } finally {
+                form.dataset.saving = '0';
+                form.removeAttribute('aria-busy');
+                buttons.forEach(button => { button.disabled = form.dataset.versionConflict === '1'; });
             }
         }
 
+        window.addEventListener('pageshow', event => {
+            // Back/forward cache restores old hidden inputs without a new PHP request.
+            if (event.persisted) window.location.reload();
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('studentGradingForm');
+            form?.addEventListener('submit', event => {
+                event.preventDefault();
+                executeGradingAction(document.getElementById('gradingActionInput').value);
+            });
+            const skillRows = Array.from(document.querySelectorAll('.verified-skill-row'));
+            const updateSkills = () => {
+                let selected = 0;
+                skillRows.forEach(row => {
+                    const checkbox = row.querySelector('input[type="checkbox"]');
+                    const score = row.querySelector('input[type="number"]');
+                    score.disabled = !checkbox.checked;
+                    score.required = checkbox.checked;
+                    if (checkbox.checked) selected++;
+                });
+                const count = document.getElementById('verifiedSkillsCount');
+                if (count) count.textContent = selected + ' nhóm kỹ năng được chọn';
+            };
+            skillRows.forEach(row => row.querySelector('input[type="checkbox"]').addEventListener('change', updateSkills));
+            updateSkills();
             document.querySelectorAll('.criterion-range-slider').forEach(sl => {
                 updateSliderFill(sl);
             });

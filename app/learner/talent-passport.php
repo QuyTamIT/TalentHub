@@ -38,14 +38,30 @@ $evalComment = '';
 $evalReviewer = 'Giảng viên hướng dẫn';
 $evalOrg = !empty($studentSchool) && $studentSchool !== 'Chưa cập nhật trường' ? $studentSchool : 'Đơn vị đào tạo';
 
+// Ưu tiên official_score_summary.score (skill-mean từ EvidenceBackedScoreService, luôn dùng
+// latest published learner_evaluations revision) để tránh hiển thị overallScore cũ từ assessments table.
+$officialSummary = $talentPassport['official_score_summary'] ?? null;
+$officialScore = is_array($officialSummary) && is_numeric($officialSummary['score'] ?? null)
+    ? (float) $officialSummary['score']
+    : null;
+
+if ($officialScore !== null) {
+    $overallScore = $officialScore;
+    $hasOverallScore = true;
+    $gradeClassification = \TalentHub\Support\GradeClassifier::getClassification($overallScore);
+}
+
 if (!empty($talentPassport['teacher_evaluations'][0])) {
     $firstEval = $talentPassport['teacher_evaluations'][0];
-    if (array_key_exists('overall_score', $firstEval) || array_key_exists('overallScore', $firstEval)) {
-        $rawOverallScore = $firstEval['overall_score'] ?? $firstEval['overallScore'] ?? null;
-        $hasOverallScore = $rawOverallScore !== null;
-        $overallScore = (float) $rawOverallScore;
+    // overallScore từ assessments table chỉ dùng làm fallback nếu official_score_summary chưa có.
+    if (!$hasOverallScore) {
+        if (array_key_exists('overall_score', $firstEval) || array_key_exists('overallScore', $firstEval)) {
+            $rawOverallScore = $firstEval['overall_score'] ?? $firstEval['overallScore'] ?? null;
+            $hasOverallScore = $rawOverallScore !== null;
+            $overallScore = (float) $rawOverallScore;
+        }
     }
-    if (!empty($firstEval['classification'])) {
+    if ($hasOverallScore && $gradeClassification === 'Chưa xếp loại' && !empty($firstEval['classification'])) {
         $gradeClassification = (string) $firstEval['classification'];
     }
     $evalContext = trim(($firstEval['context_label'] ?? '') . ' · ' . ($firstEval['context_title'] ?? ''), " ·");

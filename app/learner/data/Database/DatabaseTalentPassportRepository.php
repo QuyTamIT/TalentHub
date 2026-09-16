@@ -97,6 +97,9 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             'progress' => $progress,
             'checkins' => $experience['confirmed_entries'],
             'teacher_feedback' => $teacherEvaluations,
+            // official_score_summary = skill-mean từ EvidenceBackedScoreService (luôn dùng latest published
+            // learner_evaluations revision). Đây là nguồn chính xác cho competency score trên Talent Passport.
+            'official_score_summary' => $this->officialScores($studentId)['summary'],
             'mentor_evaluations' => [],
             'roadmap_feedback' => $roadmapFeedback,
             'ai_capability_profile' => $aiCapabilityProfile,

@@ -625,7 +625,7 @@
 .contact-page .site-header__actions .btn,
 .contact-page .site-header__login-btn,
 .contact-page .site-header__app-btn {
-    padding: 0.5625rem 1.25rem; /* same as .btn (md) */
+    padding: 0.5625rem 1.7rem; /* same as .btn (md) */
     font-size: var(--text-base);
     font-weight: var(--font-semibold);
     line-height: var(--leading-snug);
@@ -645,6 +645,9 @@
     /* keep existing gradient / text color; apply landing shadow and subtle border */
     box-shadow: 0 4px 14px rgba(249, 115, 22, 0.3);
     border: 1px solid rgba(234, 88, 12, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
 }
 
 .contact-page .btn-primary:hover:not(:disabled),

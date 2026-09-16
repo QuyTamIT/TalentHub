@@ -172,6 +172,14 @@ final class TeacherGradingService
             }
         }
 
+        $groupScores = array_key_exists('skillGroups', $input) ? $this->skillGroupsInput($input['skillGroups']) : null;
+        if ($groupScores !== null && $mode !== 'activity') {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Nhóm kỹ năng chỉ hỗ trợ chấm Activity.');
+        }
+        if ($groupScores !== null && array_key_exists('skills', $input)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Không gửi đồng thời skills và skillGroups.');
+        }
+
         $this->repository->saveAssessment(
             $teacherId,
             $studentId,
@@ -189,7 +197,8 @@ final class TeacherGradingService
             $this->skillsInput($input['skills'] ?? []),
             $scoreMethod,
             $formulaVersion,
-            $calculationJson
+            $calculationJson,
+            $groupScores
         );
 
         return $activityId;
@@ -214,7 +223,9 @@ final class TeacherGradingService
             'overallScore' => (string) ($assessment['overallScore'] ?? ''),
             'comment' => $assessment['comment'],
             'criteria' => $assessment['criteria'] ?? [],
-            'skills' => $assessment['skills'] ?? [],
+            ...(array_key_exists('skillGroups', $assessment)
+                ? ['skillGroups' => $assessment['skillGroups']]
+                : ['skills' => $assessment['skills'] ?? []]),
         ], $requestId);
         return ['id' => $assessmentId, 'status' => 'published', 'version' => $expectedVersion + 1];
     }
@@ -319,57 +330,62 @@ final class TeacherGradingService
     }
 
     /**
-     * @return list<array{skillId?:string,skillName?:string,score:string,category?:string}>
+     * @return list<array{skillId:string,score:string}>
      */
     private function skillsInput(mixed $value): array
     {
-        if ($value === null || $value === '' || $value === []) {
-            return [];
-        }
         if (!is_array($value)) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Danh sách kỹ năng không hợp lệ.');
         }
 
         $skills = [];
+        $seen = [];
         foreach ($value as $index => $item) {
             if (!is_array($item)) {
                 throw new ApiException(422, 'VALIDATION_FAILED', 'skills[' . $index . '] không hợp lệ.');
             }
-            $skillId = trim((string) ($item['skillId'] ?? ''));
-            $skillName = trim((string) ($item['skillName'] ?? $item['name'] ?? ''));
-            $scoreValue = $item['score'] ?? null;
-            if ($skillId === '' && $skillName === '' && ($scoreValue === null || $scoreValue === '')) {
-                continue;
-            }
-            if ($skillId === '' && $skillName === '') {
-                throw new ApiException(422, 'VALIDATION_FAILED', 'skills[' . $index . '] cần skillId hoặc skillName.');
-            }
-            if ($skillId !== '' && !Uuid::isValid($skillId)) {
+            $skillId = $item['skillId'] ?? null;
+            if (!is_string($skillId) || !Uuid::isValid(trim($skillId))) {
                 throw new ApiException(422, 'VALIDATION_FAILED', 'skills[' . $index . '].skillId không hợp lệ.');
             }
+            $skillId = strtolower(trim($skillId));
+            if (isset($seen[$skillId])) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Không được chọn trùng kỹ năng trong một đánh giá.');
+            }
+            $seen[$skillId] = true;
             $scoreValue = $item['score'] ?? null;
             if (is_int($scoreValue) || is_float($scoreValue)) {
-                $scoreValue = number_format((float) $scoreValue, 2, '.', '');
+                $scoreValue = (string) $scoreValue;
             }
             $score = $this->score($scoreValue, 0.0, 100.0, 'skills[' . $index . '].score', false);
             if ($score === null) {
                 throw new ApiException(422, 'VALIDATION_FAILED', 'skills[' . $index . '].score là bắt buộc.');
             }
-            $entry = ['score' => $score];
-            if ($skillId !== '') {
-                $entry['skillId'] = strtolower($skillId);
-            }
-            if ($skillName !== '') {
-                $entry['skillName'] = mb_substr($skillName, 0, 150);
-            }
-            $category = $item['category'] ?? null;
-            if (is_string($category) && $category !== '') {
-                $entry['category'] = strtolower(trim($category));
-            }
-            $skills[] = $entry;
+            $skills[] = ['skillId' => $skillId, 'score' => $score];
         }
 
         return $skills;
+    }
+
+    /** @return list<array{groupCode:string,score:string}> */
+    private function skillGroupsInput(mixed $value): array
+    {
+        if (!is_array($value)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Danh sách nhóm kỹ năng không hợp lệ.');
+        }
+        $groups = [];
+        $seen = [];
+        foreach ($value as $item) {
+            $code = is_array($item) ? ($item['groupCode'] ?? null) : null;
+            if (!is_string($code) || !preg_match('/^[a-z][a-z0-9_]{0,47}$/D', $code) || isset($seen[$code])) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Nhóm kỹ năng không hợp lệ hoặc bị trùng.');
+            }
+            $score = $item['score'] ?? null;
+            if (is_int($score) || is_float($score)) $score = (string) $score;
+            $groups[] = ['groupCode' => $code, 'score' => $this->score($score, 0, 100, 'Điểm nhóm kỹ năng', false)];
+            $seen[$code] = true;
+        }
+        return $groups;
     }
 
     private function search(string $value): string

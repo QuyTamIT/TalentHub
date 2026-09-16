@@ -7,6 +7,8 @@ require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/TransactionalAiOutboxP
 
 use PDO;
 use PDOException;
+use TalentHub\Http\ApiException;
+use TalentHub\Learner\Data\Service\EvidenceBackedScoreService;
 use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 use TalentHub\Learner\Data\Database\DatabaseBadgeRepository;
 use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
@@ -368,17 +370,27 @@ final class TeacherGradingRepository
         $s = $this->pdo->prepare('SELECT criteriaId,score FROM assessment_scores WHERE assessmentId=?');
         $s->execute([$assessmentId]);
         $a['criteria'] = array_map('strval', array_column($s->fetchAll(PDO::FETCH_ASSOC), 'score', 'criteriaId'));
-        if ($this->hasTable('learner_evaluations') && $this->hasTable('learner_evaluation_items')) {
-            $items = $this->pdo->prepare('SELECT i.skillId,i.label AS skillName,i.score FROM learner_evaluation_items i JOIN learner_evaluations e ON e.id=i.evaluationId WHERE e.legacyAssessmentId=? AND i.itemKind=\'skill\'');
-            $items->execute([$assessmentId]);
-            $a['skills'] = array_map(static fn(array $item): array => ['skillId'=>(string) $item['skillId'], 'skillName'=>(string) $item['skillName'], 'score'=>(string) $item['score']], $items->fetchAll(PDO::FETCH_ASSOC));
-        } else { $a['skills'] = []; }
+        $this->requiredScoreService();
+        $items = $this->pdo->prepare("SELECT i.skillId,i.label AS skillName,i.score
+            FROM learner_evaluation_items i
+            WHERE i.evaluationId = (SELECT e.id FROM learner_evaluations e
+                WHERE e.legacyAssessmentId=? ORDER BY e.revision DESC LIMIT 1)
+            AND i.itemKind='skill'");
+        $items->execute([$assessmentId]);
+        $a['skills'] = array_map(static fn(array $item): array => ['skillId'=>(string) $item['skillId'], 'skillName'=>(string) $item['skillName'], 'score'=>(string) $item['score']], $items->fetchAll(PDO::FETCH_ASSOC));
+        if ($mode === 'activity' && $this->hasTable('assessment_skill_group_scores')) {
+            $a['skillGroups'] = [];
+            $groups = new \TalentHub\Modules\Skills\Repository\SkillGroupRepository($this->pdo);
+            foreach ($groups->assessmentScores($assessmentId) as $code => $score) {
+                $a['skillGroups'][] = ['groupCode' => $code, 'score' => $score];
+            }
+        }
         return $a;
     }
 
     /**
      * @param list<array{criteriaId:string,score:string}> $criteriaScores
-     * @param list<array{skillId?:string,skillName?:string,score:string,category?:string}> $skillsInput
+     * @param list<array{skillId:string,score:string}> $skillsInput
      */
     public function saveAssessment(
         string $teacherId,
@@ -397,7 +409,8 @@ final class TeacherGradingRepository
         array $skillsInput = [],
         ?string $scoreMethod = null,
         ?string $formulaVersion = null,
-        ?string $calculationJson = null
+        ?string $calculationJson = null,
+        ?array $groupScores = null
     ): void {
         $column = TeacherAssessmentScope::column($mode);
         $this->pdo->beginTransaction();
@@ -505,6 +518,13 @@ final class TeacherGradingRepository
                 $scoreStatement->execute($scoreParams);
             }
 
+            if ($groupScores !== null) {
+                if ($mode !== 'activity' || $skillsInput !== []) {
+                    throw new ApiException(422, 'VALIDATION_FAILED', 'Group grading requires an Activity and no skill payload.');
+                }
+                $this->persistGroupScores($savedAssessmentId, $groupScores);
+            }
+
             $this->persistTeacherSkills(
                 $teacherId,
                 $studentId,
@@ -519,7 +539,8 @@ final class TeacherGradingRepository
                 $skillsInput,
                 $scoreMethod,
                 $formulaVersion,
-                $calculationJson
+                $calculationJson,
+                $groupScores !== null
             );
 
             if ($status === 'published' && $publishedAt !== null && $this->hasBadgesTable()) {
@@ -629,13 +650,38 @@ final class TeacherGradingRepository
         return is_array($row) ? $row : null;
     }
 
+    /** Called inside the assessment transaction, after scope/version checks. */
+    private function persistGroupScores(string $assessmentId, array $groups): void
+    {
+        $allowed = $this->pdo->prepare("SELECT g.code FROM skill_groups g WHERE g.code=?
+            AND (g.status='active' OR EXISTS (SELECT 1 FROM assessment_skill_group_scores s
+                WHERE s.groupCode=g.code AND s.assessmentId=?))" . $this->lockSuffix(true));
+        $seen = [];
+        foreach ($groups as $group) {
+            $code = $group['groupCode'] ?? null;
+            $score = $group['score'] ?? null;
+            if (!is_string($code) || isset($seen[$code]) || !is_string($score)
+                || !preg_match('/^\d+(?:\.\d{1,2})?$/D', $score) || (float) $score > 100) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Nhóm hoặc điểm nhóm không hợp lệ.');
+            }
+            $allowed->execute([$code, $assessmentId]);
+            if ($allowed->fetchColumn() === false) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Nhóm kỹ năng không tồn tại hoặc không còn hoạt động.');
+            }
+            $seen[$code] = true;
+        }
+        $this->pdo->prepare('DELETE FROM assessment_skill_group_scores WHERE assessmentId=?')->execute([$assessmentId]);
+        $insert = $this->pdo->prepare('INSERT INTO assessment_skill_group_scores (assessmentId,groupCode,score) VALUES (?,?,?)');
+        foreach ($groups as $group) $insert->execute([$assessmentId, $group['groupCode'], $group['score']]);
+    }
+
     private function isDuplicateKey(\PDOException $exception): bool
     {
         return (int) ($exception->errorInfo[1] ?? 0) === 1062;
     }
 
     /**
-     * @param list<array{skillId?:string,skillName?:string,score:string,category?:string}> $skillsInput
+     * @param list<array{skillId:string,score:string}> $skillsInput
      */
     private function persistTeacherSkills(
         string $teacherId,
@@ -651,21 +697,29 @@ final class TeacherGradingRepository
         array $skillsInput,
         ?string $scoreMethod = null,
         ?string $formulaVersion = null,
-        ?string $calculationJson = null
+        ?string $calculationJson = null,
+        bool $preserveSkills = false
     ): void {
-        if ($skillsInput === []) {
-            return;
-        }
-        if (!$this->hasTable('skills') || !$this->hasTable('student_skills')) {
-            throw new \RuntimeException('Could not persist teacher skill scores because the skill tables are missing.');
-        }
+        $scores = $this->requiredScoreService();
 
         $now = $this->nowExpression();
         $isSqlite = $this->isSqlite();
         $resolved = [];
+        $seen = [];
         foreach ($skillsInput as $item) {
-            $skillId = $this->resolveOrCreateSkill($item, $now);
-            $score = (string) $item['score'];
+            $skillId = $this->requireActiveSkill($item);
+            if (isset($seen[$skillId])) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Không được chọn trùng kỹ năng trong một đánh giá.');
+            }
+            $seen[$skillId] = true;
+            $scoreValue = $item['score'] ?? null;
+            if (!is_string($scoreValue) && !is_int($scoreValue) && !is_float($scoreValue)) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Điểm kỹ năng không hợp lệ.');
+            }
+            $score = (string) $scoreValue;
+            if (!preg_match('/^\d+(?:\.\d{1,2})?$/', $score) || (float) $score > 100) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Điểm kỹ năng phải nằm trong [0, 100], tối đa 2 chữ số thập phân.');
+            }
             $resolved[] = [
                 'skillId' => $skillId,
                 'score' => $score,
@@ -673,80 +727,63 @@ final class TeacherGradingRepository
         }
 
         $actor = $this->actorUserIdForTeacher($teacherId, $actorUserId);
-        if ($actor !== null && $this->hasTable('learner_evaluations') && $this->hasTable('learner_evaluation_items')) {
-            $this->upsertLearnerSkillEvaluation(
-                $teacherId,
-                $studentId,
-                $savedAssessmentId,
-                $mode,
-                $contextId,
-                $overallScore,
-                $comment,
-                $status,
-                $publishedAt,
-                $actor,
-                $resolved,
-                $now,
-                $isSqlite,
-                $scoreMethod,
-                $formulaVersion,
-                $calculationJson
-            );
+        if ($actor === null) {
+            throw new \RuntimeException('VERIFIED_SKILLS_ACTOR_REQUIRED: teacher user could not be resolved.');
         }
+        $this->upsertLearnerSkillEvaluation(
+            $teacherId,
+            $studentId,
+            $savedAssessmentId,
+            $mode,
+            $contextId,
+            $overallScore,
+            $comment,
+            $status,
+            $publishedAt,
+            $actor,
+            $resolved,
+            $now,
+            $isSqlite,
+            $scoreMethod,
+            $formulaVersion,
+            $calculationJson,
+            $preserveSkills
+        );
 
-        if (class_exists(\TalentHub\Learner\Data\Service\EvidenceBackedScoreService::class)) {
-            (new \TalentHub\Learner\Data\Service\EvidenceBackedScoreService($this->pdo))->projectOfficialScores($studentId);
-        }
+        $scores->projectOfficialScores($studentId);
     }
 
-    /**
-     * @param array{skillId?:string,skillName?:string,category?:string} $item
-     */
-    private function resolveOrCreateSkill(array $item, string $now): string
+    private function requiredScoreService(): EvidenceBackedScoreService
     {
-        $skillId = trim((string) ($item['skillId'] ?? ''));
-        if ($skillId !== '') {
-            $existing = $this->pdo->prepare('SELECT id FROM skills WHERE id = ? LIMIT 1');
-            $existing->execute([$skillId]);
-            $found = $existing->fetchColumn();
-            if (is_string($found) && $found !== '') {
-                return $found;
-            }
+        $path = dirname(__DIR__, 4) . '/app/learner/data/Service/EvidenceBackedScoreService.php';
+        if (!is_readable($path)) {
+            throw new \RuntimeException('VERIFIED_SKILLS_DEPENDENCY_MISSING: EvidenceBackedScoreService.php');
         }
-
-        $skillName = trim((string) ($item['skillName'] ?? ''));
-        if ($skillName === '') {
-            throw new \RuntimeException('Skill input requires skillId or skillName.');
-        }
-
-        $code = $this->skillCode($skillName);
-        $lookup = $this->pdo->prepare('SELECT id FROM skills WHERE code = ? OR LOWER(name) = LOWER(?) LIMIT 1');
-        $lookup->execute([$code, $skillName]);
-        $found = $lookup->fetchColumn();
-        if (is_string($found) && $found !== '') {
-            return $found;
-        }
-
-        $id = Uuid::v4();
-        $category = $this->skillCategory($item['category'] ?? null);
-        $insert = $this->pdo->prepare(
-            "INSERT INTO skills (id, code, name, category, status, createdAt, updatedAt)
-             VALUES (?, ?, ?, ?, 'active', {$now}, {$now})"
-        );
         try {
-            $insert->execute([$id, $code, $skillName, $category]);
-            return $id;
-        } catch (PDOException $exception) {
-            if (!$this->isUniqueViolation($exception)) {
-                throw $exception;
-            }
-            $lookup->execute([$code, $skillName]);
-            $found = $lookup->fetchColumn();
-            if (is_string($found) && $found !== '') {
-                return $found;
-            }
-            throw $exception;
+            require_once $path;
+            $service = new EvidenceBackedScoreService($this->pdo);
+        } catch (Throwable $exception) {
+            throw new \RuntimeException('VERIFIED_SKILLS_DEPENDENCY_FAILED: EvidenceBackedScoreService could not be loaded.', 0, $exception);
         }
+        $service->assertSchemaReady(true);
+        return $service;
+    }
+
+    /** @param array{skillId:string,score:string} $item */
+    private function requireActiveSkill(array $item): string
+    {
+        $skillId = $item['skillId'] ?? null;
+        if (!is_string($skillId) || !Uuid::isValid(trim($skillId))) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'skillId không hợp lệ.');
+        }
+        // Keep catalog status stable until the evaluation and projection have been saved.
+        $statement = $this->pdo->prepare("SELECT id FROM skills WHERE id=? AND status='active' LIMIT 1" . $this->lockSuffix(true));
+        $statement->execute([strtolower(trim($skillId))]);
+        $found = $statement->fetchColumn();
+        if (!is_string($found) || $found === '') {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Kỹ năng không tồn tại trong catalog hoặc không còn active.');
+        }
+        return strtolower($found);
     }
 
     private function upsertStudentSkill(string $studentId, string $skillId, string $score, string $now, bool $isSqlite): void
@@ -796,7 +833,8 @@ final class TeacherGradingRepository
         bool $isSqlite,
         ?string $scoreMethod = null,
         ?string $formulaVersion = null,
-        ?string $calculationJson = null
+        ?string $calculationJson = null,
+        bool $preserveSkills = false
     ): void {
         $baseEventKey = 'assessment:' . $savedAssessmentId;
         $find = $this->pdo->prepare(
@@ -971,6 +1009,23 @@ final class TeacherGradingRepository
             }
         }
 
+        if ($preserveSkills) {
+            // Draft edits keep original item IDs and all metadata. Publication copies the
+            // canonical items unchanged into the new revision, including inactive skills.
+            if (is_array($existing) && $evaluationId !== (string) $existing['id']) {
+                $items = $this->pdo->prepare('SELECT itemKind,itemCode,skillId,label,score,maxScore,confirmed,comment,createdAt FROM learner_evaluation_items WHERE evaluationId=?');
+                $items->execute([$existing['id']]);
+                $copy = $this->pdo->prepare('INSERT INTO learner_evaluation_items (id,evaluationId,itemKind,itemCode,skillId,label,score,maxScore,confirmed,comment,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+                foreach ($items->fetchAll(PDO::FETCH_NUM) as $item) {
+                    $copy->execute(array_merge([Uuid::v4(), $evaluationId], $item));
+                }
+            }
+            return;
+        }
+
+        // Replace only the current revision's skill selection; preserve published history.
+        $delete = $this->pdo->prepare("DELETE FROM learner_evaluation_items WHERE evaluationId=? AND itemKind='skill'");
+        $delete->execute([$evaluationId]);
         foreach ($resolved as $item) {
             $meta = $this->pdo->prepare('SELECT code, name FROM skills WHERE id = ? LIMIT 1');
             $meta->execute([$item['skillId']]);
@@ -1023,12 +1078,12 @@ final class TeacherGradingRepository
 
     private function actorUserIdForTeacher(string $teacherId, ?string $actorUserId): ?string
     {
-        if (is_string($actorUserId) && $actorUserId !== '') {
-            return $actorUserId;
-        }
         $statement = $this->pdo->prepare('SELECT userId FROM teacher_profiles WHERE id = ? LIMIT 1');
         $statement->execute([$teacherId]);
         $userId = $statement->fetchColumn();
+        if ($actorUserId !== null && $actorUserId !== '' && $actorUserId !== $userId) {
+            throw new \RuntimeException('VERIFIED_SKILLS_ACTOR_MISMATCH: actor must be the evaluating teacher.');
+        }
 
         return is_string($userId) && $userId !== '' ? $userId : null;
     }
