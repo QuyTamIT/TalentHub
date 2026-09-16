@@ -1077,3 +1077,135 @@ body:not(.landing-page) .school-header.is-scrolled,
 body:not(.landing-page) .ent-header.is-scrolled {
     box-shadow: 0 1px 0 rgb(28 25 23 / 0.05), 0 12px 32px rgb(15 23 42 / 0.08);
 }
+
+/* --------------------------------------------------------------------------
+   33. MASTER BRANDING SYNC — Logo + Role-tag đồng bộ 100% portals
+   Chuẩn hoá Learner / Teacher / School / Enterprise / Admin về cùng:
+   - logo width: 178px (mobile: 152px, tablet: 166px)
+   - role-tag font: 0.6875rem, color primary-coral, pill 3px 12px
+   - brand wrapper: flex-column centered, padding-bottom 0.875rem, border-bottom
+
+   Lưu ý: Patch này được đặt trong polish.css vì polish.css load SAU
+   các portal-specific CSS, đảm bảo override chính xác.
+   -------------------------------------------------------------------------- */
+
+:root {
+    --brand-master-logo-width: 178px;
+    --brand-master-padding-bottom: 0.875rem;
+    --brand-master-margin-bottom: 1rem;
+}
+
+/* — Logo image: width đồng bộ tuyệt đối 178px cho mọi portal — */
+.learner-sidebar__logo-img,
+.teacher-sidebar__logo-img,
+.school-sidebar__logo-img,
+.ent-sidebar__logo-img,
+img.admin-sidebar__logo-img {
+    width: var(--brand-master-logo-width) !important;
+    max-width: 100%;
+    height: auto !important;
+    object-fit: contain;
+    aspect-ratio: 401 / 122;
+    display: block;
+    margin: 0 auto;
+}
+
+/* — Role-tag: đồng bộ typography & spacing — */
+.learner-sidebar__role-tag,
+.teacher-sidebar__role-tag,
+.school-sidebar__role-tag,
+.ent-sidebar__role-tag {
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    color: var(--primary-coral, #F83F70) !important;
+    background-color: #FFF0EB !important;
+    border: 1px solid #FFDACB !important;
+    padding: 3px 12px !important;
+    border-radius: 999px !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1.4 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 8px auto 0 auto !important;
+    white-space: nowrap !important;
+}
+
+/* — Brand wrapper: đảm bảo alignment & spacing chuẩn master — */
+.learner-sidebar__brand,
+.teacher-sidebar__brand,
+.school-sidebar__brand,
+.ent-sidebar__brand {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100%;
+    text-align: center;
+    padding-bottom: var(--brand-master-padding-bottom) !important;
+    border-bottom: 1px solid var(--border, #F0E6DD) !important;
+    margin-bottom: var(--brand-master-margin-bottom) !important;
+    box-sizing: border-box;
+}
+
+/* — Brand link (clickable logo): đồng bộ hover effect — */
+.learner-sidebar__brand-link,
+.teacher-sidebar__brand-link,
+.school-sidebar__brand-link,
+.ent-sidebar__brand-link {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-decoration: none !important;
+    line-height: 1 !important;
+    margin: 0 auto !important;
+    transition: opacity 0.15s ease, transform 0.15s ease !important;
+}
+
+.learner-sidebar__brand-link:hover,
+.teacher-sidebar__brand-link:hover,
+.school-sidebar__brand-link:hover,
+.ent-sidebar__brand-link:hover {
+    opacity: 0.92 !important;
+    transform: translateY(-1px) !important;
+}
+
+/* — Header section separation: khoảng cách rõ ràng giữa brand và content — */
+.learner-sidebar__brand + .learner-sidebar__nav,
+.teacher-sidebar__brand + .teacher-sidebar__nav,
+.school-sidebar__brand + .school-sidebar__nav,
+.ent-sidebar__brand + .ent-sidebar__nav {
+    margin-top: clamp(12px, 1.5vw, 16px);
+}
+
+/* — Responsive: thu nhỏ đồng bộ trên mobile — */
+@media (max-width: 480px) {
+    :root {
+        --brand-master-logo-width: 152px;
+        --brand-master-padding-bottom: 0.75rem;
+        --brand-master-margin-bottom: 0.875rem;
+    }
+    .learner-sidebar__role-tag,
+    .teacher-sidebar__role-tag,
+    .school-sidebar__role-tag,
+    .ent-sidebar__role-tag {
+        font-size: 0.625rem !important;
+        padding: 2px 10px !important;
+    }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    :root {
+        --brand-master-logo-width: 166px;
+    }
+}
+
+/* — Print & safety — */
+@media print {
+    .learner-sidebar__brand,
+    .teacher-sidebar__brand,
+    .school-sidebar__brand,
+    .ent-sidebar__brand {
+        border-bottom: 0.5pt solid #999 !important;
+    }
+}

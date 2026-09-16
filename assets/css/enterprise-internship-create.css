@@ -718,3 +718,38 @@
         width: 100%;
     }
 }
+
+/* ==========================================================================
+   ENTERPRISE INTERNSHIP CREATE UI/UX POLISH PATCH
+   ========================================================================== */
+
+/* ── Overflow Protection ── */
+.enterprise-internship-create-page {
+    overflow-x: hidden;
+}
+
+/* ── Spacing Standardization ── */
+.ent-create-section {
+    padding: var(--space-6);
+    margin-bottom: var(--space-5);
+}
+
+@media (max-width: 768px) {
+    .ent-create-section {
+        padding: var(--space-4);
+    }
+}
+
+.ent-radio-card {
+    padding: var(--space-4);
+    margin-bottom: var(--space-3);
+}
+
+.ent-radio-card-content {
+    gap: var(--space-2);
+}
+
+.ent-create-actions-bar {
+    padding: var(--space-4);
+    gap: var(--space-3);
+}

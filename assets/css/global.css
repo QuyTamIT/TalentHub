@@ -3976,3 +3976,378 @@ body {
     outline-offset: 3px;
     box-shadow: 0 0 0 2px var(--surface, #fff), 0 0 0 5px var(--primary, #c2410c);
 }
+
+/* ==========================================================================
+   GLOBAL UI/UX POLISH PATCH
+   Spacing, Overflow Protection & Typography Fixes
+   ========================================================================== */
+
+/* ── Global Body Overflow Protection ── */
+html {
+    overflow-x: hidden;
+}
+
+body {
+    overflow-x: hidden;
+    min-width: 320px;
+}
+
+/* ── Core Layout Containers ── */
+.teacher-layout,
+.school-layout,
+.ent-layout,
+.learner-layout,
+.admin-layout {
+    overflow-x: hidden;
+}
+
+.teacher-main,
+.school-main-wrapper,
+.ent-main,
+.learner-main,
+.admin-main {
+    min-width: 0;
+}
+
+/* ── Grid & Flex Minimum Width ── */
+.grid,
+[class*="grid-"],
+[class^="grid-"] {
+    min-width: 0;
+}
+
+/* ── Typography Overflow Protection ── */
+h1, h2, h3, h4, h5, h6,
+p, span, div,
+li, td, th, label {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    -webkit-hyphens: auto;
+    hyphens: auto;
+}
+
+/* ── Header Content ── */
+.teacher-header__content,
+.school-header__content,
+.ent-header__content,
+.learner-header__content {
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* ── Sidebar Nav Overflow ── */
+.teacher-sidebar__nav,
+.school-sidebar__nav,
+.ent-sidebar__nav,
+.learner-sidebar__nav {
+    min-width: 0;
+}
+
+/* ── Card & Section Content ── */
+.card-body,
+.section-box,
+.teacher-section-box,
+.school-section-box,
+.ent-section-box,
+.modal-body {
+    min-width: 0;
+}
+
+/* ── Form Field Width ── */
+.form-group input,
+.form-group select,
+.form-group textarea,
+.school-form__field input,
+.school-form__field select,
+.school-form__field textarea,
+.teacher-form__field input,
+.teacher-form__field select,
+.teacher-form__field textarea {
+    max-width: 100%;
+}
+
+/* ── Table Responsive ── */
+.data-table,
+.teacher-students-table,
+.school-class-table,
+.table-responsive {
+    min-width: 100%;
+}
+
+/* ── Spacing Standardization (8px Grid) ── */
+/* Section padding: consistent spacing */
+.section {
+    padding: var(--space-8) 0;
+}
+
+.section--sm {
+    padding: var(--space-6) 0;
+}
+
+.section--lg {
+    padding: var(--space-12) 0;
+}
+
+/* Card spacing */
+.card {
+    padding: var(--space-4);
+}
+
+.card--spacious {
+    padding: var(--space-6);
+}
+
+/* Grid gap standardization */
+.grid-gap-sm { gap: var(--space-2); }
+.grid-gap-md { gap: var(--space-4); }
+.grid-gap-lg { gap: var(--space-6); }
+.grid-gap-xl { gap: var(--space-8); }
+
+/* Margin standardization */
+.mt-0 { margin-top: 0; }
+.mt-1 { margin-top: var(--space-1); }
+.mt-2 { margin-top: var(--space-2); }
+.mt-3 { margin-top: var(--space-3); }
+.mt-4 { margin-top: var(--space-4); }
+.mt-6 { margin-top: var(--space-6); }
+.mt-8 { margin-top: var(--space-8); }
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: var(--space-1); }
+.mb-2 { margin-bottom: var(--space-2); }
+.mb-3 { margin-bottom: var(--space-3); }
+.mb-4 { margin-bottom: var(--space-4); }
+.mb-6 { margin-bottom: var(--space-6); }
+.mb-8 { margin-bottom: var(--space-8); }
+
+/* ── Mobile Responsive Spacing ── */
+@media (max-width: 768px) {
+    .section {
+        padding: var(--space-6) 0;
+    }
+    
+    .card {
+        padding: var(--space-3);
+    }
+    
+    .grid-gap-md,
+    .grid-gap-lg {
+        gap: var(--space-3);
+    }
+}
+
+/* ==========================================================================
+   WCAG AA TYPOGRAPHY STANDARD — Layer 3 (global.css → end of file)
+   Applies across all portals AFTER portal.css so wins by specificity.
+   Brand-locked: NO purple/blue AI defaults. Coral/orange primary only.
+   ========================================================================== */
+
+/* ── Body baseline (WCAG AA: line-height 1.4-1.6, anti-aliasing) ── */
+body {
+    line-height: var(--line-body, 1.55);
+    color: var(--color-ink, #0f172a);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* ── Headings: tight line-height for hierarchy, balance wrap ── */
+:where(h1, h2, h3, h4, h5, h6) {
+    line-height: 1.2;
+    text-wrap: balance;
+    overflow-wrap: break-word;
+    color: var(--color-ink, #0f172a);
+}
+
+:where(h1) { font-size: clamp(1.5rem, 2.4vw, 2rem); }
+:where(h2) { font-size: clamp(1.25rem, 2vw, 1.5rem); }
+:where(h3) { font-size: clamp(1.125rem, 1.6vw, 1.25rem); }
+
+/* ── Body copy: comfortable reading line-height ── */
+:where(p, dd, blockquote, li) {
+    line-height: 1.6;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+/* ── Label / helper / caption: tighter, secondary color (WCAG AA on canvas) ── */
+:where(label, .form-label, .helper, .caption, figcaption) {
+    line-height: 1.45;
+    color: var(--color-muted, #475569);
+}
+
+/* ── TABLE STANDARD (cross-portal) ──
+   Padding 12-16px, thin divider, numeric right-align, text left-align.
+   Brand-locked surface (no glassy shadows).
+*/
+:where(.data-table, .teacher-students-table, .school-class-table,
+       .ent-table, .admin-table, .table) {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    color: var(--color-ink, #0f172a);
+}
+
+:where(.data-table, .teacher-students-table, .school-class-table,
+       .ent-table, .admin-table, .table) thead th {
+    padding: var(--space-3) var(--space-4);     /* 12px / 16px — 8px grid */
+    font-weight: 600;
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-muted, #475569);
+    text-align: left;
+    background: var(--surface-subtle, #f8fafc);
+    border-bottom: 1px solid var(--border, #e2e8f0);   /* 1px crisp */
+    line-height: 1.35;
+    overflow-wrap: break-word;
+}
+
+:where(.data-table, .teacher-students-table, .school-class-table,
+       .ent-table, .admin-table, .table) tbody td {
+    padding: var(--space-3) var(--space-4);     /* 12px / 16px */
+    border-bottom: 1px solid var(--border, #e2e8f0);
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-ink, #0f172a);
+    line-height: 1.5;
+    overflow-wrap: break-word;
+}
+
+:where(.data-table, .teacher-students-table, .school-class-table,
+       .ent-table, .admin-table, .table) tbody tr:last-child td {
+    border-bottom: none;
+}
+
+:where(.data-table, .teacher-students-table, .school-class-table,
+       .ent-table, .admin-table, .table) tbody tr {
+    transition: background-color var(--motion-fast, 160ms ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    :where(.data-table, .teacher-students-table, .school-class-table,
+           .ent-table, .admin-table, .table) tbody tr:hover {
+        background-color: var(--surface-subtle, #f8fafc);
+    }
+}
+
+/* Numeric columns: right-align. Apply via class on <td> or <th>. */
+:where(.data-table, .teacher-students-table, .school-class-table,
+       .ent-table, .admin-table, .table) :is(.num, .numeric, [data-num]) {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── CARD STANDARD (cross-portal) ──
+   Crisp 1px border. NO diffuse drop-shadow. Smooth state transitions.
+*/
+:where(.card, .section-box, .teacher-section-box, .school-section-box,
+       .ent-section-box, .learner-card, .stat-card, .bento-card,
+       .school-kpi-card, .school-talent-card, .school-project-card,
+       .teacher-kpi-card, .ent-kpi-card, .ent-metric-card, .admin-card) {
+    background: var(--color-surface, #ffffff);
+    border: 1px solid var(--border, #e2e8f0);        /* crisp 1px */
+    border-radius: var(--radius-md, 0.75rem);
+    padding: var(--space-4);                          /* 16px — 8px grid */
+    transition:
+        border-color var(--motion-fast, 160ms ease),
+        background-color var(--motion-fast, 160ms ease),
+        transform var(--motion-fast, 160ms ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    :where(.card, .section-box, .teacher-section-box, .school-section-box,
+           .ent-section-box, .learner-card, .stat-card, .bento-card,
+           .school-kpi-card, .school-talent-card, .school-project-card,
+           .teacher-kpi-card, .ent-kpi-card, .ent-metric-card, .admin-card):hover {
+        border-color: var(--color-brand, #c2410c);    /* brand-orange feedback, not purple */
+    }
+}
+
+:where(.card, .section-box, .teacher-section-box, .school-section-box,
+       .ent-section-box, .learner-card, .stat-card, .bento-card,
+       .school-kpi-card, .school-talent-card, .school-project-card,
+       .teacher-kpi-card, .ent-kpi-card, .ent-metric-card, .admin-card):focus-within {
+    border-color: var(--color-brand, #c2410c);
+    box-shadow: 0 0 0 3px rgb(194 65 12 / 0.15);      /* brand ring, not generic gray */
+}
+
+/* ── FORM STANDARD ── */
+:where(.form-group, .form-field) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);                              /* 8px */
+    margin-bottom: var(--space-4);                    /* 16px */
+}
+
+:where(.form-group, .form-field) > label {
+    font-size: var(--font-size-sm, 0.875rem);
+    font-weight: 500;
+    line-height: 1.45;
+    color: var(--color-ink, #0f172a);
+}
+
+:where(.form-input, .form-select, .form-textarea,
+       input:not([type="checkbox"]):not([type="radio"]),
+       select, textarea) {
+    min-height: var(--control-height, 44px);
+    padding: 0 var(--space-3);
+    font-family: inherit;
+    font-size: var(--font-size-md, 1rem);
+    line-height: 1.5;
+    color: var(--color-ink, #0f172a);
+    background: var(--color-surface, #ffffff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: var(--radius-sm, 0.5rem);
+    transition:
+        border-color var(--motion-fast, 160ms ease),
+        box-shadow var(--motion-fast, 160ms ease);
+}
+
+textarea { padding: var(--space-2) var(--space-3); }
+
+:where(.form-input, .form-select, .form-textarea,
+       input:not([type="checkbox"]):not([type="radio"]),
+       select, textarea):focus-visible {
+    border-color: var(--color-brand, #c2410c);
+    box-shadow: 0 0 0 3px rgb(194 65 12 / 0.15);
+    outline: none;
+}
+
+/* ── BUTTON STANDARD (smooth state transitions) ── */
+:where(.btn, button.btn, [role="button"]) {
+    transition:
+        background-color var(--motion-fast, 160ms ease),
+        border-color var(--motion-fast, 160ms ease),
+        color var(--motion-fast, 160ms ease),
+        box-shadow var(--motion-fast, 160ms ease),
+        transform var(--motion-fast, 160ms ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    :where(.btn, button.btn, [role="button"]):not(:disabled):hover {
+        transform: translateY(-1px);
+    }
+}
+
+/* ── RESPONSIVE BREAKPOINTS (mobile-first safe defaults) ── */
+@media (max-width: 768px) {
+    :where(.data-table, .teacher-students-table, .school-class-table,
+           .ent-table, .admin-table, .table) :is(th, td) {
+        padding: var(--space-3);                      /* 12px on mobile */
+    }
+
+    :where(.card, .section-box, .teacher-section-box, .school-section-box,
+           .ent-section-box, .learner-card, .stat-card, .bento-card,
+           .school-kpi-card, .school-talent-card, .school-project-card,
+           .teacher-kpi-card, .ent-kpi-card, .ent-metric-card, .admin-card) {
+        padding: var(--space-3);                      /* 12px on mobile */
+    }
+}
+
+@media (max-width: 480px) {
+    :where(.data-table, .teacher-students-table, .school-class-table,
+           .ent-table, .admin-table, .table) thead th {
+        font-size: 0.75rem;
+        padding: var(--space-2) var(--space-3);       /* 8px / 12px */
+    }
+}
+
+/* End of WCAG AA standard */

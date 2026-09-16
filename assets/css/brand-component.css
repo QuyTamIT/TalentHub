@@ -436,3 +436,157 @@
         transition: none !important;
     }
 }
+
+/* ==========================================================================
+   MASTER LAYOUT SYNC v2.0 — Single source of truth cho branding/header
+   Chuẩn hoá: Logo (178px) + Role-tag (font 0.6875rem, primary-coral)
+   đồng bộ chính xác 100% giữa Learner/Teacher/School/Enterprise/Admin.
+
+   LAYOUT MASTER — "Khu vực sinh viên" (Learner):
+     • Brand wrapper: flex column, centered, align-items: center
+     • Logo: img 178px × auto (aspect-ratio 401/122)
+     • Role-tag: pill 3px 12px, font 0.6875rem 600, color primary-coral
+     • Border-bottom 1px var(--border), padding-bottom 0.875rem, margin-bottom 1rem
+
+   CSS variables cố định trong :root để dễ override nếu cần.
+   ========================================================================== */
+
+:root {
+    --brand-master-logo-width: 178px;
+    --brand-master-role-size: 0.6875rem;
+    --brand-master-role-weight: 600;
+    --brand-master-role-color: var(--primary-coral, #F83F70);
+    --brand-master-role-bg: #FFF0EB;
+    --brand-master-role-border: #FFDACB;
+    --brand-master-padding-bottom: 0.875rem;
+    --brand-master-margin-bottom: 1rem;
+}
+
+/* — 1. Master brand wrapper (dùng chung cho cả 4 portals) — */
+.learner-sidebar__brand,
+.teacher-sidebar__brand,
+.school-sidebar__brand,
+.ent-sidebar__brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    text-align: center;
+    gap: 0;
+    padding-bottom: var(--brand-master-padding-bottom);
+    border-bottom: 1px solid var(--border, #F0E6DD);
+    margin-bottom: var(--brand-master-margin-bottom);
+    box-sizing: border-box;
+}
+
+/* — 2. Master logo image (đồng bộ width 178px cho mọi portal) — */
+.learner-sidebar__logo-img,
+.teacher-sidebar__logo-img,
+.school-sidebar__logo-img,
+.ent-sidebar__logo-img {
+    display: block;
+    width: var(--brand-master-logo-width);
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+    aspect-ratio: 401 / 122;
+    margin: 0 auto;
+}
+
+/* — 3. Master role-tag (Khu vực sinh viên / Giáo viên / Nhà trường / Doanh nghiệp) — */
+.learner-sidebar__role-tag,
+.teacher-sidebar__role-tag,
+.school-sidebar__role-tag,
+.ent-sidebar__role-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--brand-master-role-size);
+    font-weight: var(--brand-master-role-weight);
+    color: var(--brand-master-role-color);
+    background-color: var(--brand-master-role-bg);
+    border: 1px solid var(--brand-master-role-border);
+    padding: 3px 12px;
+    border-radius: 999px;
+    margin: 8px auto 0 auto;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* — 4. Master brand link (clickable logo) — */
+.learner-sidebar__brand-link,
+.teacher-sidebar__brand-link,
+.school-sidebar__brand-link,
+.ent-sidebar__brand-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    line-height: 1;
+    margin: 0 auto;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.learner-sidebar__brand-link:hover,
+.teacher-sidebar__brand-link:hover,
+.school-sidebar__brand-link:hover,
+.ent-sidebar__brand-link:hover {
+    opacity: 0.92;
+    transform: translateY(-1px);
+}
+
+/* — 5. Master hover effect cho img logo — */
+.learner-sidebar__brand-link:hover .learner-sidebar__logo-img,
+.teacher-sidebar__brand-link:hover .teacher-sidebar__logo-img,
+.school-sidebar__brand-link:hover .school-sidebar__logo-img,
+.ent-sidebar__brand-link:hover .ent-sidebar__logo-img {
+    filter: brightness(1.03);
+}
+
+/* — 6. Ensure admin sử dụng cùng logo width — */
+.sidebar .admin-sidebar__logo-img,
+.brand .admin-sidebar__logo-img,
+img.admin-sidebar__logo-img {
+    width: var(--brand-master-logo-width) !important;
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+    aspect-ratio: 401 / 122;
+    display: block;
+    margin: 0 auto;
+}
+
+/* — 7. Responsive: đồng bộ mọi portal trên mobile — */
+@media (max-width: 480px) {
+    :root {
+        --brand-master-logo-width: 152px;   /* thu nhỏ logo nhẹ trên mobile */
+        --brand-master-padding-bottom: 0.75rem;
+        --brand-master-margin-bottom: 0.875rem;
+    }
+    .learner-sidebar__role-tag,
+    .teacher-sidebar__role-tag,
+    .school-sidebar__role-tag,
+    .ent-sidebar__role-tag {
+        font-size: 0.625rem;                /* thu nhỏ role-tag trên mobile */
+        padding: 2px 10px;
+    }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    :root {
+        --brand-master-logo-width: 166px;
+    }
+}
+
+/* — 8. Print & reduced-motion safety — */
+@media print {
+    .learner-sidebar__brand,
+    .teacher-sidebar__brand,
+    .school-sidebar__brand,
+    .ent-sidebar__brand {
+        border-bottom: 0.5pt solid #999;
+    }
+}

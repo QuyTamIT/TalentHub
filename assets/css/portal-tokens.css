@@ -37,7 +37,7 @@ body.school-dashboard,
     --accent:                   #F23585;
     --accent-hover:             #F83F70;
     --accent-light:             #FFF0EB;
-
+    
     /* ── Semantic Warm Surfaces & Background ── */
     --background:               #FDF7F1;
     --surface:                  #FFFFFF;
@@ -53,6 +53,8 @@ body.school-dashboard,
     --text-secondary:           #6B5548;
     --text-muted:               #9E897D;
     --text-disabled:            #B8A999;
+    --text-inverse:             #FFFFFF;
+    --text-on-primary:          #FFFFFF;
 
     /* ── Shadows & Focus Ring ── */
     --shadow-soft:              0 4px 20px rgba(50, 32, 20, 0.04);
@@ -70,21 +72,57 @@ body.school-dashboard,
     --text-3xl:   1.5rem;      /* 24px */
     --text-4xl:   1.875rem;    /* 30px */
 
-    /* ── Font Weight ── */
-    --font-normal:   400;
-    --font-medium:   500;
-    --font-semibold: 600;
-    --font-bold:     700;
-
     /* ── Line Heights ── */
-    --leading-tight:  1.25;
-    --leading-snug:   1.375;
-    --leading-normal: 1.5;
+    --leading-none:    1;
+    --leading-tight:   1.25;
+    --leading-snug:    1.375;
+    --leading-normal:  1.5;
     --leading-relaxed: 1.625;
+    --leading-loose:   1.75;
+
+    /* ── Spacing Scale (8px Grid System) ── */
+    --space-0:  0;
+    --space-px:  1px;
+    --space-1:   0.25rem;     /* 4px */
+    --space-2:   0.5rem;      /* 8px */
+    --space-3:   0.75rem;     /* 12px */
+    --space-4:   1rem;        /* 16px */
+    --space-5:   1.25rem;     /* 20px */
+    --space-6:   1.5rem;      /* 24px */
+    --space-8:   2rem;        /* 32px */
+    --space-10:  2.5rem;      /* 40px */
+    --space-12:  3rem;        /* 48px */
+    --space-14:  3.5rem;      /* 56px */
+    --space-16:  4rem;        /* 64px */
+    --space-20:  5rem;        /* 80px */
+    --space-24:  6rem;        /* 96px */
+
+    /* ── Border Radius ── */
+    --radius-xs:   4px;
+    --radius-sm:   8px;
+    --radius-md:   12px;
+    --radius-lg:   16px;
+    --radius-xl:   20px;
+    --radius-2xl:  32px;
+    --radius-full: 9999px;
+
+    /* ── Font Weights ── */
+    --font-light:     300;
+    --font-normal:    400;
+    --font-medium:    500;
+    --font-semibold:  600;
+    --font-bold:      700;
+    --font-extrabold: 800;
 
     /* ── Gradients ── */
     --primary-gradient:         linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
     --primary-gradient-subtle:  linear-gradient(135deg, #FFF0EB 0%, #FAF5FF 100%);
+
+    /* ── Layout ── */
+    --sidebar-width:       264px;
+    --header-height:      64px;
+    --content-max:        1400px;
+    --content-gutter:     clamp(1rem, 2.4vw, 1.75rem);
 
     /* ── Brand Component Overrides ── */
     --brand-icon-bg:            var(--primary-gradient);
@@ -92,4 +130,22 @@ body.school-dashboard,
     --brand-name-hub-color:     var(--primary-coral);
     --brand-name-color:         var(--text-primary);
     --brand-sub-color:          var(--primary-coral);
+
+    /* ── Transitions ── */
+    --transition-fast:   0.15s ease;
+    --transition-base:   0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow:   0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* ── Z-index Scale ── */
+    --z-base:     1;
+    --z-raised:   10;
+    --z-dropdown: 100;
+    --z-sticky:   200;
+    --z-backdrop: 998;
+    --z-sidebar:  1000;
+    --z-header:   900;
+    --z-modal:    1100;
+    --z-toast:    1200;
+    --z-tooltip:  1300;
 }

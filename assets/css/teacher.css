@@ -117,7 +117,7 @@ body.teacher-sidebar-open { overflow: hidden; }
 
 .teacher-sidebar__logo-img {
     display: block;
-    width: 168px;
+    width: 178px;
     max-width: 100%;
     height: auto;
     object-fit: contain;
@@ -4329,74 +4329,64 @@ body.teacher-dashboard .teacher-registration-pill--reg-absent {
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 1rem;
+}
 .teacher-dashboard .page-header__title,
 .school-dashboard .page-header__title,
 .learner-dashboard .page-header__title,
-.ent-dashboard .page-header__title {
+.ent-dashboard .page-header__title,
+.teacher-dashboard .teacher-page-title,
+.school-dashboard .school-page-title,
+.learner-dashboard .learner-page-title,
+.ent-dashboard .ent-page-title {
     font-size: clamp(1.5rem, 3vw, 1.875rem);
     font-weight: 700;
     letter-spacing: -0.025em;
     line-height: 1.2;
+    margin: 0;
     color: var(--text-primary, #1c1917);
+}
 .teacher-dashboard .page-header__subtitle,
 .school-dashboard .page-header__subtitle,
 .learner-dashboard .page-header__subtitle,
 .ent-dashboard .page-header__subtitle {
-    margin-top: 0.35rem;
+    margin: 0.35rem 0 0;
     color: var(--text-secondary, #57534e);
     font-size: 0.95rem;
     line-height: 1.5;
     max-width: 60ch;
+}
 .teacher-dashboard .page-header__actions,
 .school-dashboard .page-header__actions,
 .learner-dashboard .page-header__actions,
 .ent-dashboard .page-header__actions {
     display: flex;
+    align-items: center;
     gap: 0.625rem;
     flex-wrap: wrap;
-.teacher-dashboard table,
-.school-dashboard table,
-.learner-dashboard table,
-.ent-dashboard table {
-    border-collapse: separate;
-    border-spacing: 0;
-    width: 100%;
-.teacher-dashboard table thead th,
-.school-dashboard table thead th,
-.learner-dashboard table thead th,
-.ent-dashboard table thead th {
-    background: #fafaf9;
-    color: var(--text-secondary, #57534e);
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    text-align: left;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border, #e7e5e4);
-.teacher-dashboard table tbody td,
-.school-dashboard table tbody td,
-.learner-dashboard table tbody td,
-.ent-dashboard table tbody td {
-    padding: 0.875rem 1rem;
-    border-bottom: 1px solid var(--border, #e7e5e4);
-    color: var(--text-primary, #1c1917);
-    vertical-align: middle;
-.teacher-dashboard table tbody tr,
-.school-dashboard table tbody tr,
-.learner-dashboard table tbody tr,
-.ent-dashboard table tbody tr {
-    transition: background-color 0.15s ease;
-.teacher-dashboard table tbody tr:hover,
-.school-dashboard table tbody tr:hover,
-.learner-dashboard table tbody tr:hover,
-.ent-dashboard table tbody tr:hover {
-    background: rgba(255, 247, 237, 0.5);
-.teacher-dashboard table tbody tr:last-child td,
-.school-dashboard table tbody tr:last-child td,
-.learner-dashboard table tbody tr:last-child td,
-.ent-dashboard table tbody tr:last-child td {
-    border-bottom: none;
+}
+.teacher-dashboard .school-section-box,
+.teacher-dashboard .school-card,
+.teacher-dashboard .school-grade-card,
+.school-dashboard .school-section-box,
+.school-dashboard .school-card,
+.school-dashboard .school-grade-card {
+    transition: border-color 0.18s ease, box-shadow 0.22s ease, transform 0.18s ease;
+}
+.teacher-dashboard .school-section-box:hover,
+.teacher-dashboard .school-grade-card:hover,
+.school-dashboard .school-section-box:hover,
+.school-dashboard .school-grade-card:hover {
+    border-color: rgba(194, 65, 12, 0.30);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(194, 65, 12, 0.06);
+    transform: translateY(-2px);
+}
+.teacher-dashboard .school-kpi-card__value,
+.teacher-dashboard .school-stat-value,
+.school-dashboard .school-kpi-card__value,
+.school-dashboard .school-stat-value {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
 .teacher-dashboard input,
 .teacher-dashboard select,
 .teacher-dashboard textarea,
@@ -4411,6 +4401,7 @@ body.teacher-dashboard .teacher-registration-pill--reg-absent {
 .ent-dashboard textarea {
     font-family: inherit;
     max-width: 100%;
+}
 .teacher-dashboard input:focus,
 .teacher-dashboard select:focus,
 .teacher-dashboard textarea:focus,
@@ -4426,9 +4417,79 @@ body.teacher-dashboard .teacher-registration-pill--reg-absent {
     outline: none;
     border-color: var(--primary, #c2410c);
     box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.14);
+}
+.teacher-dashboard table,
+.school-dashboard table,
+.learner-dashboard table,
+.ent-dashboard table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+}
+.teacher-dashboard table thead th,
+.school-dashboard table thead th,
+.learner-dashboard table thead th,
+.ent-dashboard table thead th {
+    background: #fafaf9;
+    color: var(--text-secondary, #57534e);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border, #e7e5e4);
+}
+.teacher-dashboard table tbody td,
+.school-dashboard table tbody td,
+.learner-dashboard table tbody td,
+.ent-dashboard table tbody td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--border, #e7e5e4);
+    color: var(--text-primary, #1c1917);
+    vertical-align: middle;
+}
+.teacher-dashboard table tbody tr,
+.school-dashboard table tbody tr,
+.learner-dashboard table tbody tr,
+.ent-dashboard table tbody tr {
+    transition: background-color 0.15s ease;
+}
+.teacher-dashboard table tbody tr:hover,
+.school-dashboard table tbody tr:hover,
+.learner-dashboard table tbody tr:hover,
+.ent-dashboard table tbody tr:hover {
+    background: rgba(255, 247, 237, 0.5);
+}
+.teacher-dashboard table tbody tr:last-child td,
+.school-dashboard table tbody tr:last-child td,
+.learner-dashboard table tbody tr:last-child td,
+.ent-dashboard table tbody tr:last-child td {
+    border-bottom: none;
+}
+.teacher-dashboard .school-account-menu,
+.school-dashboard .school-account-menu {
+    border-radius: 12px;
+    box-shadow: 0 20px 44px rgba(28, 25, 23, 0.14);
+    border: 1px solid var(--border, #e7e5e4);
+    background: #fff;
+    overflow: hidden;
+}
+.teacher-dashboard .school-account-menu__item,
+.school-dashboard .school-account-menu__item {
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+.teacher-dashboard .school-account-menu__item:hover,
+.school-dashboard .school-account-menu__item:hover {
+    background: var(--primary-light, #fff7ed);
+    color: var(--primary, #c2410c);
+}
+
 @media (max-width: 768px) {
     .teacher-dashboard .page-header,
+    .teacher-dashboard .teacher-page-header,
     .school-dashboard .page-header,
+    .school-dashboard .school-page-header,
     .learner-dashboard .page-header,
     .ent-dashboard .page-header {
         flex-direction: column;
@@ -4436,11 +4497,16 @@ body.teacher-dashboard .teacher-registration-pill--reg-absent {
         padding: 1.25rem 0 1rem;
         margin-bottom: 1.25rem;
         gap: 0.875rem;
+    }
     .teacher-dashboard .page-header__actions,
     .school-dashboard .page-header__actions,
     .learner-dashboard .page-header__actions,
     .ent-dashboard .page-header__actions {
         width: 100%;
+    }
+    .teacher-dashboard table {
+        font-size: 0.85rem;
+    }
     .teacher-dashboard table thead th,
     .teacher-dashboard table tbody td,
     .school-dashboard table thead th,
@@ -4450,10 +4516,334 @@ body.teacher-dashboard .teacher-registration-pill--reg-absent {
     .ent-dashboard table thead th,
     .ent-dashboard table tbody td {
         padding: 0.625rem 0.5rem;
+    }
+}
+
 @media (max-width: 480px) {
     .teacher-dashboard .page-header__title,
     .school-dashboard .page-header__title,
     .learner-dashboard .page-header__title,
     .ent-dashboard .page-header__title {
         font-size: 1.4rem;
-=======
+    }
+}
+
+/* ==========================================================================
+   TEACHER UI/UX POLISH PATCH — SPACING, OVERFLOW & TYPOGRAPHY
+   ========================================================================== */
+
+/* ── Teacher Layout Overflow Protection ── */
+body.teacher-dashboard,
+.teacher-dashboard {
+    overflow-x: hidden;
+}
+
+.teacher-layout,
+.teacher-main,
+.teacher-body {
+    overflow-x: hidden;
+    min-width: 0;
+}
+
+/* ── Teacher Body ── */
+.teacher-body {
+    padding: var(--space-6);
+}
+
+@media (max-width: 768px) {
+    .teacher-body {
+        padding: var(--space-4);
+    }
+}
+
+@media (max-width: 480px) {
+    .teacher-body {
+        padding: var(--space-3);
+    }
+}
+
+/* ── Teacher Header ── */
+.teacher-header {
+    padding: 0 var(--space-5);
+}
+
+@media (max-width: 768px) {
+    .teacher-header {
+        padding: 0 var(--space-4);
+    }
+}
+
+@media (max-width: 480px) {
+    .teacher-header {
+        padding: 0 var(--space-3);
+    }
+}
+
+/* ── Teacher Sidebar ── */
+.teacher-sidebar {
+    padding: var(--space-4) var(--space-3);
+}
+
+.teacher-sidebar__nav ul {
+    gap: var(--space-1);
+}
+
+.teacher-sidebar__link {
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-3);
+    min-height: var(--touch-target);
+}
+
+/* ── Teacher Section Box ── */
+.teacher-section-box {
+    padding: var(--space-5);
+    margin-bottom: var(--space-5);
+}
+
+@media (max-width: 768px) {
+    .teacher-section-box {
+        padding: var(--space-4);
+        margin-bottom: var(--space-4);
+    }
+}
+
+.teacher-section-box__header {
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
+}
+
+/* ── Teacher KPI Cards ── */
+.teacher-kpi-grid,
+.teacher-stat-cards {
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+}
+
+.teacher-kpi-card,
+.teacher-stat-card {
+    padding: var(--space-4);
+}
+
+/* ── Page Header ── */
+.teacher-dashboard .page-header {
+    padding: var(--space-5) 0 var(--space-4);
+    margin-bottom: var(--space-5);
+}
+
+@media (max-width: 768px) {
+    .teacher-dashboard .page-header {
+        padding: var(--space-4) 0 var(--space-3);
+        margin-bottom: var(--space-4);
+    }
+}
+
+/* ── Table Spacing ── */
+.teacher-dashboard table thead th {
+    padding: var(--space-3) var(--space-4);
+}
+
+.teacher-dashboard table tbody td {
+    padding: var(--space-4);
+}
+
+@media (max-width: 768px) {
+    .teacher-dashboard table thead th {
+        padding: var(--space-2) var(--space-3);
+    }
+    
+    .teacher-dashboard table tbody td {
+        padding: var(--space-3);
+    }
+}
+
+/* ── Form Grid ── */
+.teacher-form__grid {
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+}
+
+.teacher-form__field {
+    gap: var(--space-2);
+}
+
+.teacher-form__field input,
+.teacher-form__field select,
+.teacher-form__field textarea {
+    padding: var(--space-3) var(--space-4);
+}
+
+.teacher-form__actions {
+    gap: var(--space-3);
+    margin-top: var(--space-5);
+}
+
+/* ── Welcome Banner ── */
+.teacher-welcome,
+.teacher-welcome-banner {
+    padding: var(--space-5) var(--space-6);
+    margin-bottom: var(--space-5);
+}
+
+@media (max-width: 768px) {
+    .teacher-welcome,
+    .teacher-welcome-banner {
+        padding: var(--space-4);
+    }
+}
+
+/* ── Registration Header Card ── */
+.teacher-reg-header-card {
+    padding: var(--space-4) var(--space-5);
+    margin-bottom: var(--space-4);
+}
+
+.teacher-reg-header-card__tags {
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.teacher-reg-header-card__title {
+    margin-bottom: var(--space-3);
+}
+
+.teacher-reg-meta-pills {
+    gap: var(--space-3);
+}
+
+/* ── Summary Cards ── */
+.teacher-reg-summary {
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+/* ── Activity Card ── */
+.teacher-activity-card {
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+/* ==========================================================================
+   MASTER BRANDING SYNC — Logo + Role-tag đồng bộ 100% mọi portal
+   Chuẩn hoá logo width, role-tag typography và brand wrapper spacing.
+   Lấy master từ "Khu vực sinh viên" (Learner) làm chuẩn.
+   ========================================================================== */
+
+:root {
+    --brand-master-logo-width: 178px;
+    --brand-master-padding-bottom: 0.875rem;
+    --brand-master-margin-bottom: 1rem;
+}
+
+/* — Logo image: width đồng bộ 178px — */
+.learner-sidebar__logo-img,
+.teacher-sidebar__logo-img,
+.school-sidebar__logo-img,
+.ent-sidebar__logo-img,
+img.admin-sidebar__logo-img {
+    width: var(--brand-master-logo-width) !important;
+    max-width: 100%;
+    height: auto !important;
+    object-fit: contain;
+    aspect-ratio: 401 / 122;
+    display: block;
+    margin: 0 auto;
+}
+
+/* — Role-tag: đồng bộ typography & spacing (Khu vực sinh viên / Giáo viên / Nhà trường / Doanh nghiệp) — */
+.learner-sidebar__role-tag,
+.teacher-sidebar__role-tag,
+.school-sidebar__role-tag,
+.ent-sidebar__role-tag {
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    color: var(--primary-coral, #F83F70) !important;
+    background-color: #FFF0EB !important;
+    border: 1px solid #FFDACB !important;
+    padding: 3px 12px !important;
+    border-radius: 999px !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1.4 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 8px auto 0 auto !important;
+    white-space: nowrap !important;
+}
+
+/* — Brand wrapper: đồng bộ alignment & spacing — */
+.learner-sidebar__brand,
+.teacher-sidebar__brand,
+.school-sidebar__brand,
+.ent-sidebar__brand {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100%;
+    text-align: center;
+    padding-bottom: var(--brand-master-padding-bottom) !important;
+    border-bottom: 1px solid var(--border, #F0E6DD) !important;
+    margin-bottom: var(--brand-master-margin-bottom) !important;
+    box-sizing: border-box;
+}
+
+/* — Brand link (clickable logo): đồng bộ hover effect — */
+.learner-sidebar__brand-link,
+.teacher-sidebar__brand-link,
+.school-sidebar__brand-link,
+.ent-sidebar__brand-link {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-decoration: none !important;
+    line-height: 1 !important;
+    margin: 0 auto !important;
+    transition: opacity 0.15s ease, transform 0.15s ease !important;
+}
+
+.learner-sidebar__brand-link:hover,
+.teacher-sidebar__brand-link:hover,
+.school-sidebar__brand-link:hover,
+.ent-sidebar__brand-link:hover {
+    opacity: 0.92 !important;
+    transform: translateY(-1px) !important;
+}
+
+/* — Header section separation: khoảng cách rõ ràng giữa brand và nav — */
+.learner-sidebar__brand + .learner-sidebar__nav,
+.teacher-sidebar__brand + .teacher-sidebar__nav,
+.school-sidebar__brand + .school-sidebar__nav,
+.ent-sidebar__brand + .ent-sidebar__nav {
+    margin-top: clamp(12px, 1.5vw, 16px);
+}
+
+/* — Responsive: thu nhỏ đồng bộ trên mobile & tablet — */
+@media (max-width: 480px) {
+    :root {
+        --brand-master-logo-width: 152px;
+        --brand-master-padding-bottom: 0.75rem;
+        --brand-master-margin-bottom: 0.875rem;
+    }
+    .learner-sidebar__role-tag,
+    .teacher-sidebar__role-tag,
+    .school-sidebar__role-tag,
+    .ent-sidebar__role-tag {
+        font-size: 0.625rem !important;
+        padding: 2px 10px !important;
+    }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    :root {
+        --brand-master-logo-width: 166px;
+    }
+}
+
+/* — Print & safety — */
+@media print {
+    .learner-sidebar__brand,
+    .teacher-sidebar__brand,
+    .school-sidebar__brand,
+    .ent-sidebar__brand {
+        border-bottom: 0.5pt solid #999 !important;
+    }
+}

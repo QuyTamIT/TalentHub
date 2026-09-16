@@ -156,8 +156,8 @@ include __DIR__ . '/includes/page-banner.php';
     </section>
 <?php endif; ?>
 
-<div class="school-grid-2col school-grid-2col--teachers">
-    <div class="school-section-box" style="align-self: start;">
+<div class="school-stack">
+    <div class="school-section-box">
         <div class="school-section-box__header">
             <h3 class="school-section-box__title">Thêm giảng viên mới</h3>
         </div>
@@ -184,7 +184,7 @@ include __DIR__ . '/includes/page-banner.php';
         </form>
     </div>
 
-    <div class="school-section-box">
+    <div class="school-section-box" style="margin-top: 1.5rem;">
         <div class="school-section-box__header">
             <h3 class="school-section-box__title">Tất cả giảng viên</h3>
         </div>
