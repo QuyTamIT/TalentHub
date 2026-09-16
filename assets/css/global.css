@@ -4350,4 +4350,98 @@ textarea { padding: var(--space-2) var(--space-3); }
     }
 }
 
+/* ── GLOBAL INPUT & PLACEHOLDER FONT SIZING & FIT STANDARDIZATION ── */
+/* Áp dụng toàn cục cho tất cả input text, date, textarea... trên toàn bộ hệ thống */
+:where(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+    textarea,
+    select
+) {
+    font-size: clamp(0.8125rem, 0.75rem + 0.25vw, 0.875rem); /* Tự động tinh chỉnh từ 13px -> 14px vừa vặn, không bị to tràn chữ */
+    line-height: 1.45;
+    box-sizing: border-box;
+}
+
+/* Đảm bảo text value bên trong hiển thị trọn vẹn, không bị ép cắt lố */
+:where(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+    textarea
+) {
+    text-overflow: ellipsis;
+}
+
+/* Định cỡ placeholder nhỏ gọn hơn (khoảng 0.8125rem / 13px), thanh thoát, không lấn át layout và hiển thị đầy đủ gợi ý */
+:where(input, textarea)::placeholder {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    font-weight: 400;
+    color: var(--text-muted, #94a3b8);
+    opacity: 0.88;
+    text-overflow: ellipsis;
+    letter-spacing: -0.01em;
+}
+
+/* Hỗ trợ các trình duyệt WebKit, Firefox, IE/Edge */
+input::-webkit-input-placeholder,
+textarea::-webkit-input-placeholder {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    font-weight: 400;
+    color: var(--text-muted, #94a3b8);
+    opacity: 0.88;
+    text-overflow: ellipsis;
+    letter-spacing: -0.01em;
+}
+
+input:-ms-input-placeholder,
+textarea:-ms-input-placeholder {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    font-weight: 400;
+    color: var(--text-muted, #94a3b8);
+    opacity: 0.88;
+    text-overflow: ellipsis;
+    letter-spacing: -0.01em;
+}
+
+input::-ms-input-placeholder,
+textarea::-ms-input-placeholder {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    font-weight: 400;
+    color: var(--text-muted, #94a3b8);
+    opacity: 0.88;
+    text-overflow: ellipsis;
+    letter-spacing: -0.01em;
+}
+
+/* Đối với riêng các trường date picker: căn chỉnh padding và font-size hiển thị chuẩn */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="month"],
+input[type="week"] {
+    font-size: 0.8125rem;
+    font-family: inherit;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+/* Cho phép icon lịch hiển thị gọn gàng, không lấn chữ */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.65;
+    padding: 2px;
+    margin-left: 4px;
+    transform: scale(0.92);
+    transition: opacity 0.15s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
 /* End of WCAG AA standard */
