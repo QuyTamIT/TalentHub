@@ -160,14 +160,14 @@ include __DIR__ . '/includes/page-banner.php';
                         <div class="school-progress-fill" style="width: <?= $class['completion'] ?>%; background: <?= $class['completion'] >= 80 ? '#22C55E' : ($class['completion'] >= 70 ? '#F59E0B' : '#EF4444'); ?>;"></div>
                     </div>
                     <div class="school-flex-center" style="gap: 0.5rem;">
-                        <a href="./students.php?classId=<?= urlencode($class['id']); ?>" class="btn btn-sm btn-outline" style="flex: 1; text-decoration:none;">
+                        <a href="./students.php?classId=<?= urlencode($class['id']); ?>" class="btn btn-sm btn-outline" style="flex: 1; justify-content: center; text-decoration:none;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
                             </svg>
                             Sinh viên
                         </a>
-                        <a href="./class-edit.php?id=<?= urlencode($class['id']); ?>" class="btn btn-sm btn-outline" style="text-decoration:none;">
+                        <a href="./class-edit.php?id=<?= urlencode($class['id']); ?>" class="btn btn-sm btn-outline" style="flex: 1; justify-content: center; text-decoration:none;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -176,7 +176,7 @@ include __DIR__ . '/includes/page-banner.php';
                         </a>
                         <button type="button"
                                 class="btn btn-sm btn-outline js-delete-class-btn"
-                                style="border-color:#FCA5A5;color:#B91C1C;text-decoration:none;display:inline-flex;align-items:center;gap:0.25rem;"
+                                style="flex: 1; justify-content: center; border-color:#FCA5A5;color:#B91C1C;text-decoration:none;display:inline-flex;align-items:center;gap:0.25rem;"
                                 data-class-id="<?= htmlspecialchars($class['id'], ENT_QUOTES, 'UTF-8'); ?>"
                                 data-class-name="<?= htmlspecialchars($class['name'], ENT_QUOTES, 'UTF-8'); ?>"
                                 title="Xóa lớp">

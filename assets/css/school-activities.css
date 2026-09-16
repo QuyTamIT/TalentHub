@@ -1549,3 +1549,161 @@
         padding: 1rem;
     }
 }
+
+/* ==========================================================================
+   SCHOOL ACTIVITIES — UI/UX POLISH PATCH v3.0
+   Spacing standardization, typography fixes, overflow protection,
+   and responsive refinements. Strictly preserves HTML structure.
+   ========================================================================== */
+
+/* Typography protection against overflow */
+.school-act-card__title,
+.school-act-card__category,
+.school-act-card__summary,
+.school-act-card__head-left,
+.school-act-card__teacher-pill,
+.school-act-card__time,
+.school-act-card__top-meta,
+.school-act-card__avatar,
+.school-act-pill,
+.school-act-pill--capacity,
+.school-act-hero__title,
+.school-act-hero__desc,
+.school-act-hero__badge,
+.school-act-hero__meta,
+.school-act-hero__tz,
+.school-act-empty__title,
+.school-act-empty__desc,
+.school-act-empty__action,
+.school-act-feedback-card__counter,
+.school-act-feedback-card__head,
+.school-act-feedback-card__hint,
+.school-act-feedback-card__label {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* Cards — soft shadow + hover */
+.school-act-card {
+    transition: box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.school-act-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.10), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+}
+
+/* Pill — better readability */
+.school-act-pill {
+    min-height: 26px;
+    padding: 4px 12px;
+    font-weight: 600;
+}
+
+/* Filters — touch targets */
+.school-act-filters__btn,
+.school-act-filters__reset {
+    min-height: 40px;
+    padding: 8px 14px;
+}
+
+/* Hero — better mobile flow */
+@media (max-width: 640px) {
+    .school-act-hero {
+        padding: 1.25rem 1.25rem;
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .school-act-hero__title {
+        font-size: 1.25rem;
+    }
+}
+
+/* Form spacing */
+.school-act-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Action field spacing */
+.school-act-action-field input,
+.school-act-action-field select,
+.school-act-action-field textarea {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--th-border);
+    background: var(--th-surface);
+    font-size: 0.9375rem;
+    transition: border-color 0.22s ease, box-shadow 0.22s ease;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
+.school-act-action-field textarea {
+    min-height: 96px;
+    line-height: 1.55;
+    resize: vertical;
+}
+
+.school-act-action-field input:focus,
+.school-act-action-field select:focus,
+.school-act-action-field textarea:focus {
+    outline: none;
+    border-color: #FF5B26;
+    box-shadow: 0 0 0 4px rgba(255, 91, 38, 0.12);
+}
+
+/* Outcome strip — better visibility */
+.school-act-outcome {
+    min-height: 36px;
+}
+
+/* Empty state — premium look */
+.school-act-empty {
+    padding: clamp(28px, 4vw, 48px) 20px;
+    text-align: center;
+}
+
+/* Feedback card — subtle accent */
+.school-act-feedback-card {
+    transition: box-shadow 0.22s ease;
+}
+
+.school-act-feedback-card:hover {
+    box-shadow: 0 10px 28px -4px rgba(15, 23, 42, 0.08);
+}
+
+/* Touch target minimum */
+.school-act-card__header button,
+.school-act-details summary {
+    min-height: 44px;
+}
+
+/* Tablet adjustments */
+@media (max-width: 768px) {
+    .school-act-card__header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .school-act-card__head-left {
+        margin-bottom: 8px;
+    }
+}
+
+/* Selection styling */
+.school-activities ::selection {
+    background-color: rgba(255, 91, 38, 0.22);
+    color: inherit;
+}
+
+/* Print friendly */
+@media print {
+    .school-act-breadcrumb,
+    .school-act-actions,
+    .school-act-filters {
+        display: none !important;
+    }
+}

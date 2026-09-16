@@ -140,6 +140,25 @@ $statusLabels = [
     'archived' => 'Lưu trữ'
 ];
 
+/** Map slug → label cho category/topic hiển thị trong card dự án. */
+$categoryLabels = [
+    'career_technical' => 'Kỹ thuật & Công nghệ',
+    'career_business'  => 'Kinh doanh & Quản trị',
+    'career_arts'       => 'Nghệ thuật & Sáng tạo',
+    'career_sports_academic' => 'Thể thao & Học thuật',
+    'technical'         => 'Kỹ thuật & Công nghệ',
+    'business'          => 'Kinh doanh & Quản trị',
+    'arts'              => 'Nghệ thuật & Sáng tạo',
+    'sports'            => 'Thể thao & Học thuật',
+    'general'           => 'Khác',
+    'workshop'          => 'Workshop & Thực hành',
+    'competition'       => 'Cuộc thi & Thử thách',
+    'project'           => 'Dự án & Đồ án',
+    'talkshow'          => 'Tọa đàm & Chia sẻ',
+    'field_trip'        => 'Tham quan thực tế',
+    'community'         => 'Cộng đồng & Tình nguyện',
+];
+
 ob_start();
 ?>
 <?php 
@@ -367,7 +386,10 @@ include __DIR__ . '/includes/page-banner.php';
                         <div class="school-project-card__header">
                             <div class="school-project-title-area">
                                 <h3><?= htmlspecialchars((string) $project['title']); ?></h3>
-                                <span class="school-project-topic"><?= htmlspecialchars((string) ($project['topic'] ?? $project['category'] ?? 'General')); ?></span>
+                                <span class="school-project-topic"><?= htmlspecialchars(
+    $categoryLabels[strtolower((string) ($project['topic'] ?? $project['category'] ?? ''))] 
+    ?? (string) ($project['topic'] ?? $project['category'] ?? 'General')
+); ?></span>
                             </div>
                             <div class="school-project-status-badge school-project-status-badge--<?= $project['status'] ?>">
                                 <?= htmlspecialchars($statusLabels[$project['status']] ?? $project['status']); ?>
@@ -379,16 +401,16 @@ include __DIR__ . '/includes/page-banner.php';
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                                 <span><?= (int) ($project['membersCount'] ?? 0); ?> thành viên</span>
                                 <?php if (!empty($project['pendingMembersCount']) && (int) $project['pendingMembersCount'] > 0): ?>
-                                    <span class="school-badge" style="background:#FEF3C7; color:#B45309; border:1px solid #FCD34D; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:12px; margin-left:6px;">
+                                    <span class="school-badge" style="background:#FEF3C7; color:#B45309; border:1px solid #FCD34D; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:12px; flex-shrink:0;">
                                         ⏳ <?= (int) $project['pendingMembersCount']; ?> chờ duyệt
                                     </span>
                                 <?php endif; ?>
                             </div>
                             <?php if (!empty($project['fundingGoal']) && $project['fundingGoal'] > 0): ?>
                             <div class="school-project-card__stat school-project-card__stat--funding">
-                                <span style="font-weight: 700; font-size: 0.85rem; padding: 0.1rem 0.3rem; background: #D1FAE5; color: #047857; border-radius: 4px; margin-right: 0.25rem;">VNĐ</span>
-                                <span>
-                                    <strong><?= number_format((float) ($project['raisedAmount'] ?? 0), 0, ',', '.'); ?></strong> / 
+                                <span style="font-weight:700; font-size:0.7rem; padding:0.15rem 0.4rem; background:rgba(16,185,129,0.12); color:#059669; border-radius:4px; flex-shrink:0;">VNĐ</span>
+                                <span style="min-width:0;">
+                                    <strong><?= number_format((float) ($project['raisedAmount'] ?? 0), 0, ',', '.'); ?></strong> /
                                     <?= number_format((float) ($project['fundingGoal'] ?? 0), 0, ',', '.'); ?>
                                     <small>(<?= (int) ($project['sponsorsCount'] ?? 0); ?> nhà tài trợ)</small>
                                 </span>

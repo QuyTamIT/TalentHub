@@ -1221,3 +1221,37 @@
         flex-wrap: wrap;
     }
 }
+
+/* ==========================================================================
+   ENTERPRISE SPONSORSHIPS UI/UX POLISH PATCH
+   ========================================================================== */
+
+/* ── Overflow Protection ── */
+.enterprise-sponsorships-page,
+.spon-projects-grid,
+.spon-project-card {
+    min-width: 0;
+}
+
+/* ── Spacing Standardization ── */
+.spon-project-card {
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+
+.spon-detail-section {
+    margin-bottom: var(--space-6);
+}
+
+.spon-section-heading {
+    margin-bottom: var(--space-4);
+    gap: var(--space-3);
+}
+
+.spon-team-grid {
+    gap: var(--space-4);
+}
+
+.spon-team-card {
+    padding: var(--space-4);
+}

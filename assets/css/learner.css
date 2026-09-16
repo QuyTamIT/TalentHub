@@ -5,11 +5,6 @@
 
 /* Brand tokens are shared via portal-tokens.css */
 
-html {
-    overflow-x: clip;
-    overflow-y: visible;
-}
-
 body.learner-app,
 .learner-app {
     /* Scoped learner-specific overrides only */
@@ -22,7 +17,7 @@ body.learner-app,
     background: var(--background);
     background-color: var(--background);
     color: var(--text-primary);
-    overflow-x: clip;
+    overflow-x: auto; /* Safe horizontal scroll */
     overflow-y: visible;
 }
 
@@ -19215,3 +19210,307 @@ body.learner-page-ecosystem,
 #learner-certificate-form [aria-invalid="true"] { border-color: var(--danger, #dc2626); }
 .learner-certificates [data-certificate-empty][hidden] { display: none; }
 .learner-certificates > .learner-section-heading { flex-wrap: wrap; gap: 12px; }
+
+/* ==========================================================================
+   LEARNER UI/UX POLISH PATCH — SPACING, OVERFLOW & TYPOGRAPHY
+   ========================================================================== */
+
+/* ── Learner Layout Overflow Protection ── */
+body.learner-app,
+.learner-app {
+    overflow-x: hidden;
+}
+
+.learner-layout,
+.learner-main {
+    overflow-x: hidden;
+    min-width: 0;
+}
+
+/* ── Learner Content ── */
+.learner-content {
+    padding: var(--space-4) var(--space-6) var(--space-8);
+}
+
+@media (max-width: 768px) {
+    .learner-content {
+        padding: var(--space-3) var(--space-4) var(--space-6);
+    }
+}
+
+@media (max-width: 480px) {
+    .learner-content {
+        padding: var(--space-3) var(--space-3) var(--space-4);
+    }
+}
+
+/* ── Learner Sidebar ── */
+.learner-sidebar {
+    padding: var(--space-4) var(--space-3);
+}
+
+.learner-sidebar__nav ul {
+    gap: var(--space-1);
+}
+
+.learner-sidebar__link {
+    padding: var(--space-3);
+    gap: var(--space-3);
+    min-height: var(--touch-target);
+}
+
+/* ── Learner Card ── */
+.learner-card {
+    padding: var(--space-4);
+}
+
+@media (max-width: 768px) {
+    .learner-card {
+        padding: var(--space-3);
+    }
+}
+
+/* ── Learner Level Card ── */
+.learner-level-card {
+    margin-top: var(--space-5);
+    padding: var(--space-4);
+}
+
+/* ── Header Spacing ── */
+.learner-header {
+    padding: 0 var(--space-6);
+    gap: var(--space-4);
+}
+
+@media (max-width: 768px) {
+    .learner-header {
+        padding: 0 var(--space-4);
+    }
+}
+
+@media (max-width: 480px) {
+    .learner-header {
+        padding: 0 var(--space-3);
+        gap: var(--space-2);
+    }
+}
+
+/* ── Form Fields ── */
+.learner-field,
+.learner-form__field {
+    gap: var(--space-2);
+}
+
+.learner-field input,
+.learner-field select,
+.learner-field textarea,
+.learner-form__field input,
+.learner-form__field select,
+.learner-form__field textarea {
+    padding: var(--space-3) var(--space-4);
+}
+
+/* ── Section Spacing ── */
+.learner-section {
+    margin-bottom: var(--space-6);
+}
+
+.learner-section-heading {
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
+}
+
+/* ── Statistics Grid ── */
+.learner-statistics-grid {
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+}
+
+.learner-statistics-panel {
+    padding: var(--space-4);
+}
+
+/* ── Card Content Spacing ── */
+.learner-card__header {
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
+}
+
+.learner-card__body {
+    margin-bottom: var(--space-4);
+}
+
+.learner-card__footer {
+    margin-top: var(--space-4);
+    padding-top: var(--space-3);
+}
+
+/* ── List Items ── */
+.learner-list-item {
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.learner-list-item:last-child {
+    border-bottom: none;
+}
+
+/* ── Progress Bar ── */
+.learner-progress {
+    margin: var(--space-3) 0;
+}
+
+/* ── Badge Spacing ── */
+.learner-badge {
+    padding: var(--space-1) var(--space-3);
+}
+
+/* ── Button Spacing ── */
+.learner-btn {
+    padding: var(--space-3) var(--space-5);
+    min-height: var(--touch-target);
+}
+
+/* ── Responsive Typography ── */
+@media (max-width: 768px) {
+    .learner-card__title {
+        font-size: var(--text-lg);
+    }
+    
+    .learner-section-heading {
+        font-size: var(--text-lg);
+    }
+}
+
+@media (max-width: 480px) {
+    .learner-card__title {
+        font-size: var(--text-base);
+    }
+}
+
+/* ==========================================================================
+   MASTER BRANDING SYNC — Logo + Role-tag đồng bộ 100% mọi portal
+   Chuẩn hoá logo width, role-tag typography và brand wrapper spacing.
+   Lấy master từ "Khu vực sinh viên" (Learner) làm chuẩn.
+   ========================================================================== */
+
+:root {
+    --brand-master-logo-width: 178px;
+    --brand-master-padding-bottom: 0.875rem;
+    --brand-master-margin-bottom: 1rem;
+}
+
+/* — Logo image: width đồng bộ 178px — */
+.learner-sidebar__logo-img,
+.teacher-sidebar__logo-img,
+.school-sidebar__logo-img,
+.ent-sidebar__logo-img,
+img.admin-sidebar__logo-img {
+    width: var(--brand-master-logo-width) !important;
+    max-width: 100%;
+    height: auto !important;
+    object-fit: contain;
+    aspect-ratio: 401 / 122;
+    display: block;
+    margin: 0 auto;
+}
+
+/* — Role-tag: đồng bộ typography & spacing (Khu vực sinh viên / Giáo viên / Nhà trường / Doanh nghiệp) — */
+.learner-sidebar__role-tag,
+.teacher-sidebar__role-tag,
+.school-sidebar__role-tag,
+.ent-sidebar__role-tag {
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    color: var(--primary-coral, #F83F70) !important;
+    background-color: #FFF0EB !important;
+    border: 1px solid #FFDACB !important;
+    padding: 3px 12px !important;
+    border-radius: 999px !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1.4 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 8px auto 0 auto !important;
+    white-space: nowrap !important;
+}
+
+/* — Brand wrapper: đồng bộ alignment & spacing — */
+.learner-sidebar__brand,
+.teacher-sidebar__brand,
+.school-sidebar__brand,
+.ent-sidebar__brand {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100%;
+    text-align: center;
+    padding-bottom: var(--brand-master-padding-bottom) !important;
+    border-bottom: 1px solid var(--border, #F0E6DD) !important;
+    margin-bottom: var(--brand-master-margin-bottom) !important;
+    box-sizing: border-box;
+}
+
+/* — Brand link (clickable logo): đồng bộ hover effect — */
+.learner-sidebar__brand-link,
+.teacher-sidebar__brand-link,
+.school-sidebar__brand-link,
+.ent-sidebar__brand-link {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-decoration: none !important;
+    line-height: 1 !important;
+    margin: 0 auto !important;
+    transition: opacity 0.15s ease, transform 0.15s ease !important;
+}
+
+.learner-sidebar__brand-link:hover,
+.teacher-sidebar__brand-link:hover,
+.school-sidebar__brand-link:hover,
+.ent-sidebar__brand-link:hover {
+    opacity: 0.92 !important;
+    transform: translateY(-1px) !important;
+}
+
+/* — Header section separation: khoảng cách rõ ràng giữa brand và nav — */
+.learner-sidebar__brand + .learner-sidebar__nav,
+.teacher-sidebar__brand + .teacher-sidebar__nav,
+.school-sidebar__brand + .school-sidebar__nav,
+.ent-sidebar__brand + .ent-sidebar__nav {
+    margin-top: clamp(12px, 1.5vw, 16px);
+}
+
+/* — Responsive: thu nhỏ đồng bộ trên mobile & tablet — */
+@media (max-width: 480px) {
+    :root {
+        --brand-master-logo-width: 152px;
+        --brand-master-padding-bottom: 0.75rem;
+        --brand-master-margin-bottom: 0.875rem;
+    }
+    .learner-sidebar__role-tag,
+    .teacher-sidebar__role-tag,
+    .school-sidebar__role-tag,
+    .ent-sidebar__role-tag {
+        font-size: 0.625rem !important;
+        padding: 2px 10px !important;
+    }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    :root {
+        --brand-master-logo-width: 166px;
+    }
+}
+
+/* — Print & safety — */
+@media print {
+    .learner-sidebar__brand,
+    .teacher-sidebar__brand,
+    .school-sidebar__brand,
+    .ent-sidebar__brand {
+        border-bottom: 0.5pt solid #999 !important;
+    }
+}

@@ -93,12 +93,14 @@ $schoolInfo = [
 $currentRoute = '/app/school/internships.php';
 $pageTitle = 'Giám sát thực tập';
 $labels = [
-    'submitted' => 'Đã nộp', 
-    'reviewing' => 'Đang xét', 
-    'interview' => 'Phỏng vấn', 
-    'accepted' => 'Đã nhận', 
-    'declined' => 'Từ chối', 
-    'withdrawn' => 'Đã rút'
+    'submitted' => 'Đã nộp',
+    'reviewing' => 'Đang xét',
+    'interview' => 'Phỏng vấn',
+    'accepted' => 'Đã nhận',
+    'declined' => 'Từ chối',
+    'withdrawn' => 'Đã rút',
+    'lockedApplications' => 'Đơn đang chờ (bị khóa)',
+    'acceptedWithoutMentor' => 'Đã nhận - chưa có Mentor',
 ];
 $badgeClasses = [
     'submitted' => 'school-badge--info',
@@ -107,6 +109,8 @@ $badgeClasses = [
     'accepted'  => 'school-badge--success',
     'declined'  => 'school-badge--danger',
     'withdrawn' => 'school-badge--muted',
+    'lockedApplications' => 'school-badge--warning',
+    'acceptedWithoutMentor' => 'school-badge--danger',
 ];
 
 ob_start();
