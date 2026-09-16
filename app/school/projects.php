@@ -227,9 +227,8 @@ include __DIR__ . '/includes/page-banner.php';
                         <select name="mentorTeacherId" class="school-select-enhanced typeui-select">
                             <option value="">-- Chọn giảng viên --</option>
                             <?php foreach ($teachers as $teacher): ?>
-                                <?php $teacherCode = 'GV-' . strtoupper(substr((string) $teacher['id'], 0, 8)); ?>
                                 <option value="<?= htmlspecialchars((string) $teacher['id']); ?>">
-                                    <?= htmlspecialchars('[{$teacherCode}] ' . (string) $teacher['fullName']); ?>
+                                    <?= htmlspecialchars((string) $teacher['fullName']); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -293,12 +292,12 @@ include __DIR__ . '/includes/page-banner.php';
             <div class="school-form-group">
                 <h3 class="school-form-section-title">4. Lộ trình thực hiện & Nghiệm thu</h3>
                 <div id="milestonesContainer" style="display: flex; flex-direction: column; gap: 1rem;">
-                    <div class="milestone-row" style="display: flex; gap: 1rem; align-items: flex-end;">
-                        <label class="school-form__field" style="flex: 2; margin: 0;">
+                    <div class="milestone-row" style="display: flex; gap: 0.75rem; align-items: flex-end;">
+                        <label class="school-form__field" style="flex: 1.4; min-width: 0; margin: 0;">
                             <span>Tên giai đoạn</span>
                             <input type="text" name="milestoneNames[]" required placeholder="VD: Nghiên cứu lý thuyết">
                         </label>
-                        <label class="school-form__field" style="flex: 1; margin: 0;">
+                        <label class="school-form__field" style="flex: 1.1; min-width: 140px; margin: 0;">
                             <span>Deadline</span>
                             <input type="date" name="milestoneDeadlines[]" required>
                         </label>
@@ -324,16 +323,16 @@ include __DIR__ . '/includes/page-banner.php';
                 </label>
                 
                 <div id="budgetsContainer" style="display: flex; flex-direction: column; gap: 1rem;">
-                    <div class="budget-row" style="display: flex; gap: 1rem; align-items: flex-end;">
-                        <label class="school-form__field" style="flex: 1.5; margin: 0;">
+                    <div class="budget-row" style="display: flex; gap: 0.75rem; align-items: flex-end;">
+                        <label class="school-form__field" style="flex: 2; min-width: 0; margin: 0;">
                             <span>Nhóm hạng mục chi tiêu</span>
                             <input type="text" name="budgetPurposes[]" required placeholder="VD: Trang thiết bị...">
                         </label>
-                        <label class="school-form__field" style="flex: 1.5; margin: 0;">
+                        <label class="school-form__field" style="flex: 1.3; min-width: 0; margin: 0;">
                             <span>Thành tiền (VNĐ)</span>
                             <input type="text" inputmode="numeric" class="budget-amount-input" name="budgetAmounts[]" required autocomplete="off" placeholder="VD: 5.000.000" oninput="handleCurrencyInput(this, event)">
                         </label>
-                        <label class="school-form__field" style="flex: 1; margin: 0;">
+                        <label class="school-form__field" style="flex: 0.8; min-width: 70px; margin: 0;">
                             <span>Tỉ lệ (%)</span>
                             <input type="text" class="budget-pct-display" disabled style="background-color: #F1F5F9; color: #10B981; font-weight: bold; cursor: not-allowed; opacity: 1;" placeholder="0%">
                         </label>
@@ -534,13 +533,13 @@ function addMilestone() {
     const container = document.getElementById('milestonesContainer');
     const row = document.createElement('div');
     row.className = 'milestone-row';
-    row.style = 'display: flex; gap: 1rem; align-items: flex-end;';
+    row.style = 'display: flex; gap: 0.75rem; align-items: flex-end;';
     row.innerHTML = `
-        <label class="school-form__field" style="flex: 2; margin: 0;">
+        <label class="school-form__field" style="flex: 1.4; min-width: 0; margin: 0;">
             <span>Tên giai đoạn</span>
             <input type="text" name="milestoneNames[]" required placeholder="VD: Bảo vệ nguyên mẫu">
         </label>
-        <label class="school-form__field" style="flex: 1; margin: 0;">
+        <label class="school-form__field" style="flex: 1.1; min-width: 140px; margin: 0;">
             <span>Deadline</span>
             <input type="date" name="milestoneDeadlines[]" required>
         </label>
@@ -599,20 +598,12 @@ function handleCurrencyInput(input, event) {
     // Đặt lại con trỏ tương ứng với số chữ số đã gõ
     if (input.setSelectionRange) {
         let newPos = 0;
-        let digitCount = 0;
-        for (let i = 0; i < formatted.length; i++) {
-            if (/\d/.test(formatted[i])) {
-                digitCount++;
+        let count = 0;
+        while (newPos < formatted.length && count < digitsBeforeCursor) {
+            if (/\d/.test(formatted[newPos])) {
+                count++;
             }
-            if (digitCount === digitsBeforeCursor) {
-                newPos = i + 1;
-                break;
-            }
-        }
-        if (digitsBeforeCursor === 0) {
-            newPos = 0;
-        } else if (digitCount < digitsBeforeCursor) {
-            newPos = formatted.length;
+            newPos++;
         }
         input.setSelectionRange(newPos, newPos);
     }
@@ -624,17 +615,17 @@ function addBudgetItem() {
     const container = document.getElementById('budgetsContainer');
     const row = document.createElement('div');
     row.className = 'budget-row';
-    row.style = 'display: flex; gap: 1rem; align-items: flex-end;';
+    row.style = 'display: flex; gap: 0.75rem; align-items: flex-end;';
     row.innerHTML = `
-        <label class="school-form__field" style="flex: 1.5; margin: 0;">
+        <label class="school-form__field" style="flex: 2; min-width: 0; margin: 0;">
             <span>Nhóm hạng mục chi tiêu</span>
             <input type="text" name="budgetPurposes[]" required placeholder="VD: Trang thiết bị...">
         </label>
-        <label class="school-form__field" style="flex: 1.5; margin: 0;">
+        <label class="school-form__field" style="flex: 1.3; min-width: 0; margin: 0;">
             <span>Thành tiền (VNĐ)</span>
             <input type="text" inputmode="numeric" class="budget-amount-input" name="budgetAmounts[]" required autocomplete="off" placeholder="VD: 5.000.000" oninput="handleCurrencyInput(this, event)">
         </label>
-        <label class="school-form__field" style="flex: 1; margin: 0;">
+        <label class="school-form__field" style="flex: 0.8; min-width: 70px; margin: 0;">
             <span>Tỉ lệ (%)</span>
             <input type="text" class="budget-pct-display" disabled style="background-color: #F1F5F9; color: #10B981; font-weight: bold; cursor: not-allowed; opacity: 1;" placeholder="0%">
         </label>

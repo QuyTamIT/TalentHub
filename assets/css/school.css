@@ -1251,6 +1251,59 @@ body.school-sidebar-open {
 }
 
 /* --------------------------------------------------------------------------
+   10b. Trạng thái chứng chỉ — chip tiếng Việt (issued/revoked/...)
+   -------------------------------------------------------------------------- */
+.school-status-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    min-width: 80px;
+    padding: 0.3rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: var(--font-semibold);
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* Đã cấp — xanh lá (active, positive) */
+.school-status-chip--active {
+    background-color: var(--color-success-light, #DCFCE7);
+    color: var(--color-success, #15803D);
+}
+
+/* Đã thu hồi — đỏ (revoked, negative) */
+.school-status-chip--revoked {
+    background-color: #FEE2E2;
+    color: #B91C1C;
+}
+
+/* Chờ cấp — vàng (pending) */
+.school-status-chip--pending {
+    background-color: #FEF3C7;
+    color: #B45309;
+}
+
+/* Hết hạn — xám cam */
+.school-status-chip--expired {
+    background-color: #FED7AA;
+    color: #9A3412;
+}
+
+/* Bản nháp — xám nhạt */
+.school-status-chip--draft {
+    background-color: #F1F5F9;
+    color: #475569;
+}
+
+/* Mặc định — fallback cho status lạ */
+.school-status-chip--muted {
+    background-color: #F1F5F9;
+    color: #64748B;
+}
+
+/* --------------------------------------------------------------------------
    11. Analytics Charts
    -------------------------------------------------------------------------- */
 .school-chart-container {
@@ -6641,3 +6694,54 @@ img.admin-sidebar__logo-img {
         border-bottom: 0.5pt solid #999 !important;
     }
 }
+
+/* ── SCHOOL PORTAL: INPUT & PLACEHOLDER FIT ENHANCEMENT ── */
+.school-dashboard .school-form__field input,
+.school-dashboard .school-form__field select,
+.school-dashboard .school-form__field textarea,
+body.school-dashboard input[type="text"],
+body.school-dashboard input[type="date"],
+body.school-dashboard input[type="email"],
+body.school-dashboard input[type="number"],
+body.school-dashboard textarea {
+    font-size: 0.8125rem !important; /* 13px giúp vừa vặn toàn diện mọi nội dung */
+    line-height: 1.4 !important;
+    padding: 8px 10px !important; /* Rút bớt padding để mở rộng chiều ngang hiển thị */
+    min-height: 40px !important;
+}
+
+.school-dashboard .school-form__field input::placeholder,
+.school-dashboard .school-form__field textarea::placeholder,
+body.school-dashboard input::placeholder,
+body.school-dashboard textarea::placeholder {
+    font-size: 0.775rem !important; /* 12.4px giúp các placeholder dài hiển thị trọn vẹn 100% không bị cắt */
+    line-height: 1.3 !important;
+    letter-spacing: -0.02em;
+    color: #94A3B8 !important;
+    white-space: nowrap;
+}
+
+/* Tinh chỉnh riêng cho ô có prefix tiền tệ ₫ như fundingGoal */
+.school-dashboard .school-input-icon input {
+    padding-left: 26px !important; /* Rút gọn khoảng cách icon để text có nhiều không gian hiển thị */
+}
+.school-dashboard .school-input-icon__prefix {
+    left: 8px !important;
+}
+
+/* Tinh chỉnh ô input date (Deadline, Ngày bắt đầu, Ngày kết thúc) */
+.school-dashboard input[type="date"] {
+    font-size: 0.78125rem !important; /* ~12.5px đủ để hiển thị trọn vẹn dd/mm/yyyy */
+    padding-left: 8px !important;
+    padding-right: 4px !important;
+    min-width: 0 !important;
+}
+
+.school-dashboard input[type="date"]::-webkit-calendar-picker-indicator {
+    padding: 0 !important;
+    margin: 0 !important;
+    cursor: pointer;
+    transform: scale(0.85);
+    opacity: 0.75;
+}
+

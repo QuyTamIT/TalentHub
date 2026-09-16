@@ -18,8 +18,17 @@ $context = (new EnterpriseAppContext())->boot();
 $user       = $context['user'];
 $enterprise = $context['enterprise'];
 $internshipService = $context['internships'];
+$specialtiesService = $context['specialties'];
 $permissions = $context['permissions'];
 $session = $context['session'];
+
+// Load specialties from DB catalog (global + enterprise's own)
+$specialtiesList = $specialtiesService->listForUser($user['id']);
+$specialtyOptions = array_map(fn($s) => [
+    'id'   => $s['id'],
+    'name' => $s['name'],
+    'slug' => $s['slug'],
+], $specialtiesList);
 
 if (!function_exists('getInitials')) {
     function getInitials(string $name): string {
@@ -370,17 +379,26 @@ $sidebarNav = [
 
                                 <!-- Lĩnh vực -->
                                 <div class="ent-create-form-group ent-col-8">
-                                    <label for="form-field" class="ent-create-label required">Lĩnh vực / Chuyên môn</label>
-                                    <select id="form-field" name="field" class="ent-create-select typeui-select" required>
-                                        <option value="">-- Chọn lĩnh vực --</option>
-                                        <?php 
-                                        $fields = ['Công nghệ thông tin', 'AI / Machine Learning', 'Thiết kế UI/UX', 'Marketing Digital', 'Khoa học Dữ liệu', 'Kỹ thuật Phần mềm'];
-                                        foreach ($fields as $f): 
-                                            $selected = ($isEdit && ($editingPost['field'] ?? '') === $f) ? 'selected' : '';
-                                        ?>
-                                            <option value="<?= htmlspecialchars($f); ?>" <?= $selected; ?>><?= htmlspecialchars($f); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
+                                    <label for="form-field" class="ent-create-label required">
+                                        Lĩnh vực / Chuyên môn
+                                    </label>
+                                    <div class="ent-field-with-add">
+                                        <select id="form-field" name="field" class="ent-create-select typeui-select" required>
+                                            <option value="">-- Chọn lĩnh vực --</option>
+                                            <?php foreach ($specialtyOptions as $s): ?>
+                                                <?php $selected = ($isEdit && ($editingPost['field'] ?? '') === $s['name']) ? 'selected' : ''; ?>
+                                                <option value="<?= htmlspecialchars($s['name']); ?>" <?= $selected; ?>>
+                                                    <?= htmlspecialchars($s['name']); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <button type="button" id="btn-add-specialty" class="ent-btn-add-inline" title="+ Thêm lĩnh vực mới" aria-label="Thêm lĩnh vực mới">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <!-- Số lượng tuyển -->
@@ -742,6 +760,55 @@ $sidebarNav = [
         </div>
     </div>
 
+    <!-- Modal: Thêm lĩnh vực mới -->
+    <div class="ent-modal" id="modal-add-specialty" role="dialog" aria-modal="true" aria-labelledby="modal-add-specialty-title" aria-hidden="true">
+        <div class="ent-modal__backdrop"></div>
+        <div class="ent-modal__dialog ent-modal__dialog--sm" role="document">
+            <div class="ent-modal__header">
+                <div class="ent-modal__title-group">
+                    <h2 class="ent-modal__title" id="modal-add-specialty-title">Thêm lĩnh vực mới</h2>
+                    <p class="ent-modal__subtitle">Lĩnh vực mới sẽ được thêm vào danh sách chuyên môn của doanh nghiệp và dùng ngay cho tin tuyển dụng.</p>
+                </div>
+                <button type="button" class="ent-modal__close" id="modal-add-specialty-close" aria-label="Đóng cửa sổ">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="ent-modal__body">
+                <div class="ent-modal__field">
+                    <label for="specialty-name" class="ent-modal__label required">Tên lĩnh vực <span class="ent-modal__hint">(tối thiểu 2 ký tự, tối đa 150)</span></label>
+                    <input type="text" id="specialty-name" class="ent-modal__input" placeholder="Ví dụ: Kỹ sư DevOps, Quản lý Dự án, Thiết kế Đồ họa..." maxlength="150" autocomplete="off">
+                    <span class="ent-modal__error" id="specialty-name-error" role="alert"></span>
+                </div>
+
+                <div class="ent-modal__field">
+                    <label for="specialty-category" class="ent-modal__label">Danh mục <span class="ent-modal__hint">(tùy chọn)</span></label>
+                    <input type="text" id="specialty-category" class="ent-modal__input" placeholder="Ví dụ: technology, design, business, finance..." maxlength="60" autocomplete="off">
+                    <span class="ent-modal__field-help">Dùng để phân loại lĩnh vực. Nếu bỏ trống sẽ mặc định là "general".</span>
+                </div>
+
+                <div class="ent-modal__field">
+                    <label for="specialty-description" class="ent-modal__label">Mô tả <span class="ent-modal__hint">(tùy chọn)</span></label>
+                    <textarea id="specialty-description" class="ent-modal__input ent-modal__textarea" placeholder="Mô tả ngắn về lĩnh vực (tối đa 500 ký tự)..." maxlength="500" rows="3"></textarea>
+                    <span class="ent-modal__char-count"><span id="specialty-desc-count">0</span> / 500</span>
+                </div>
+            </div>
+            <div class="ent-modal__footer">
+                <button type="button" class="ent-modal__btn ent-modal__btn--secondary" id="modal-add-specialty-cancel">Hủy</button>
+                <button type="button" class="ent-modal__btn ent-modal__btn--primary" id="modal-add-specialty-submit">
+                    <span class="ent-modal__btn-spinner" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                        </svg>
+                    </span>
+                    <span class="ent-modal__btn-label">Thêm lĩnh vực</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- SweetAlert2 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
@@ -750,5 +817,204 @@ $sidebarNav = [
     <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => app_href('/api/v1')], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
     <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
     <script src="<?= app_href('/assets/js/internship-management.js'); ?>"></script>
+
+    <!-- Specialty Add Modal — inline JS (page-specific) -->
+    <script>
+    (function () {
+        var sessionBoot = JSON.parse(
+            document.getElementById('enterprise-session-boot').textContent ||
+            document.querySelector('script[data-csrf]')?.textContent || '{}'
+        );
+        var csrfToken = sessionBoot.csrfToken || '';
+        var apiBase   = sessionBoot.apiBase   || '/api/v1';
+
+        /* ---------- DOM refs ---------- */
+        var modal        = document.getElementById('modal-add-specialty');
+        var btnAdd       = document.getElementById('btn-add-specialty');
+        var btnClose     = document.getElementById('modal-add-specialty-close');
+        var btnCancel    = document.getElementById('modal-add-specialty-cancel');
+        var btnSubmit    = document.getElementById('modal-add-specialty-submit');
+        var nameInput    = document.getElementById('specialty-name');
+        var nameError    = document.getElementById('specialty-name-error');
+        var catInput     = document.getElementById('specialty-category');
+        var descInput    = document.getElementById('specialty-description');
+        var descCount    = document.getElementById('specialty-desc-count');
+        var selectField  = document.getElementById('form-field');
+        var toast        = document.getElementById('ent-toast');
+        var toastMsg     = toast ? toast.querySelector('.ent-toast__message') : null;
+
+        /* ---------- Helpers ---------- */
+        function showToast(msg, type) {
+            if (!toast || !toastMsg) return;
+            toastMsg.textContent = msg;
+            toast.className = 'ent-toast ent-toast--' + (type || 'info');
+            toast.classList.add('ent-toast--show');
+            clearTimeout(showToast._t);
+            showToast._t = setTimeout(function () {
+                toast.classList.remove('ent-toast--show');
+            }, 4000);
+        }
+
+        function setSubmitLoading(loading) {
+            if (!btnSubmit) return;
+            var label  = btnSubmit.querySelector('.ent-modal__btn-label');
+            var spinner = btnSubmit.querySelector('.ent-modal__btn-spinner');
+            btnSubmit.disabled = loading;
+            if (label)   label.style.display   = loading ? 'none' : 'inline';
+            if (spinner) spinner.style.display = loading ? 'inline-flex' : 'none';
+        }
+
+        function clearErrors() {
+            if (nameInput) nameInput.classList.remove('ent-modal__input--error');
+            if (nameError) nameError.textContent = '';
+        }
+
+        function showError(input, errorEl, msg) {
+            if (input)   input.classList.add('ent-modal__input--error');
+            if (errorEl) errorEl.textContent = msg;
+        }
+
+        /* ---------- Modal open / close ---------- */
+        function openModal() {
+            clearErrors();
+            if (nameInput)  nameInput.value  = '';
+            if (catInput)   catInput.value   = '';
+            if (descInput)  descInput.value  = '';
+            if (descCount)  descCount.textContent = '0';
+            if (modal) {
+                modal.setAttribute('aria-hidden', 'false');
+                modal.classList.add('is-open');
+                document.body.style.overflow = 'hidden';
+                setTimeout(function () { if (nameInput) nameInput.focus(); }, 50);
+            }
+        }
+
+        function closeModal() {
+            if (modal) {
+                modal.setAttribute('aria-hidden', 'true');
+                modal.classList.remove('is-open');
+                document.body.style.overflow = '';
+            }
+        }
+
+        /* ---------- Desc character counter ---------- */
+        if (descInput && descCount) {
+            descInput.addEventListener('input', function () {
+                descCount.textContent = descInput.value.length;
+            });
+        }
+
+        /* ---------- Name validation ---------- */
+        if (nameInput) {
+            nameInput.addEventListener('input', function () {
+                nameInput.classList.remove('ent-modal__input--error');
+                if (nameError) nameError.textContent = '';
+            });
+        }
+
+        /* ---------- Event listeners ---------- */
+        if (btnAdd)   btnAdd.addEventListener('click',   openModal);
+        if (btnClose) btnClose.addEventListener('click', closeModal);
+        if (btnCancel) btnCancel.addEventListener('click', closeModal);
+
+        // Close on backdrop click
+        if (modal) {
+            var backdrop = modal.querySelector('.ent-modal__backdrop');
+            if (backdrop) {
+                backdrop.addEventListener('click', closeModal);
+            }
+        }
+
+        // Close on Escape key
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && modal && modal.classList.contains('is-open')) {
+                closeModal();
+            }
+        });
+
+        /* ---------- Submit ---------- */
+        if (btnSubmit) {
+            btnSubmit.addEventListener('click', async function () {
+                clearErrors();
+                var name = nameInput ? nameInput.value.trim() : '';
+                var cat  = catInput  ? catInput.value.trim()  : '';
+                var desc = descInput ? descInput.value.trim() : '';
+
+                if (name.length < 2) {
+                    showError(nameInput, nameError, 'Tên lĩnh vực phải có tối thiểu 2 ký tự.');
+                    if (nameInput) nameInput.focus();
+                    return;
+                }
+                if (name.length > 150) {
+                    showError(nameInput, nameError, 'Tên lĩnh vực không được vượt quá 150 ký tự.');
+                    if (nameInput) nameInput.focus();
+                    return;
+                }
+
+                setSubmitLoading(true);
+                try {
+                    var res = await fetch(apiBase + '/businesses/me/internship-specialties', {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                            'Accept':       'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken
+                        },
+                        body: JSON.stringify({
+                            name:        name,
+                            category:    cat,
+                            description: desc
+                        })
+                    });
+
+                    var json = await res.json().catch(function () { return null; });
+
+                    // API contract: success => { data, meta }, error => { error: { code, message }, meta }
+                    // There is no top-level `success` flag — see src/Http/JsonResponse.php.
+                    if (!res.ok || !json || !json.data) {
+                        var msg = (json && json.error && json.error.message)
+                            ? json.error.message
+                            : 'Không thể tạo lĩnh vực. Vui lòng thử lại.';
+                        showError(nameInput, nameError, msg);
+                        return;
+                    }
+
+                    // Success — close modal, add option to select, auto-select it
+                    var newItem = json.data.item;
+                    closeModal();
+                    if (newItem && newItem.name && selectField) {
+                        // Reuse an existing option if the same specialty is already listed,
+                        // otherwise append. option.value MUST be the exact specialty name
+                        // because the form submits `field` as that name.
+                        var existing = null;
+                        for (var i = 0; i < selectField.options.length; i++) {
+                            if (selectField.options[i].value === newItem.name) {
+                                existing = selectField.options[i];
+                                break;
+                            }
+                        }
+                        if (!existing) {
+                            existing = document.createElement('option');
+                            existing.value = newItem.name;
+                            existing.textContent = newItem.name + ' (mới)';
+                            selectField.appendChild(existing);
+                        }
+                        existing.selected = true;
+                        showToast('Đã thêm "' + newItem.name + '" vào danh sách lĩnh vực.', 'success');
+                    } else {
+                        // Fallback: reload the page so select is re-rendered from DB
+                        showToast('Đã thêm lĩnh vực mới!', 'success');
+                        setTimeout(function () { location.reload(); }, 1000);
+                    }
+                } catch (err) {
+                    showError(nameInput, nameError, 'Lỗi kết nối. Vui lòng kiểm tra mạng và thử lại.');
+                } finally {
+                    setSubmitLoading(false);
+                }
+            });
+        }
+    })();
+    </script>
 </body>
 </html>

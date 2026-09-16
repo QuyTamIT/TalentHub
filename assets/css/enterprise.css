@@ -4381,6 +4381,52 @@ body.ent-sidebar-open {
     }
 }
 
+/* ==========================================================================
+   Add Specialty Inline Button (create.php)
+   ========================================================================== */
+.ent-field-with-add {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.ent-field-with-add .ent-create-select {
+    flex: 1;
+    min-width: 0;
+}
+.ent-btn-add-inline {
+    flex-shrink: 0;
+    width: var(--ent-create-control-height, 44px);
+    height: var(--ent-create-control-height, 44px);
+    min-width: var(--ent-create-control-height, 44px);
+    min-block-size: var(--ent-create-control-height, 44px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+    border: 1.5px solid #CBD5E1;
+    border-radius: var(--radius-sm);
+    color: var(--primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-sizing: border-box;
+    padding: 0;
+}
+.ent-btn-add-inline:hover {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.12);
+}
+.ent-btn-add-inline:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.12);
+}
+.ent-btn-add-inline svg {
+    width: 16px;
+    height: 16px;
+}
+
 /* Form Styles (create.php) */
 .ent-form-grid {
     display: grid;
@@ -7354,6 +7400,171 @@ body.ent-sidebar-open {
     position: sticky;
     bottom: 0;
     z-index: 2;
+}
+
+/* ==========================================================================
+   Modal Form Primitives (lightweight dialogs, e.g. Add Specialty)
+   ========================================================================== */
+
+/* Modal size variants — compact dialog for short forms (e.g. Add Specialty) */
+.ent-modal__dialog--sm {
+    max-width: 520px;
+}
+
+/* Modal form field primitives — shared by lightweight enterprise modal forms */
+.ent-modal__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-bottom: 1.125rem;
+}
+
+.ent-modal__field:last-child {
+    margin-bottom: 0;
+}
+
+.ent-modal__label {
+    font-size: 0.8125rem;
+    font-weight: var(--font-semibold, 600);
+    color: var(--text-primary, #0F172A);
+}
+
+.ent-modal__label.required::after {
+    content: " *";
+    color: #EF4444;
+}
+
+.ent-modal__hint {
+    font-weight: 400;
+    color: var(--text-muted, #94A3B8);
+    font-size: 0.75rem;
+}
+
+.ent-modal__field-help {
+    display: block;
+    margin-top: 0.125rem;
+    color: var(--text-muted, #94A3B8);
+    font-size: 0.75rem;
+    line-height: 1.45;
+}
+
+.ent-modal__input {
+    width: 100%;
+    min-height: var(--touch-target, 44px);
+    padding: 0.625rem 0.75rem;
+    font-size: 0.875rem;
+    font-family: inherit;
+    color: var(--text-primary, #0F172A);
+    background: #FFFFFF;
+    border: 1px solid var(--border, #E2E8F0);
+    border-radius: var(--radius-sm, 8px);
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ent-modal__input:focus {
+    outline: none;
+    border-color: var(--primary, #F83F70);
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.14);
+}
+
+.ent-modal__input--error {
+    border-color: #EF4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.ent-modal__textarea {
+    min-height: 5rem;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.ent-modal__error {
+    display: block;
+    min-height: 1rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #DC2626;
+}
+
+.ent-modal__error:empty {
+    display: none;
+}
+
+.ent-modal__char-count {
+    display: block;
+    align-self: flex-end;
+    font-size: 0.6875rem;
+    color: var(--text-muted, #94A3B8);
+    font-variant-numeric: tabular-nums;
+}
+
+.ent-modal__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: var(--touch-target, 44px);
+    padding: 0.625rem 1.125rem;
+    font-size: 0.875rem;
+    font-weight: var(--font-semibold, 600);
+    font-family: inherit;
+    border-radius: var(--radius-sm, 8px);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ent-modal__btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.ent-modal__btn:focus-visible {
+    outline: 2px solid var(--primary, #F83F70);
+    outline-offset: 2px;
+}
+
+.ent-modal__btn--primary {
+    background: var(--primary, #F83F70);
+    color: #FFFFFF;
+}
+
+.ent-modal__btn--primary:hover:not(:disabled) {
+    background: var(--primary-dark, #E04058);
+}
+
+.ent-modal__btn--secondary {
+    background: #FFFFFF;
+    color: var(--text-primary, #0F172A);
+    border-color: var(--border, #E2E8F0);
+}
+
+.ent-modal__btn--secondary:hover:not(:disabled) {
+    background: #F1F5F9;
+    border-color: #CBD5E1;
+}
+
+.ent-modal__btn-spinner {
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.ent-modal__btn-spinner svg {
+    animation: ent-modal-spin 0.7s linear infinite;
+}
+
+@keyframes ent-modal-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ent-modal__btn-spinner svg {
+        animation-duration: 1.6s;
+    }
 }
 
 /* Logo Uploader in Edit Modal */

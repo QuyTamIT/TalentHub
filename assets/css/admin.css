@@ -2150,6 +2150,31 @@ dialog::backdrop {
     margin-top: 18px;
 }
 
+/* High-contrast override for primary button inside dialogs */
+.dialog-actions .button.primary,
+.action-dialog .button.primary {
+    background: #1E293B !important;
+    color: #FFFFFF !important;
+    border: 1px solid #334155 !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.dialog-actions .button.primary:hover:not(:disabled),
+.action-dialog .button.primary:hover:not(:disabled) {
+    background: #0F172A !important;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.28);
+    transform: translateY(-1px);
+}
+
+.dialog-actions .button.primary:active:not(:disabled),
+.action-dialog .button.primary:active:not(:disabled) {
+    background: #020617 !important;
+    transform: translateY(0) !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2) !important;
+}
+
 /* --------------------------------------------------------------------------
    19. Account Form
    -------------------------------------------------------------------------- */

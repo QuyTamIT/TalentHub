@@ -3,6 +3,13 @@
  * Modern, premium, spacious, and natural UI.
  */
 
+/* Shared control height so every field control on the create form (text input,
+   native select, date input, and the inline "+" specialty button) sits on the
+   same baseline when placed side by side. */
+.ent-create-container {
+    --ent-create-control-height: 44px;
+}
+
 /* ==========================================================================
    1. LAYOUT & CONTAINER REFINEMENTS
    ========================================================================== */
@@ -163,16 +170,31 @@
 .ent-create-input,
 .ent-create-select {
     width: 100%;
-    height: 42px;
+    height: var(--ent-create-control-height, 44px);
+    min-height: var(--ent-create-control-height, 44px);
     padding: 0.55rem 0.875rem;
     background-color: #FFFFFF;
     border: 1px solid #CBD5E1;
     border-radius: 8px; /* 6-8px radius */
     font-size: 0.875rem;
+    line-height: 1.25;
     color: #0F172A;
     outline: none;
     box-sizing: border-box;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* `typeui-selects.css` styles `:root select.typeui-select` with a 2.75rem
+   min-block-size and 0.625rem vertical padding that outrank `.ent-create-select`
+   by specificity. Pin the vertical box back to the shared control height so the
+   specialty select lines up with the "+" button and the slots input on one row. */
+.ent-create-form-grid select.ent-create-select.typeui-select {
+    height: var(--ent-create-control-height, 44px);
+    min-block-size: var(--ent-create-control-height, 44px);
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-inline-end: 2.75rem; /* room for the chevron */
+    line-height: calc(var(--ent-create-control-height, 44px) - 2px);
 }
 
 .ent-create-input:focus,
