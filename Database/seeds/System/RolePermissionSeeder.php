@@ -78,6 +78,7 @@ final class RolePermissionSeeder
             'report.read_own_school', 'report.download_own_school', 'project.read_own_school',
             'project.create_own_school', 'project.update_own_school',
             'sponsorship.read_own_school_project', 'notification.send_own_school',
+            'partnership.read_own_school', 'partnership.review_own_school',
         ],
         'enterprise' => [
             'business_profile.read_own', 'business_profile.update_own', 'business_dashboard.read_own',
@@ -91,6 +92,7 @@ final class RolePermissionSeeder
             'sponsorship.create_own_business', 'sponsorship.read_own_business',
             'sponsorship.update_own_business', 'sponsorship.cancel_own_business',
             'payment.create_own_business', 'payment.read_own_business',
+            'partnership.read_own_business', 'partnership.create_own_business',
         ],
         'platform_admin' => [
             'admin.dashboard.read', 'admin.user.read', 'admin.user.create', 'admin.user.update', 'admin.user.delete', 'admin.user.suspend', 'admin.user.restore',
