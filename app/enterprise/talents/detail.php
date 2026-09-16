@@ -270,6 +270,9 @@ $sidebarNav = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="Talent Passport - Hồ sơ năng lực chi tiết của ứng viên trên TalentHub Enterprise.">
+    <title><?= htmlspecialchars($pageTitle); ?> | TalentHub Enterprise</title>
     <meta name="description" content="Talent Passport - Hồ sơ năng lực chi tiết của ứng viên trên FTalentHub Enterprise.">
     <title><?= htmlspecialchars($pageTitle); ?> | FTalentHub Enterprise</title>
 

@@ -45,11 +45,18 @@ function initMobileNav() {
 
     if (!toggleBtn || !mobileMenu) return;
 
+    function getFocusableElements() {
+        return mobileMenu.querySelectorAll('a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    }
+
     function openMenu() {
         toggleBtn.setAttribute('aria-expanded', 'true');
         mobileMenu.setAttribute('aria-hidden', 'false');
         mobileMenu.classList.add('is-active');
         document.body.classList.add('mobile-menu-open');
+
+        const firstFocusable = getFocusableElements()[0];
+        if (firstFocusable) firstFocusable.focus();
     }
 
     function closeMenu() {
@@ -57,6 +64,7 @@ function initMobileNav() {
         mobileMenu.setAttribute('aria-hidden', 'true');
         mobileMenu.classList.remove('is-active');
         document.body.classList.remove('mobile-menu-open');
+        toggleBtn.focus();
     }
 
     toggleBtn.addEventListener('click', () => {
@@ -78,6 +86,24 @@ function initMobileNav() {
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && mobileMenu.classList.contains('is-active')) {
             closeMenu();
+            return;
+        }
+
+        /* Focus trap within mobile menu */
+        if (event.key === 'Tab' && mobileMenu.classList.contains('is-active')) {
+            const focusable = getFocusableElements();
+            if (focusable.length === 0) return;
+
+            const firstEl = focusable[0];
+            const lastEl = focusable[focusable.length - 1];
+
+            if (event.shiftKey && document.activeElement === firstEl) {
+                event.preventDefault();
+                lastEl.focus();
+            } else if (!event.shiftKey && document.activeElement === lastEl) {
+                event.preventDefault();
+                firstEl.focus();
+            }
         }
     });
 }
@@ -185,11 +211,9 @@ function initStatsCounter() {
 }
 
 function animateStatNumbers() {
-    const statElements = document.querySelectorAll('.stat-number[data-target]');
     const duration = 1500;
     const startTime = performance.now();
-
-    const targets = Array.from(statElements).map(el => ({
+    const targets = Array.from(document.querySelectorAll('.stat-number[data-target]')).map(el => ({
         el,
         target: Number.parseInt(el.dataset.target, 10),
         suffix: el.dataset.suffix || ''

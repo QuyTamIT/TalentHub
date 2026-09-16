@@ -120,6 +120,9 @@ $audiences = [
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="Gửi yêu cầu tư vấn đến TalentHub.">
+    <title>Liên hệ tư vấn | TalentHub</title>
     <meta name="description" content="Gửi yêu cầu tư vấn đến FTalentHub.">
     <title>Liên hệ tư vấn | FTalentHub</title>
     <link rel="icon" href="<?= contact_escape(app_href('/assets/images/logo.svg')) ?>" type="image/svg+xml">

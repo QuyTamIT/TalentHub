@@ -1470,7 +1470,11 @@
                 Boolean(global.TalentHubLearnerApi),
             );
             if (mutationBackend === 'server') {
-                if (submitBtn) submitBtn.disabled = true;
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.dataset.originalText = submitBtn.textContent;
+                    submitBtn.textContent = 'Đang lưu...';
+                }
                 try {
                     let csrfToken = '';
                     try {
@@ -1508,7 +1512,10 @@
                 } catch (err) {
                     showToast(err?.message || 'Không thể cập nhật hồ sơ.', 'error');
                 } finally {
-                    if (submitBtn) submitBtn.disabled = false;
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = submitBtn.dataset.originalText || 'Lưu thay đổi';
+                    }
                 }
                 return;
             }
@@ -1537,7 +1544,11 @@
             }
             const expiresInDays = Number(formData.get('expiresInDays')) || 30;
 
-            if (submitBtn) submitBtn.disabled = true;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.dataset.originalText = submitBtn.textContent;
+                submitBtn.textContent = 'Đang tạo...';
+            }
             try {
                 let shareUrl = '';
                 try {
@@ -1567,7 +1578,10 @@
             } catch (err) {
                 showToast(err?.message || 'Không thể tạo liên kết chia sẻ.', 'error');
             } finally {
-                if (submitBtn) submitBtn.disabled = false;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = submitBtn.dataset.originalText || 'Tạo liên kết chia sẻ';
+                }
             }
         });
 
@@ -1613,10 +1627,11 @@
                 return;
             }
 
-            certificateSaving = true;
-            const originalLabel = submitBtn?.textContent || 'Lưu chứng chỉ';
             if (submitBtn) {
                 submitBtn.disabled = true;
+                submitBtn.dataset.originalText = submitBtn.textContent;
+            certificateSaving = true;
+            const originalLabel = submitBtn?.textContent || 'Lưu chứng chỉ';
                 submitBtn.textContent = 'Đang lưu...';
             }
             try {
@@ -1650,9 +1665,10 @@
             } catch (err) {
                 showToast(err?.message || 'Không thể lưu chứng chỉ.', 'error');
             } finally {
-                certificateSaving = false;
                 if (submitBtn) {
                     submitBtn.disabled = false;
+                    submitBtn.textContent = submitBtn.dataset.originalText || 'Lưu chứng chỉ';
+                certificateSaving = false;
                     submitBtn.textContent = originalLabel;
                 }
             }
@@ -1679,6 +1695,47 @@
 
             button.textContent = copied ? 'Đã sao chép' : 'Chọn liên kết';
             showToast(copied ? 'Đã sao chép liên kết hồ sơ.' : 'Hãy chọn và sao chép liên kết thủ công.', copied ? 'success' : 'warning');
+        });
+
+        // FE-101: Project detail modal
+        document.querySelectorAll('[data-open-project-detail]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const modal = document.getElementById('learner-project-detail-modal');
+                if (!modal) return;
+
+                const fields = {
+                    title: btn.dataset.projectTitle || '',
+                    desc: btn.dataset.projectDesc || '',
+                    role: btn.dataset.projectRole || '',
+                    sponsor: btn.dataset.projectSponsor || '',
+                    category: btn.dataset.projectCategory || '',
+                    url: btn.dataset.projectUrl || '',
+                    contrib: btn.dataset.projectContrib || '',
+                };
+
+                const titleEl = modal.querySelector('[data-proj-modal-title]');
+                const descEl = modal.querySelector('[data-proj-modal-desc]');
+                const roleEl = modal.querySelector('[data-proj-modal-role]');
+                const sponsorEl = modal.querySelector('[data-proj-modal-sponsor]');
+                const contribEl = modal.querySelector('[data-proj-modal-contrib]');
+                const linkEl = modal.querySelector('[data-proj-modal-link]');
+
+                if (titleEl) titleEl.textContent = fields.title;
+                if (descEl) descEl.textContent = fields.desc;
+                if (roleEl) roleEl.textContent = fields.role;
+                if (sponsorEl) sponsorEl.textContent = fields.sponsor || 'N/A';
+                if (contribEl) contribEl.textContent = fields.contrib || 'N/A';
+                if (linkEl) {
+                    if (fields.url) {
+                        linkEl.href = fields.url;
+                        linkEl.hidden = false;
+                    } else {
+                        linkEl.hidden = true;
+                    }
+                }
+
+                openModal(modal, btn);
+            });
         });
 
     });

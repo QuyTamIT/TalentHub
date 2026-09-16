@@ -3,71 +3,34 @@
    Scoped styles only. Shared tokens and reset come from home.css.
    ========================================================================== */
 
+/* Brand tokens are shared via portal-tokens.css */
+
 html {
-    overflow-x: clip !important;
-    overflow-y: visible !important;
+    overflow-x: clip;
+    overflow-y: visible;
 }
 
 body.learner-app,
 .learner-app {
-    /* Scoped Design Tokens for Learner (Synchronized with Enterprise & Teacher Sunset Coral Palette) */
-    --primary: #FF6B45;
-    --primary-coral: #F83F70;
-    --primary-pink: #F23585;
-    --primary-purple: #A14FC9;
-    --primary-violet: #8B4DE8;
-    --primary-hover: #F83F70;
-    --primary-light: #FFF0EB;
-    --primary-light-border: #FFDACB;
-    --primary-dark: #E04058;
-    --secondary: #A14FC9;
-    --secondary-hover: #8B4DE8;
-    --secondary-light: #FAF5FF;
-    --accent: #F23585;
-    --accent-hover: #F83F70;
-    --accent-light: #FFF0EB;
-    --background: #FDF7F1;
-    --surface: #FFFFFF;
-    --surface-hover: #FFF7F2;
-    --border: #F0E6DD;
-    --border-hover: #FFDACB;
-    --border-strong: #E5D7CC;
-    --border-subtle: #FDF7F1;
-    --text-primary: #322014;
-    --text-secondary: #6B5548;
-    --text-muted: #9E897D;
-    --text-disabled: #B8A599;
-    --shadow-soft: 0 4px 20px rgba(50, 32, 20, 0.04);
-    --shadow-glow: 0 6px 20px rgba(248, 63, 112, 0.28);
-    --focus-ring: 0 0 0 3px rgba(248, 63, 112, 0.25);
-    --primary-gradient: linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
-    --primary-gradient-subtle: linear-gradient(135deg, #FFF0EB 0%, #FAF5FF 100%);
-
-    /* Brand Component Scoped Overrides */
-    --brand-icon-bg: var(--primary-gradient);
-    --brand-icon-shadow: 0 2px 8px rgba(248, 63, 112, 0.35);
-    --brand-name-hub-color: var(--primary-coral);
-    --brand-name-color: var(--text-primary);
-    --brand-sub-color: var(--primary-coral);
-
+    /* Scoped learner-specific overrides only */
     --learner-sidebar-width: 274px;
     --learner-header-height: 68px;
     --success: var(--color-success);
     --warning: var(--color-warning);
     --danger: var(--color-danger);
     min-height: 100vh;
-    background: var(--background) !important;
-    background-color: var(--background) !important;
+    background: var(--background);
+    background-color: var(--background);
     color: var(--text-primary);
-    overflow-x: clip !important;
-    overflow-y: visible !important;
+    overflow-x: clip;
+    overflow-y: visible;
 }
 
 body.learner-app,
 .learner-app,
 .learner-app .learner-layout,
 .learner-app .learner-main {
-    background-color: var(--background) !important;
+    background-color: var(--background);
 }
 
 .learner-app button,
@@ -569,7 +532,7 @@ body.learner-app,
 }
 
 .learner-header__user-name {
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: 700;
     color: #0F172A;
     line-height: 1.25;
@@ -577,7 +540,7 @@ body.learner-app,
 }
 
 .learner-header__user-role {
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: 400;
     color: #64748B;
     line-height: 1.2;
@@ -666,7 +629,7 @@ body.learner-app,
 }
 
 .learner-account-menu__name {
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: 700;
     color: #0F172A;
     line-height: 1.25;
@@ -1665,7 +1628,7 @@ body.learner-app,
 .learner-radar__labels {
     fill: var(--text-primary);
     font-family: var(--font-primary);
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: 500;
 }
 
@@ -2256,7 +2219,7 @@ body.learner-app,
 }
 
 .learner-checkin-success-box__title {
-    font-size: 15px;
+    font-size: var(--text-md);
     font-weight: 700;
     color: #065F46;
     margin: 0 0 2px 0;
@@ -2264,7 +2227,7 @@ body.learner-app,
 }
 
 .learner-checkin-success-box__desc {
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: 500;
     color: #047857;
     margin: 0;
@@ -3925,7 +3888,7 @@ body.learner-sidebar-open {
 
 .learner-experience-chart__labels text {
     fill: var(--text-secondary);
-    font-size: 12px;
+    font-size: var(--text-xs);
 }
 
 .learner-field-chart-wrap {
@@ -4877,7 +4840,7 @@ body.has-roadmap-editor {
 .learner-page-ai .learner-roadmap-editor__task-heading p {
     margin: 0;
     color: #64748b;
-    font-size: 13px;
+    font-size: var(--text-sm);
 }
 
 .learner-page-ai .learner-roadmap-editor__close {
@@ -4916,7 +4879,7 @@ body.has-roadmap-editor {
     background: #fff;
     color: #475569;
     font: inherit;
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: 700;
     cursor: pointer;
 }
@@ -4938,11 +4901,11 @@ body.has-roadmap-editor {
 
 .learner-page-ai .learner-roadmap-editor__tabs button strong {
     color: #0f172a;
-    font-size: 14px;
+    font-size: var(--text-base);
 }
 
 .learner-page-ai .learner-roadmap-editor__tabs button small {
-    font-size: 12px;
+    font-size: var(--text-xs);
 }
 
 .learner-page-ai .learner-roadmap-editor__tabs button.is-active {
@@ -5010,12 +4973,12 @@ body.has-roadmap-editor {
 .learner-page-ai .learner-roadmap-editor__phase-intro h3,
 .learner-page-ai .learner-roadmap-editor__task-heading h3 {
     margin: 4px 0;
-    font-size: 17px;
+    font-size: 1.0625rem;
 }
 
 .learner-page-ai .learner-roadmap-editor__range {
     color: #2563eb;
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: .05em;
@@ -5033,7 +4996,7 @@ body.has-roadmap-editor {
     display: grid;
     gap: 7px;
     color: #334155;
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: 700;
 }
 
@@ -5050,7 +5013,7 @@ body.has-roadmap-editor {
     background: transparent;
     color: #2563eb;
     font: inherit;
-    font-size: 11px;
+    font-size: 0.6875rem;
     cursor: pointer;
 }
 
@@ -5135,13 +5098,13 @@ body.has-roadmap-editor {
 
 .learner-page-ai .learner-roadmap-editor__preview-phase > span {
     color: #2563eb;
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: 800;
 }
 
 .learner-page-ai .learner-roadmap-editor__preview-phase h3 {
     margin: 7px 0;
-    font-size: 17px;
+    font-size: 1.0625rem;
 }
 
 .learner-page-ai .learner-roadmap-editor__preview-phase p {
@@ -5162,7 +5125,7 @@ body.has-roadmap-editor {
 
 .learner-page-ai .learner-roadmap-editor__preview-phase li p {
     margin: 4px 0;
-    font-size: 13px;
+    font-size: var(--text-sm);
 }
 
 .learner-page-ai .learner-roadmap-editor__preview-phase small {
@@ -5209,7 +5172,7 @@ body.has-roadmap-editor {
     align-items: flex-start;
     gap: 7px;
     min-width: 0;
-    font-size: 20px;
+    font-size: var(--text-2xl);
     font-weight: 800;
     line-height: 1.35;
 }
@@ -5230,7 +5193,7 @@ body.has-roadmap-editor {
     gap: 9px;
     margin: 8px 0 0;
     color: #64748b;
-    font-size: 13px;
+    font-size: var(--text-sm);
 }
 
 .learner-page-ai .learner-roadmap-editor__editing-state > span {
@@ -5265,7 +5228,7 @@ body.has-roadmap-editor {
 .learner-page-ai .learner-roadmap-editor__field-label {
     padding: 8px 0;
     color: #0f172a;
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: 700;
     line-height: 1.5;
 }
@@ -5303,7 +5266,7 @@ body.has-roadmap-editor {
     background: transparent;
     color: #334155;
     font: inherit;
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: 500;
     line-height: 1.55;
     resize: none;
@@ -5311,12 +5274,12 @@ body.has-roadmap-editor {
 }
 
 .learner-page-ai .learner-roadmap-editor__phase-title-input {
-    min-height: 38px !important;
-    padding: 4px 2px !important;
-    color: #0f172a !important;
-    font-size: 20px !important;
-    font-weight: 800 !important;
-    line-height: 1.35 !important;
+    min-height: 38px;
+    padding: 4px 2px;
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: 800;
+    line-height: 1.35;
 }
 
 .learner-page-ai .learner-roadmap-editor__field-reset {
@@ -5333,7 +5296,7 @@ body.has-roadmap-editor {
     background: transparent;
     color: #2563eb;
     font: inherit;
-    font-size: 17px;
+    font-size: 1.0625rem;
     cursor: pointer;
     opacity: 0;
     transition: opacity .16s ease, background-color .16s ease;
@@ -5357,14 +5320,14 @@ body.has-roadmap-editor {
 
 .learner-page-ai .learner-roadmap-editor__task-heading h3 {
     margin: 0;
-    font-size: 16px;
+    font-size: var(--text-lg);
 }
 
 .learner-page-ai .learner-roadmap-editor__field-error {
     display: block;
     margin: 4px 0 0;
     color: #b91c1c;
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: 650;
     line-height: 1.4;
 }
@@ -5382,7 +5345,7 @@ body.has-roadmap-editor {
 .learner-page-ai .learner-roadmap-editor__task-count {
     margin-left: auto;
     color: #64748b;
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: 650;
     white-space: nowrap;
 }
@@ -5404,7 +5367,7 @@ body.has-roadmap-editor {
 .learner-page-ai .learner-roadmap-editor__task-number {
     align-self: start;
     padding-top: 8px;
-    font-size: 14px;
+    font-size: var(--text-base);
 }
 
 .learner-page-ai .learner-roadmap-editor__task-copy,
@@ -5414,16 +5377,16 @@ body.has-roadmap-editor {
 }
 
 .learner-page-ai .learner-roadmap-editor__task-title-input {
-    min-height: 31px !important;
-    color: #0f172a !important;
-    font-weight: 700 !important;
+    min-height: 31px;
+    color: var(--text-primary);
+    font-weight: 700;
 }
 
 .learner-page-ai .learner-roadmap-editor__task-description-input {
-    min-height: 30px !important;
-    padding-top: 2px !important;
-    color: #64748b !important;
-    font-size: 13px !important;
+    min-height: 30px;
+    padding-top: 2px;
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
 }
 
 .learner-page-ai .learner-roadmap-editor__task-actions {
@@ -5444,7 +5407,7 @@ body.has-roadmap-editor {
     border-radius: 8px;
     background: #eff6ff;
     color: #334155;
-    font-size: 12px;
+    font-size: var(--text-xs);
     white-space: nowrap;
 }
 
@@ -5481,7 +5444,7 @@ body.has-roadmap-editor {
     background: transparent;
     color: #2563eb;
     font: inherit;
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: 700;
     cursor: pointer;
 }
@@ -5493,7 +5456,7 @@ body.has-roadmap-editor {
 .learner-page-ai .learner-roadmap-editor__delete {
     width: 34px;
     color: #dc2626;
-    font-size: 18px;
+    font-size: var(--text-xl);
 }
 
 .learner-page-ai .learner-roadmap-editor__delete:hover:not(:disabled) {
@@ -5514,7 +5477,7 @@ body.has-roadmap-editor {
     background: #fff7ed;
     color: #c2410c;
     font: inherit;
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: 750;
     cursor: pointer;
 }
@@ -5527,7 +5490,7 @@ body.has-roadmap-editor {
 .learner-page-ai .learner-roadmap-editor__task-limit {
     margin: 12px 0 0;
     color: #64748b;
-    font-size: 12px;
+    font-size: var(--text-xs);
     text-align: right;
 }
 
@@ -5572,7 +5535,7 @@ body.has-roadmap-editor {
     }
 
     .learner-page-ai .learner-roadmap-editor__header h2 {
-        font-size: 20px;
+        font-size: var(--text-2xl);
     }
 
     .learner-page-ai .learner-roadmap-editor__phase-intro {
@@ -5603,7 +5566,7 @@ body.has-roadmap-editor {
     .learner-page-ai .learner-roadmap-editor__phase-title-line {
         flex-direction: column;
         gap: 0;
-        font-size: 18px;
+        font-size: var(--text-xl);
     }
 
     .learner-page-ai .learner-roadmap-editor__phase-title-line > span {
@@ -5611,7 +5574,7 @@ body.has-roadmap-editor {
     }
 
     .learner-page-ai .learner-roadmap-editor__phase-title-input {
-        font-size: 18px !important;
+        font-size: 1.125rem;
     }
 
     .learner-page-ai .learner-roadmap-editor__fact-row {
@@ -7444,6 +7407,44 @@ body.has-roadmap-editor {
         justify-content: flex-end;
     }
 }
+/* Danger outline button */
+.learner-btn--danger-outline {
+    border: 1px solid #f87171;
+    color: #dc2626;
+    font-size: 0.8rem;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.learner-btn--danger-outline:hover {
+    background: #fee2e2;
+}
+.learner-status-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+.learner-status-badge.is-submitted,
+.learner-status-badge.is-reviewing {
+    background: #fef3c7;
+    color: #92400e;
+}
+.learner-status-badge.is-interview {
+    background: #e0e7ff;
+    color: #4338ca;
+}
+.learner-status-badge.is-accepted {
+    background: #dcfce7;
+    color: #166534;
+}
+.learner-status-badge.is-declined,
+.learner-status-badge.is-withdrawn {
+    background: #e2e8f0;
+    color: #475569;
+}
 
 /* Partner detail ---------------------------------------------------------- */
 
@@ -8782,7 +8783,7 @@ body.has-roadmap-editor {
     display: block;
     margin-bottom: 7px;
     color: var(--discover-primary);
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -8791,7 +8792,7 @@ body.has-roadmap-editor {
 .learner-page-discover .learner-discover-hero h1 {
     margin: 0;
     color: var(--discover-text-primary);
-    font-size: 32px;
+    font-size: 2rem;
     font-weight: 700;
     line-height: 1.25;
     letter-spacing: -0.025em;
@@ -8800,7 +8801,7 @@ body.has-roadmap-editor {
 .learner-page-discover .learner-discover-hero__copy > p {
     margin: 7px 0 0;
     color: var(--discover-text-secondary);
-    font-size: 14px;
+    font-size: var(--text-base);
     line-height: 1.5;
 }
 
@@ -8848,14 +8849,14 @@ body.has-roadmap-editor {
 .learner-page-discover .learner-discover-progress__item span:not(.learner-discover-progress__icon) {
     display: block;
     color: var(--discover-text-secondary);
-    font-size: 12px;
+    font-size: var(--text-xs);
 }
 
 .learner-page-discover .learner-discover-progress__item strong {
     display: block;
     margin-top: 3px;
     color: var(--discover-text-primary);
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
 }
@@ -8915,7 +8916,7 @@ body.has-roadmap-editor {
     color: #FFFFFF;
     background: var(--discover-primary);
     border-radius: var(--radius-md);
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: 700;
 }
 
@@ -8925,7 +8926,7 @@ body.has-roadmap-editor {
     max-width: calc(100% - 92px);
     padding: 5px 8px;
     border-radius: var(--radius-sm);
-    font-size: 12px;
+    font-size: var(--text-xs);
 }
 
 .learner-page-discover .learner-assessment-card__status.is-complete {
@@ -8941,7 +8942,7 @@ body.has-roadmap-editor {
 .learner-page-discover .learner-assessment-card h2 {
     margin-top: 16px;
     color: var(--discover-text-primary);
-    font-size: 16px;
+    font-size: var(--text-lg);
     font-weight: 600;
     line-height: 1.4;
 }
@@ -8950,7 +8951,7 @@ body.has-roadmap-editor {
     min-height: 42px;
     margin: 5px 0 12px;
     color: var(--discover-text-secondary);
-    font-size: 14px;
+    font-size: var(--text-base);
     line-height: 1.5;
 }
 
@@ -8964,7 +8965,7 @@ body.has-roadmap-editor {
     background: var(--discover-primary-light);
     border: 1px solid #FED7AA;
     border-radius: var(--radius-sm);
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: 700;
     text-align: center;
     text-overflow: ellipsis;
@@ -8974,7 +8975,7 @@ body.has-roadmap-editor {
 .learner-page-discover .learner-assessment-card > .learner-btn {
     min-height: 40px;
     border-radius: var(--radius-sm);
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: 600;
 }
 
@@ -9009,7 +9010,7 @@ body.has-roadmap-editor {
 .learner-page-discover .learner-discover-next h2 {
     margin: 0;
     color: var(--discover-text-primary);
-    font-size: 20px;
+    font-size: var(--text-2xl);
     font-weight: 700;
     line-height: 1.35;
 }
@@ -9090,7 +9091,7 @@ body.has-roadmap-editor {
 
 .learner-page-discover .learner-radar__labels {
     fill: var(--discover-text-primary);
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: 600;
 }
 
@@ -9122,7 +9123,7 @@ body.has-roadmap-editor {
     display: block;
     margin-bottom: 6px;
     color: var(--discover-primary);
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -9142,7 +9143,7 @@ body.has-roadmap-editor {
 
 .learner-page-discover .learner-direction-row__content > div:first-child {
     color: var(--discover-text-primary);
-    font-size: 14px;
+    font-size: var(--text-base);
 }
 
 .learner-page-discover .learner-direction-row__title {
@@ -9378,7 +9379,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 .learner-page-discover .learner-discover-next__heading p {
     margin: 0;
     color: var(--discover-text-secondary);
-    font-size: 12px;
+    font-size: var(--text-xs);
 }
 
 .learner-page-discover .learner-discover-next__grid {
@@ -9433,14 +9434,14 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 }
 
 .learner-page-discover .learner-discover-next__card strong {
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: 600;
 }
 
 .learner-page-discover .learner-discover-next__card small {
     margin-top: 4px;
     color: var(--discover-text-secondary);
-    font-size: 12px;
+    font-size: var(--text-xs);
     line-height: 1.45;
 }
 
@@ -9465,7 +9466,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     }
 
     .learner-page-discover .learner-discover-hero h1 {
-        font-size: 28px;
+        font-size: 1.75rem;
     }
 
     .learner-page-discover .learner-discover-progress,
@@ -9678,7 +9679,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 .learner-page-ai .learner-roadmap-card-heading > div > span,
 .learner-page-ai .learner-roadmap-section-heading > div > span {
     color: var(--roadmap-primary);
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: 800;
     letter-spacing: 0.055em;
     text-transform: uppercase;
@@ -9695,10 +9696,10 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     gap: 14px;
 }
 
-.learner-page-ai .learner-roadmap-version { display: grid; gap: 3px; color: #64748B; font-size: 14px; }
+.learner-page-ai .learner-roadmap-version { display: grid; gap: 3px; color: #64748B; font-size: var(--text-base); }
 .learner-page-ai .learner-roadmap-version select { min-height: 44px; max-width: 100%; border: 1px solid #E2E8F0; border-radius: 8px; background: #FFFFFF; color: #0F172A; padding: 0 34px 0 12px; }
-.learner-page-ai .learner-roadmap-version__changes { margin: 0; border-left: 3px solid #2563EB; border-radius: 8px; background: #EFF6FF; color: #1E3A8A; padding: 10px 14px; font-size: 15px; }
-.learner-page-ai .learner-roadmap-activity__unavailable { color: #64748B; font-size: 12px; }
+.learner-page-ai .learner-roadmap-version__changes { margin: 0; border-left: 3px solid #2563EB; border-radius: 8px; background: #EFF6FF; color: #1E3A8A; padding: 10px 14px; font-size: var(--text-md); }
+.learner-page-ai .learner-roadmap-activity__unavailable { color: #64748B; font-size: var(--text-xs); }
 .learner-page-ai .learner-roadmap-feedback [data-roadmap-feedback-status] { flex-basis: 100%; color: #64748B; }
 
 .learner-page-ai .learner-roadmap__freshness {
@@ -9845,7 +9846,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     align-items: center;
     gap: 10px;
     color: #64748B;
-    font-size: 15px;
+    font-size: var(--text-md);
 }
 
 .learner-page-ai .learner-roadmap-processing__steps li > span {
@@ -11260,7 +11261,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 }
 
 .learner-page-ai .learner-roadmap__header h1 {
-    font-size: 32px;
+    font-size: 2rem;
     line-height: 1.2;
 }
 
@@ -11273,7 +11274,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     background: #F0FDF4;
     border: 1px solid #BBF7D0;
     border-radius: 8px;
-    font-size: 12px;
+    font-size: var(--text-xs);
 }
 
 .learner-page-ai .learner-roadmap__ready {
@@ -11886,7 +11887,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 .learner-page-ai .learner-roadmap-radar__label {
     fill: #1E293B;
     font-family: 'Be Vietnam Pro', sans-serif;
-    font-size: 11px;
+    font-size: 0.6875rem;
     font-weight: 600;
 }
 
@@ -11982,7 +11983,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     }
 
     .learner-page-ai .learner-roadmap__header h1 {
-        font-size: 28px;
+        font-size: 1.75rem;
     }
 
     .learner-page-ai .learner-roadmap__header-actions {
@@ -15854,7 +15855,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     max-width: none;
     margin: 10px 0 0;
     color: var(--ai-muted);
-    font-size: 16px;
+    font-size: var(--text-lg);
     line-height: 1.6;
 }
 
@@ -15876,7 +15877,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 
 .learner-page-ai .learner-roadmap-version > span {
     color: var(--ai-muted);
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: 700;
 }
 
@@ -15892,7 +15893,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     color: var(--ai-text);
     background-color: var(--ai-surface);
     border-color: var(--ai-border);
-    font-size: 15px;
+    font-size: var(--text-md);
 }
 
 .learner-page-ai .learner-roadmap__freshness {
@@ -15906,13 +15907,13 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     background: #F0FDF4;
     border: 1px solid #BBF7D0;
     border-radius: 8px;
-    font-size: 15px;
+    font-size: var(--text-md);
     font-weight: 700;
 }
 
 .learner-page-ai .learner-roadmap__refresh {
     padding-inline: 15px;
-    font-size: 15px;
+    font-size: var(--text-md);
     white-space: nowrap;
     box-shadow: 0 6px 14px rgba(249, 115, 22, 0.16);
 }
@@ -15947,7 +15948,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     max-width: none;
     margin: 8px 0 12px;
     color: #334155;
-    font-size: 16px;
+    font-size: var(--text-lg);
     font-weight: 500;
     line-height: 1.65;
 }
@@ -16040,7 +16041,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 .learner-page-ai .learner-roadmap-plan__controls .learner-btn {
     min-height: 36px;
     padding: 7px 11px;
-    font-size: 14px;
+    font-size: var(--text-base);
     white-space: nowrap;
 }
 
@@ -16123,7 +16124,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 .learner-page-ai .learner-roadmap-phase__title-row strong {
     overflow: visible;
     color: var(--ai-text);
-    font-size: 15px;
+    font-size: var(--text-md);
     line-height: 1.42;
     white-space: normal;
 }
@@ -16166,7 +16167,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     margin: 6px 0 0;
     overflow: hidden;
     color: #475569;
-    font-size: 15px;
+    font-size: var(--text-md);
     line-height: 1.5;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -16239,7 +16240,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     display: block;
     margin-bottom: 4px;
     color: #EA580C;
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: 800;
     letter-spacing: 0.075em;
     line-height: 1.4;
@@ -16258,7 +16259,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 .learner-page-ai .learner-roadmap-phase-panel .learner-roadmap-phase__goal {
     margin-top: 7px;
     color: #475569;
-    font-size: 15px;
+    font-size: var(--text-md);
     line-height: 1.6;
 }
 
@@ -16298,7 +16299,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 
 .learner-page-ai .learner-roadmap-phase-panel .learner-phase-fact-label {
     color: var(--ai-text);
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: 800;
     line-height: 1.35;
 }
@@ -16306,7 +16307,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 .learner-page-ai .learner-roadmap-phase-panel .learner-phase-fact-value {
     margin-top: 5px;
     color: var(--ai-muted);
-    font-size: 15px;
+    font-size: var(--text-md);
     font-weight: 550;
     line-height: 1.5;
 }
@@ -16333,14 +16334,14 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 .learner-page-ai .learner-roadmap-phase-panel__heading h3 {
     margin: 0;
     color: var(--ai-text);
-    font-size: 15px;
+    font-size: var(--text-md);
     line-height: 1.4;
 }
 
 .learner-page-ai .learner-roadmap-phase-panel__task-meta {
     margin-left: auto;
     color: var(--ai-muted);
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: 650;
     white-space: nowrap;
 }
@@ -16388,7 +16389,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 .learner-page-ai .learner-roadmap-completed__summary {
     padding: 12px 4px;
     color: var(--ai-muted);
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: 750;
     cursor: pointer;
 }
@@ -16432,7 +16433,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 
 .learner-page-ai .learner-roadmap-task__content > strong {
     color: var(--ai-text);
-    font-size: 15px;
+    font-size: var(--text-md);
     line-height: 1.45;
 }
 
@@ -16454,7 +16455,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     grid-column: 1 / -1;
     margin-top: 1px;
     color: #64748B;
-    font-size: 15px;
+    font-size: var(--text-md);
     line-height: 1.5;
 }
 
@@ -16486,7 +16487,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     align-items: center;
     gap: 10px;
     color: #475569;
-    font-size: 14px;
+    font-size: var(--text-base);
 }
 
 .learner-page-ai .learner-roadmap-phase-panel__footer-progress .learner-phase-mini-track {
@@ -16557,14 +16558,14 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 
 .learner-page-ai .learner-talent-bar__heading strong {
     color: var(--ai-text);
-    font-size: 16px;
+    font-size: var(--text-lg);
     font-weight: 750;
     line-height: 1.4;
 }
 
 .learner-page-ai .learner-talent-bar__heading span {
     color: var(--ai-secondary);
-    font-size: 17px;
+    font-size: 1.0625rem;
     font-weight: 800;
     white-space: nowrap;
 }
@@ -16585,7 +16586,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 
 .learner-page-ai .learner-talent-bar.is-unmeasured .learner-talent-bar__heading span {
     color: var(--ai-muted);
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: 650;
 }
 
@@ -16622,7 +16623,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     min-height: 82px;
     padding: 14px 16px;
     align-items: center;
-    font-size: 15px;
+    font-size: var(--text-md);
     line-height: 1.55;
 }
 
@@ -16718,7 +16719,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 
 .learner-page-ai .learner-roadmap-activities__heading > span {
     color: var(--ai-muted);
-    font-size: 14px;
+    font-size: var(--text-base);
 }
 
 .learner-page-ai .learner-roadmap-activities .learner-skill-gap__activities {
@@ -16733,7 +16734,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 
 /* AI roadmap readability --------------------------------------------------- */
 .learner-page-ai .learner-roadmap-summary__direction strong {
-    font-size: 21px;
+    font-size: 1.3125rem;
     font-weight: 800;
     line-height: 1.35;
     color: #C2410C;
@@ -16741,7 +16742,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 }
 
 .learner-page-ai .learner-roadmap-summary__direction p {
-    font-size: 16px;
+    font-size: var(--text-lg);
     line-height: 1.65;
     color: #334155;
     margin: 0;
@@ -16757,45 +16758,45 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 
 .learner-page-ai .learner-roadmap-direction__chip small {
     display: block;
-    font-size: 15px;
+    font-size: var(--text-md);
     line-height: 1.6;
     color: #475569;
     margin: 0;
 }
 
 .learner-page-ai .learner-skill-gap__heading h2 {
-    font-size: 22px;
+    font-size: 1.375rem;
     line-height: 1.35;
 }
 
 .learner-page-ai .learner-skill-gap__heading p {
-    font-size: 16px;
+    font-size: var(--text-lg);
     line-height: 1.55;
 }
 
 .learner-page-ai .learner-skill-gap__target-tag,
 .learner-page-ai .learner-skill-gap__score-heading span {
-    font-size: 14px;
+    font-size: var(--text-base);
 }
 
 .learner-page-ai .learner-skill-gap__target strong,
 .learner-page-ai .learner-skill-gap__score-heading strong {
-    font-size: 20px;
+    font-size: var(--text-2xl);
 }
 
 .learner-page-ai .learner-skill-gap__section-heading h3 {
-    font-size: 17px;
+    font-size: 1.0625rem;
     font-weight: 800;
 }
 
 .learner-page-ai .learner-skill-gap__section-heading span,
 .learner-page-ai .learner-skill-gap__evidence {
-    font-size: 14px;
+    font-size: var(--text-base);
 }
 
 .learner-page-ai .learner-skill-gap__skill-heading h4,
 .learner-page-ai .learner-skill-gap__activity-body h4 {
-    font-size: 16px;
+    font-size: var(--text-lg);
     font-weight: 800;
 }
 
@@ -16803,26 +16804,26 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 .learner-page-ai .learner-skill-gap__activity-header .learner-eyebrow,
 .learner-page-ai .learner-skill-gap__provider,
 .learner-page-ai .learner-skill-tag {
-    font-size: 13px;
+    font-size: var(--text-sm);
 }
 
 .learner-page-ai .learner-skill-gap__skill-metrics,
 .learner-page-ai .learner-skill-gap__impact,
 .learner-page-ai .learner-skill-gap__activity-body p,
 .learner-page-ai .learner-roadmap-activities__heading > span {
-    font-size: 15px;
+    font-size: var(--text-md);
     line-height: 1.55;
 }
 
 .learner-page-ai .learner-roadmap-activities__heading .learner-roadmap-card-heading h2 {
-    font-size: 21px;
+    font-size: 1.3125rem;
     font-weight: 800;
 }
 
 .learner-page-ai .learner-skill-gap__activity .learner-btn {
     min-height: 40px;
     padding: 8px 12px;
-    font-size: 14px;
+    font-size: var(--text-base);
 }
 
 .learner-page-ai button:focus-visible,
@@ -18288,6 +18289,186 @@ body.learner-app .learner-page-discover .learner-btn--outline:focus-visible,
 body.learner-app .learner-page-discover a.learner-btn--outline:focus-visible {
     outline: 3px solid rgba(248, 63, 112, 0.35) !important;
     outline-offset: 2px !important;
+}
+
+/* ==========================================================================
+   UI/UX Polish — spacing, hover, focus, mobile refinements (auto-injected)
+   Shared across all 4 portal dashboards (teacher / school / learner / enterprise)
+   ========================================================================== */
+
+.teacher-dashboard .page-header,
+.teacher-dashboard .teacher-page-header,
+.school-dashboard .page-header,
+.school-dashboard .school-page-header,
+.learner-dashboard .page-header,
+.learner-dashboard .learner-page-header,
+.ent-dashboard .page-header,
+.ent-dashboard .ent-page-header {
+    padding: 1.5rem 0 1.25rem;
+    border-bottom: 1px solid var(--border, #e7e5e4);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.teacher-dashboard .page-header__title,
+.school-dashboard .page-header__title,
+.learner-dashboard .page-header__title,
+.ent-dashboard .page-header__title {
+    font-size: clamp(1.5rem, 3vw, 1.875rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    color: var(--text-primary, #1c1917);
+}
+
+.teacher-dashboard .page-header__subtitle,
+.school-dashboard .page-header__subtitle,
+.learner-dashboard .page-header__subtitle,
+.ent-dashboard .page-header__subtitle {
+    margin-top: 0.35rem;
+    color: var(--text-secondary, #57534e);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    max-width: 60ch;
+}
+
+.teacher-dashboard .page-header__actions,
+.school-dashboard .page-header__actions,
+.learner-dashboard .page-header__actions,
+.ent-dashboard .page-header__actions {
+    display: flex;
+    gap: 0.625rem;
+    flex-wrap: wrap;
+}
+
+.teacher-dashboard table,
+.school-dashboard table,
+.learner-dashboard table,
+.ent-dashboard table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+}
+
+.teacher-dashboard table thead th,
+.school-dashboard table thead th,
+.learner-dashboard table thead th,
+.ent-dashboard table thead th {
+    background: #fafaf9;
+    color: var(--text-secondary, #57534e);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border, #e7e5e4);
+}
+
+.teacher-dashboard table tbody td,
+.school-dashboard table tbody td,
+.learner-dashboard table tbody td,
+.ent-dashboard table tbody td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--border, #e7e5e4);
+    color: var(--text-primary, #1c1917);
+    vertical-align: middle;
+}
+
+.teacher-dashboard table tbody tr,
+.school-dashboard table tbody tr,
+.learner-dashboard table tbody tr,
+.ent-dashboard table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.teacher-dashboard table tbody tr:hover,
+.school-dashboard table tbody tr:hover,
+.learner-dashboard table tbody tr:hover,
+.ent-dashboard table tbody tr:hover {
+    background: rgba(255, 247, 237, 0.5);
+}
+
+.teacher-dashboard table tbody tr:last-child td,
+.school-dashboard table tbody tr:last-child td,
+.learner-dashboard table tbody tr:last-child td,
+.ent-dashboard table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.teacher-dashboard input,
+.teacher-dashboard select,
+.teacher-dashboard textarea,
+.school-dashboard input,
+.school-dashboard select,
+.school-dashboard textarea,
+.learner-dashboard input,
+.learner-dashboard select,
+.learner-dashboard textarea,
+.ent-dashboard input,
+.ent-dashboard select,
+.ent-dashboard textarea {
+    font-family: inherit;
+    max-width: 100%;
+}
+
+.teacher-dashboard input:focus,
+.teacher-dashboard select:focus,
+.teacher-dashboard textarea:focus,
+.school-dashboard input:focus,
+.school-dashboard select:focus,
+.school-dashboard textarea:focus,
+.learner-dashboard input:focus,
+.learner-dashboard select:focus,
+.learner-dashboard textarea:focus,
+.ent-dashboard input:focus,
+.ent-dashboard select:focus,
+.ent-dashboard textarea:focus {
+    outline: none;
+    border-color: var(--primary, #c2410c);
+    box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.14);
+}
+
+@media (max-width: 768px) {
+    .teacher-dashboard .page-header,
+    .school-dashboard .page-header,
+    .learner-dashboard .page-header,
+    .ent-dashboard .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 1.25rem 0 1rem;
+        margin-bottom: 1.25rem;
+        gap: 0.875rem;
+    }
+    .teacher-dashboard .page-header__actions,
+    .school-dashboard .page-header__actions,
+    .learner-dashboard .page-header__actions,
+    .ent-dashboard .page-header__actions {
+        width: 100%;
+    }
+    .teacher-dashboard table thead th,
+    .teacher-dashboard table tbody td,
+    .school-dashboard table thead th,
+    .school-dashboard table tbody td,
+    .learner-dashboard table thead th,
+    .learner-dashboard table tbody td,
+    .ent-dashboard table thead th,
+    .ent-dashboard table tbody td {
+        padding: 0.625rem 0.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .teacher-dashboard .page-header__title,
+    .school-dashboard .page-header__title,
+    .learner-dashboard .page-header__title,
+    .ent-dashboard .page-header__title {
+        font-size: 1.4rem;
+    }
 }
 
 /* 12. LEARNER ECOSYSTEM & OPPORTUNITIES HIGH-CONTRAST POLISH */

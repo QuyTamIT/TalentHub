@@ -124,6 +124,7 @@ $audiences = [
     <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <meta name="description" content="TalentHub - Nền tảng phát triển và kết nối năng khiếu hàng đầu dành cho Học sinh, Giáo viên, Nhà trường và Doanh nghiệp.">
     <title>TalentHub | Nền tảng phát triển và kết nối năng khiếu</title>
     

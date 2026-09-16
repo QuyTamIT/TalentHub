@@ -119,6 +119,9 @@ $sidebarNav = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="Hồ sơ doanh nghiệp TalentHub - Quản lý thông tin đơn vị, liên hệ và nhận diện thương hiệu tuyển dụng.">
+    <title>Hồ sơ doanh nghiệp - <?= htmlspecialchars($enterprise['name']); ?> | TalentHub</title>
     <meta name="description" content="Hồ sơ doanh nghiệp FTalentHub - Quản lý thông tin đơn vị, liên hệ và nhận diện thương hiệu tuyển dụng.">
     <title>Hồ sơ doanh nghiệp - <?= htmlspecialchars($enterprise['name']); ?> | FTalentHub</title>
     

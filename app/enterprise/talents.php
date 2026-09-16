@@ -210,6 +210,9 @@ $sidebarNav = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="Tìm kiếm nhân tài, kết nối ứng viên tài năng dành cho Doanh nghiệp trên TalentHub Enterprise.">
+    <title>Tìm nhân tài - Enterprise | TalentHub</title>
     <meta name="description" content="Tìm kiếm nhân tài, kết nối ứng viên tài năng dành cho Doanh nghiệp trên FTalentHub Enterprise.">
     <title>Tìm nhân tài - Enterprise | FTalentHub</title>
     

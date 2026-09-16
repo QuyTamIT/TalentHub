@@ -81,11 +81,19 @@ final class DatabaseStatisticsRepository extends AbstractDatabaseRepository impl
         SQL;
         $evalRow = $this->fetchOne('lifetimePublishedEvaluations', $evalSql, ['student_id' => $studentId]);
 
+        $learningSql = <<<'SQL'
+            SELECT COALESCE(SUM(sltl.activeSeconds), 0) AS total_active_seconds
+            FROM student_learning_time_logs sltl
+            WHERE sltl.studentId = :student_id
+        SQL;
+        $learningRow = $this->fetchOne('lifetimeOnlineLearningMinutes', $learningSql, ['student_id' => $studentId]);
+
         return [
             'confirmed_experience_hours' => round((float) ($hoursRow['total_hours'] ?? 0.0), 2),
             'attended_activity_count' => (int) ($attendedRow['attended_count'] ?? 0),
             'submitted_assessment_type_count' => (int) ($assessmentRow['test_type_count'] ?? 0),
             'published_teacher_evaluation_count' => (int) ($evalRow['eval_count'] ?? 0),
+            'online_learning_minutes' => (int) floor((int) ($learningRow['total_active_seconds'] ?? 0) / 60),
         ];
     }
 

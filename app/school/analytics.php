@@ -5,6 +5,11 @@
  */
 declare(strict_types=1);
 
+// Never cache this page: analytics must always reflect current DB (avoid stale
+// radar "all 50" being served from browser/proxy cache after data is updated).
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+
 require_once dirname(__DIR__, 2) . '/bin/bootstrap.php';
 require_once dirname(__DIR__, 2) . '/src/Bootstrap/SchoolAppContext.php';
 
@@ -20,28 +25,35 @@ $pdo        = $context['pdo'] ?? null;
 $metrics = $dashboard['metrics'];
 $classes = $service->classes($userId);
 
-$currentAcademicYear = $school['academicYear'] ?? '2025 - 2026';
-
 $analytics = $service->analytics($userId);
+$monthlyStudentRows = $analytics['monthlyStudents'] ?? [];
 
-// Monthly Activity Stats (last 12 months)
+// Monthly Student Activity Stats (academic year, scoped to school).
+// Build exactly the 12 months of the school's current academic year so the
+// bars line up with the "Niên khóa" badge and the backend filter used by
+// monthlyStudentActivity() (Sep 1 – Aug 31).
+$currentAcademicYear = trim((string) ($school['academicYear'] ?? '2025 - 2026'));
+if ($currentAcademicYear === '') {
+    $currentAcademicYear = '2025 - 2026';
+}
+$monthlyByKey = [];
+foreach ($monthlyStudentRows as $row) {
+    $monthlyByKey[(string) $row['month']] = (int) $row['students'];
+}
 $monthlyStats = [];
-$today = new DateTime('now');
-for ($i = 11; $i >= 0; $i--) {
-    $dt = (clone $today)->modify("-{$i} months");
+if (preg_match('/(\d{4})\s*-\s*(\d{4})/', $currentAcademicYear, $m) === 1) {
+    $startYear = (int) $m[1];
+} else {
+    $startYear = (int) date('Y');
+}
+for ($i = 0; $i < 12; $i++) {
+    $dt = new DateTime(sprintf('%04d-09-01', $startYear));
+    $dt->modify("+{$i} months");
     $monthKey = $dt->format('Y-m');
-    $count = 0;
-    foreach ($analytics['monthly'] as $row) {
-        if ($row['month'] === $monthKey) {
-            $count = $row['count'];
-            break;
-        }
-    }
-    // Only count actual activity from database
     $monthlyStats[] = [
         'month'    => 'T' . (int) $dt->format('n'),
         'yearMo'   => $monthKey,
-        'students' => $count,
+        'students' => $monthlyByKey[$monthKey] ?? 0,
     ];
 }
 
@@ -53,57 +65,39 @@ if (!is_array($talentDistribution)) {
     $talentDistribution = [];
 }
 
-// 5 Core Aptitude Radar Dimensions
+// 5 Core Aptitude Radar Dimensions - sourced from real data
 $hasRadarData = !empty($school['id']) && !empty($classes);
-$radarDimensions = [
-    [
-        'domain' => 'Kỹ thuật',
-        'score' => $hasRadarData ? 85 : 0,
-        'benchmark' => 74,
-        'color' => '#2563EB',
-        'description' => 'Lập trình, hệ thống công nghệ, phân tích và giải pháp kỹ thuật số',
-    ],
-    [
-        'domain' => 'Logic - Toán học',
-        'score' => $hasRadarData ? 80 : 0,
-        'benchmark' => 70,
-        'color' => '#0E7490',
-        'description' => 'Tư duy thuật toán, cấu trúc dữ liệu, phân tích & giải quyết bài toán',
-    ],
-    [
-        'domain' => 'Kinh doanh',
-        'score' => $hasRadarData ? 72 : 0,
-        'benchmark' => 65,
-        'color' => '#C2410C',
-        'description' => 'Hiểu biết thị trường công nghệ, Digital Marketing & Khởi nghiệp',
-    ],
-    [
-        'domain' => 'Nghệ thuật',
-        'score' => $hasRadarData ? 65 : 0,
-        'benchmark' => 60,
-        'color' => '#9333EA',
-        'description' => 'Thiết kế giao diện UI/UX, sáng tạo nội dung & truyền thông số',
-    ],
-    [
-        'domain' => 'Ngoại ngữ & Giao tiếp',
-        'score' => $hasRadarData ? 75 : 0,
-        'benchmark' => 68,
-        'color' => '#047857',
-        'description' => 'Ngoại ngữ chuyên ngành, thuyết trình dự án & làm việc nhóm',
-    ],
-];
+$radarDimensions = $service->radarScores($userId);
+if (empty($radarDimensions)) {
+    $radarDimensions = [];
+}
+
+// Ensure consistency: details on the right use the SAME array as the radar
+$hasRadarData = $hasRadarData && !empty($radarDimensions);
 
 $gradeStats = [];
 $grouped = [];
 foreach ($classes as $class) {
     $grouped[$class['grade']][] = $class;
 }
-ksort($grouped);
+// Sort grade groups alphabetically (K1 < K2 < ... < Khối 12 / Năm 4)
+ksort($grouped, SORT_NATURAL);
 foreach ($grouped as $grade => $items) {
     $sum = array_sum(array_column($items, 'students'));
-    $avg = count($items) > 0
-        ? (int) round(array_sum(array_column($items, 'completion')) / count($items))
-        : 0;
+    // Weighted completion: classes with more students weigh more, so the
+    // grade-level figure reflects the actual student body (not per-class avg).
+    $weightedSum = 0.0;
+    $weightedN   = 0;
+    foreach ($items as $item) {
+        $n = (int) $item['students'];
+        $weightedSum += (int) $item['completion'] * $n;
+        $weightedN   += $n;
+    }
+    $avg = $weightedN > 0
+        ? (int) round($weightedSum / $weightedN)
+        : (count($items) > 0
+            ? (int) round(array_sum(array_column($items, 'completion')) / count($items))
+            : 0);
     $gradeStats[] = [
         'grade'      => $grade,
         'students'   => $sum,
@@ -144,10 +138,10 @@ include __DIR__ . '/includes/page-banner.php';
                         Bản đồ Radar Năng khiếu Toàn trường
                     </h3>
                     <p class="school-section-box__subtitle">
-                        Tổng hợp điểm đánh giá trung bình 5 miền năng lực sinh viên <?= htmlspecialchars(!empty($school['name']) ? $school['name'] : 'Nhà trường'); ?>
+                        Tổng hợp điểm đánh giá trung bình 4 miền năng lực sinh viên <?= htmlspecialchars(!empty($school['name']) ? $school['name'] : 'Nhà trường'); ?>
                     </p>
                 </div>
-                <div style="display: flex; gap: 0.75rem; font-size: 0.75rem; font-weight: 600;">
+                <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.75rem; font-weight: 600;">
                     <span style="display: flex; align-items: center; gap: 0.35rem; color: #1D4ED8;">
                         <span style="width: 10px; height: 10px; border-radius: 50%; background: #2563EB;"></span> <?= htmlspecialchars(!empty($school['name']) ? $school['name'] : 'Nhà trường'); ?> (Thực tế)
                     </span>
@@ -164,19 +158,26 @@ include __DIR__ . '/includes/page-banner.php';
             <noscript>
                 <div style="text-align: center; padding: 1.5rem; color: #475569;">
                     <p><strong>Điểm năng khiếu trung bình:</strong></p>
-                    <p>Kỹ thuật: <?= $radarDimensions[0]['score']; ?>đ | Logic - Toán học: <?= $radarDimensions[1]['score']; ?>đ | Kinh doanh: <?= $radarDimensions[2]['score']; ?>đ | Nghệ thuật: <?= $radarDimensions[3]['score']; ?>đ | Ngoại ngữ & Giao tiếp: <?= $radarDimensions[4]['score']; ?>đ</p>
+                    <p>Kỹ thuật: <?= $radarDimensions[0]['score']; ?>đ | Logic - Toán học: <?= $radarDimensions[1]['score']; ?>đ | Kinh doanh: <?= $radarDimensions[2]['score']; ?>đ | Nghệ thuật: <?= $radarDimensions[3]['score']; ?>đ</p>
                 </div>
             </noscript>
         </div>
 
         <!-- Radar Footer Insight -->
         <?php if ($hasRadarData): ?>
+            <?php
+            $_sorted = $radarDimensions;
+            usort($_sorted, static fn($a,$b) => ($b['score']-$b['benchmark']) <=> ($a['score']-$a['benchmark']));
+            $_top = array_slice($_sorted, 0, 2);
+            $_label = $_top[0]['domain'] . ' (' . $_top[0]['score'] . '/100)';
+            if (count($_top) > 1) $_label .= ' và ' . $_top[1]['domain'] . ' (' . $_top[1]['score'] . '/100)';
+            ?>
             <div style="margin-top: 1rem; padding: 0.85rem 1rem; background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; display: flex; align-items: center; gap: 0.75rem;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5">
                     <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
                 <span style="font-size: 0.8125rem; color: #15803D; font-weight: 600;">
-                    Điểm nổi bật: Kỹ thuật (<?= $radarDimensions[0]['score']; ?>/100) và Logic - Toán học (<?= $radarDimensions[1]['score']; ?>/100) trên chuẩn đào tạo khu vực.
+                    Điểm nổi bật: <?= htmlspecialchars($_label); ?> trên chuẩn đào tạo khu vực.
                 </span>
             </div>
         <?php endif; ?>
@@ -186,7 +187,7 @@ include __DIR__ . '/includes/page-banner.php';
     <div class="school-section-box" style="margin-bottom: 0; display: flex; flex-direction: column;">
         <div class="school-section-box__header school-section-box__header--bordered">
             <h3 class="school-section-box__title">
-                Chi tiết 5 Miền Năng lực
+                Chi tiết 4 Miền Năng lực
             </h3>
             <p class="school-section-box__subtitle">
                 Phân tích điểm số và ứng dụng thực tiễn trong đào tạo
@@ -204,8 +205,9 @@ include __DIR__ . '/includes/page-banner.php';
                             <span style="font-size: 0.875rem; font-weight: 800; color: <?= $dim['color']; ?>;">
                                 <?= $dim['score']; ?> / 100
                             </span>
+                            <?php $rawDiff = $dim['score'] - $dim['benchmark']; $diff = max(0, $rawDiff); ?>
                             <span class="school-badge school-badge--success">
-                                +<?= $dim['score'] - $dim['benchmark']; ?>đ
+                                +<?= $diff; ?>đ
                             </span>
                         </div>
                     </div>
@@ -229,7 +231,7 @@ include __DIR__ . '/includes/page-banner.php';
         <div class="school-chart-header">
             <div>
                 <h3 class="school-chart-title">Học sinh & Hoạt động theo tháng</h3>
-                <p style="font-size: 0.8125rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">Số lượng sinh viên tham gia đánh giá và trải nghiệm 12 tháng qua</p>
+                <p style="font-size: 0.8125rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">Số lượng sinh viên tham gia đánh giá và trải nghiệm theo 12 tháng của niên khóa <?= htmlspecialchars($currentAcademicYear); ?></p>
             </div>
             <span class="school-badge school-badge--info">
                 Niên khóa <?= htmlspecialchars($currentAcademicYear); ?>
@@ -237,10 +239,11 @@ include __DIR__ . '/includes/page-banner.php';
         </div>
         <div style="display: flex; align-items: flex-end; gap: 0.45rem; height: 190px; padding: 1.25rem 0 0.5rem 0;">
             <?php foreach ($monthlyStats as $stat):
-                $height = max(18, round(($stat['students'] / $maxStudents) * 145)); ?>
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.35rem;">
-                    <div style="width: 100%; background: linear-gradient(180deg, #2563EB 0%, #93C5FD 100%); border-radius: 5px 5px 0 0; height: <?= $height; ?>px; transition: all 0.3s ease; cursor: pointer;" title="<?= $stat['month']; ?>: <?= $stat['students']; ?> sinh viên tham gia"></div>
-                    <span style="font-size: 0.6875rem; font-weight: 600; color: var(--text-secondary);"><?= $stat['month']; ?></span>
+                $height = $stat['students'] > 0 ? max(6, round(($stat['students'] / $maxStudents) * 145)) : 4; ?>
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; min-width: 0; overflow: hidden;" title="<?= $stat['month']; ?>: <?= $stat['students']; ?> sinh viên tham gia">
+                    <span style="font-size: 0.6875rem; font-weight: 600; color: var(--text-secondary);"><?= (int) $stat['students']; ?></span>
+                    <div style="width: 100%; max-width: 42px; background: linear-gradient(180deg, #2563EB 0%, #93C5FD 100%); border-radius: 5px 5px 0 0; height: <?= $height; ?>px; opacity: <?= $stat['students'] > 0 ? '1' : '0.3'; ?>; transition: height 0.3s ease;"></div>
+                    <span style="font-size: 0.625rem; font-weight: 500; color: var(--text-muted); white-space: nowrap;"><?= htmlspecialchars($stat['month']); ?></span>
                 </div>
             <?php endforeach; ?>
         </div>

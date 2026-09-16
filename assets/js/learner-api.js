@@ -43,11 +43,17 @@
     function normalizeApiBase(baseUrl) {
         const prefix = detectAppPrefix();
         let requestedBase = String(baseUrl || '').trim().replace(/\/+$/, '');
-        if (prefix && requestedBase.startsWith(prefix)) {
-            requestedBase = requestedBase.slice(prefix.length);
+        // Check full base (with prefix) first
+        if (ALLOWED_API_BASES.has(requestedBase)) {
+            return requestedBase;
         }
-        const canonicalBase = ALLOWED_API_BASES.has(requestedBase) ? requestedBase : API_ROOT;
-        return `${prefix}${canonicalBase}`;
+        if (prefix && requestedBase.startsWith(prefix)) {
+            const withoutPrefix = requestedBase.slice(prefix.length);
+            if (ALLOWED_API_BASES.has(withoutPrefix)) {
+                return `${prefix}${withoutPrefix}`;
+            }
+        }
+        return `${prefix}${API_ROOT}`;
     }
 
     function createApiPathError() {

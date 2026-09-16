@@ -281,6 +281,7 @@ $talentScoreSortUrl = './index.php?' . http_build_query($sortUrlParams);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <meta name="description" content="Danh sách học viên đang theo dõi thuộc phạm vi quản lý của giáo viên trên TalentHub.">
     <title>Học viên của tôi | TalentHub</title>
 

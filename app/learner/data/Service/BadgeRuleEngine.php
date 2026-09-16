@@ -13,6 +13,13 @@ final class BadgeRuleEngine
         'attended_activity_count',
         'submitted_assessment_type_count',
         'published_teacher_evaluation_count',
+        // Seeded by migration 20260913000100 (badges online_learning_60m/300m/1200m)
+        // and required by tests/student_achievement_management_test.php.
+        'online_learning_minutes',
+        // Sentinel fact produced by SchoolCredentialManagementService::badgeCriteria()
+        // for awardMode=manual badges. It is never part of lifetimeFacts(), so the
+        // engine resolves it to current=0 and the badge can never auto-award.
+        'manual_award_only',
     ];
 
     public const ALLOWED_OPERATORS = [

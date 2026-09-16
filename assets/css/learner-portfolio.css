@@ -1,11 +1,11 @@
-.portfolio-panel{margin:24px 0;padding:24px;background:#fff;border:1px solid #dae1eb;border-radius:12px;color:#172536}
-.portfolio-list{display:grid;gap:16px}.portfolio-card{padding:18px;border:1px solid #d8e1ee;border-radius:10px;overflow-wrap:anywhere}
+.portfolio-panel{margin:24px 0;padding:24px;background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);border-radius:var(--radius-md,12px);color:var(--text-primary,#172536)}
+.portfolio-list{display:grid;gap:16px}.portfolio-card{padding:18px;border:1px solid var(--border,#e2e8f0);border-radius:var(--radius-sm,10px);overflow-wrap:anywhere}
 .portfolio-card h3{margin:0 0 8px}.portfolio-card p{line-height:1.5}.portfolio-notes{white-space:pre-wrap}
 .portfolio-card form{display:grid;gap:12px;margin-top:14px}.portfolio-card label{display:grid;gap:6px;font-weight:600}
-.portfolio-card input,.portfolio-card textarea,.portfolio-card select{box-sizing:border-box;width:100%;padding:9px;border:1px solid #b4c2d4;border-radius:6px;background:white;color:#172536;font:inherit}
+.portfolio-card input,.portfolio-card textarea,.portfolio-card select{box-sizing:border-box;width:100%;padding:9px;border:1px solid var(--border-strong,#b4c2d4);border-radius:var(--radius-xs,6px);background:var(--surface,#fff);color:var(--text-primary,#172536);font:inherit}
 .portfolio-card textarea{min-height:90px}.portfolio-card select[multiple]{min-height:140px}.portfolio-actions{display:flex;flex-wrap:wrap;gap:10px}
-.portfolio-panel button{padding:10px 15px;border:1px solid #173d66;border-radius:6px;background:#173d66;color:#fff;cursor:pointer}.portfolio-panel button:disabled{opacity:.5;cursor:wait}
-.portfolio-card [role=alert]{color:#991b1b}.portfolio-panel details{margin-top:12px}.portfolio-review-page{max-width:1050px;margin:24px auto;padding:0 16px;font-family:Arial,sans-serif}
+.portfolio-panel button{padding:10px 15px;border:1px solid var(--primary,#173d66);border-radius:var(--radius-xs,6px);background:var(--primary,#173d66);color:var(--text-inverse,#fff);cursor:pointer}.portfolio-panel button:disabled{opacity:.5;cursor:wait}
+.portfolio-card [role=alert]{color:var(--color-danger,#991b1b)}.portfolio-panel details{margin-top:12px}.portfolio-review-page{max-width:1050px;margin:24px auto;padding:0 16px;font-family:var(--font-sans,system-ui,sans-serif)}
 @media print{.portfolio-panel{display:none!important}}
 
 /* Compact cards styling for completed showcase */

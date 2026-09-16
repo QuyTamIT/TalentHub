@@ -110,14 +110,18 @@ SQL);
         }
 
         $insert = $pdo->prepare(<<<'SQL'
-INSERT INTO student_school_certificates (id, studentId, certificateCatalogId, status, issuedAt, issuedBy, evidenceContext)
-VALUES (:id, :studentId, :catalogId, 'issued', UTC_TIMESTAMP(6), NULL, :context)
-ON DUPLICATE KEY UPDATE status = 'issued'
+INSERT INTO student_certificates
+    (id, studentId, certificateCatalogId, status, issuedAt, issuedBy, issueSource, reason, activityName, evidenceContext)
+VALUES
+    (:id, :studentId, :catalogId, 'issued', UTC_TIMESTAMP(6), NULL, 'legacy', :reason, :activityName, :context)
+ON DUPLICATE KEY UPDATE status = 'issued', reason = VALUES(reason), activityName = VALUES(activityName)
 SQL);
         $insert->execute([
             'id' => SchoolCredentialDemoDataset::uuid($studentId, 'issued-certificate', $catalogId),
             'studentId' => $studentId,
             'catalogId' => $catalogId,
+            'reason' => 'Hoàn thành hoạt động minh họa của Nhà trường',
+            'activityName' => 'Hoạt động trải nghiệm TalentHub',
             'context' => json_encode(['source' => 'demo_seed', 'schoolId' => $schoolId], JSON_THROW_ON_ERROR),
         ]);
     }

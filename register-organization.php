@@ -17,6 +17,7 @@ $values = [
     'email' => '',
     'phone' => '',
     'address' => '',
+    'schoolLevel' => '',
 ];
 $error = null;
 
@@ -29,6 +30,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 
     $password = (string) ($_POST['password'] ?? '');
+    $schoolLevel = (string) ($_POST['schoolLevel'] ?? '');
 
     if (!hash_equals($password, (string) ($_POST['passwordConfirmation'] ?? ''))) {
         $error = 'Mật khẩu nhập lại chưa khớp.';
@@ -144,6 +146,17 @@ $label = $type === 'school' ? 'Nhà trường' : 'Doanh nghiệp';
                         <label for="address">Địa chỉ</label>
                         <input id="address" name="address" value="<?= oe($values['address']) ?>" autocomplete="street-address" minlength="5" maxlength="500" required>
                     </div>
+                    <?php if ($type === 'school'): ?>
+                    <div class="auth-field">
+                        <label for="schoolLevel">Cấp bậc nhà trường</label>
+                        <select id="schoolLevel" name="schoolLevel" autocomplete="organization-level" required>
+                            <option value="">-- Chọn cấp bậc --</option>
+                            <option value="cap2">Cấp 2 (Trung học cơ sở)</option>
+                            <option value="cap3">Cấp 3 (Trung học phổ thông)</option>
+                            <option value="cao_dang_dai_hoc">Cao đẳng / Đại Học</option>
+                        </select>
+                    </div>
+                    <?php endif; ?>
                     <div class="auth-field">
                         <label for="password">Mật khẩu dự kiến</label>
                         <div class="auth-password">

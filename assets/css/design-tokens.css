@@ -61,6 +61,13 @@ html {
     outline-offset: 3px;
 }
 
+/* Unified focus ring — works for both outline and box-shadow approaches */
+:focus-visible {
+    outline: 2px solid var(--focus-ring-color, var(--color-brand, #c2410c));
+    outline-offset: 3px;
+    box-shadow: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         scroll-behavior: auto !important;

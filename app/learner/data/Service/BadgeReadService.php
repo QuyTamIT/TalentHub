@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace TalentHub\Learner\Data\Service;
 
+use InvalidArgumentException;
 use TalentHub\Learner\Data\Contracts\BadgeRepository;
 use TalentHub\Learner\Data\Contracts\StatisticsRepository;
 use TalentHub\Learner\Data\Domain\LevelProgression;
@@ -23,7 +24,7 @@ final class BadgeReadService
      * @return array{
      *     badges: list<array<string,mixed>>,
      *     progress: list<array<string,mixed>>,
-     *     facts: array{confirmed_experience_hours: float, attended_activity_count: int, submitted_assessment_type_count: int, published_teacher_evaluation_count: int},
+     *     facts: array{confirmed_experience_hours: float, attended_activity_count: int, submitted_assessment_type_count: int, published_teacher_evaluation_count: int, online_learning_minutes: int},
      *     level: array<string,mixed>
      * }
      */
@@ -47,7 +48,14 @@ final class BadgeReadService
             $rule = $item['rule'];
             $isAwarded = isset($awardedMap[$badge['id']]);
 
-            $eval = $this->ruleEngine->evaluate($rule['thresholdCriteria'], $facts);
+            // Rules are operator-authored data; skip malformed ones instead of
+            // failing the whole badge page for the learner.
+            try {
+                $eval = $this->ruleEngine->evaluate($rule['thresholdCriteria'], $facts);
+            } catch (InvalidArgumentException $exception) {
+                error_log('[badge-rule] Skipped invalid rule ' . (string) ($rule['id'] ?? '') . ': ' . $exception->getMessage());
+                continue;
+            }
 
             if ($isAwarded) {
                 $status = 'achieved';

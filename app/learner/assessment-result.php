@@ -34,6 +34,9 @@ $bootData = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="Kết quả và lịch sử bài đánh giá năng khiếu trên TalentHub.">
+    <title>Kết quả <?= learner_escape($assessmentName); ?> | TalentHub</title>
     <meta name="description" content="Kết quả và lịch sử bài đánh giá năng khiếu trên FTalentHub.">
     <title>Kết quả <?= learner_escape($assessmentName); ?> | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">

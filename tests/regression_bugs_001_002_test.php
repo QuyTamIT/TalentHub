@@ -21,7 +21,7 @@ echo "=== Running Regression Tests for BUG-001 & BUG-002 ===\n\n";
 echo "[Test 1] PHP Lint check of app/learner/ecosystem.php...\n";
 $lintOutput = [];
 $returnVar = 0;
-exec('D:\\laragon\\bin\\php\\php-8.3.30-Win32-vs16-x64\\php.exe -l ' . escapeshellarg(dirname(__DIR__) . '/app/learner/ecosystem.php'), $lintOutput, $returnVar);
+exec(escapeshellarg(PHP_BINARY) . ' -l ' . escapeshellarg(dirname(__DIR__) . '/app/learner/ecosystem.php'), $lintOutput, $returnVar);
 if ($returnVar !== 0) {
     $msg = "Lint failed: " . implode("\n", $lintOutput);
     echo "  FAILED: $msg\n";

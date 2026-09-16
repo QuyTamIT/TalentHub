@@ -18,8 +18,10 @@ final class OrganizationRegistrationService
     {
         $type=strtolower(trim($input['type']??''));$name=trim($input['organizationName']??'');
         $fullName=trim($input['fullName']??'');$email=strtolower(trim($input['email']??''));
-        $phone=trim($input['phone']??'');$address=trim($input['address']??'');$password=$input['password']??'';
+        $phone=trim($input['phone']??'');$address=trim($input['address']??'');
+        $schoolLevel=trim($input['schoolLevel']??'');$password=$input['password']??'';
         if(!in_array($type,['school','enterprise'],true)||mb_strlen($name)<2||mb_strlen($fullName)<2||!filter_var($email,FILTER_VALIDATE_EMAIL)||mb_strlen($phone)<6||mb_strlen($address)<5||strlen($password)<12){throw new RuntimeException('Vui lòng điền đầy đủ thông tin hợp lệ; mật khẩu tối thiểu 12 ký tự.');}
+        if($type==='school'&&!in_array($schoolLevel,['cap2','cap3','cao_dang_dai_hoc'],true)){throw new RuntimeException('Vui lòng chọn cấp bậc nhà trường hợp lệ.');}
         $this->purgeExpired();
         $used=$this->pdo->prepare('SELECT COUNT(*) FROM users WHERE email=?');$used->execute([$email]);
         if((int)$used->fetchColumn()>0){throw new RuntimeException('Email đã được sử dụng.');}
@@ -27,9 +29,9 @@ final class OrganizationRegistrationService
         if((int)$pending->fetchColumn()>0){throw new RuntimeException('Email này đã có yêu cầu đăng ký đang chờ Admin xử lý.');}
         $hash=password_hash($password,PASSWORD_DEFAULT);if($hash===false){throw new RuntimeException('Không thể bảo vệ mật khẩu đăng ký.');}
         $id=Uuid::v4();$expiresAt=gmdate('Y-m-d H:i:s',time()+self::EXPIRY_DAYS*86400);
-        $statement=$this->pdo->prepare("INSERT INTO organization_registration_requests(id,type,organizationName,fullName,email,phone,address,passwordHash,status,expiresAt) VALUES(?,?,?,?,?,?,?,?,'pending',?)");
-        $statement->execute([$id,$type,$name,$fullName,$email,$phone,$address,$hash,$expiresAt]);
-        return ['id'=>$id,'email'=>$email,'type'=>$type,'status'=>'pending','expiresAt'=>$expiresAt];
+        $statement=$this->pdo->prepare("INSERT INTO organization_registration_requests(id,type,schoolLevel,organizationName,fullName,email,phone,address,passwordHash,status,expiresAt) VALUES(?,?,?,?,?,?,?,?,?,'pending',?)");
+        $statement->execute([$id,$type,$type==='school'?$schoolLevel:null,$name,$fullName,$email,$phone,$address,$hash,$expiresAt]);
+        return ['id'=>$id,'email'=>$email,'type'=>$type,'schoolLevel'=>$schoolLevel,'status'=>'pending','expiresAt'=>$expiresAt];
     }
 
     public function purgeExpired(): int

@@ -7,49 +7,17 @@
 /* Page Base - Scoped Design Tokens for School */
 body.school-dashboard,
 .school-dashboard {
-    /* Enterprise / Teacher Sunset Coral Theme Variables */
-    --primary: #FF6B45;
-    --primary-coral: #F83F70;
-    --primary-pink: #F23585;
-    --primary-purple: #A14FC9;
-    --primary-violet: #8B4DE8;
-    --primary-hover: #F83F70;
-    --primary-light: #FFF0EB;
-    --primary-light-border: #FFDACB;
-    --primary-dark: #E04058;
-    --secondary: #A14FC9;
-    --secondary-hover: #8B4DE8;
-    --secondary-light: #FAF5FF;
-    --accent: #F23585;
-    --accent-hover: #F83F70;
-    --accent-light: #FFF0EB;
-    --background: #FDF7F1;
-    --surface: #FFFFFF;
-    --surface-hover: #FFF7F2;
-    --border: #F0E6DD;
-    --border-hover: #FFDACB;
-    --border-strong: #E5D7CC;
-    --border-subtle: #FDF7F1;
-    --text-primary: #322014;
-    --text-secondary: #6B5548;
-    --text-muted: #9E897D;
-    --text-disabled: #B8A599;
-    --shadow-soft: 0 4px 20px rgba(50, 32, 20, 0.04);
-    --shadow-glow: 0 6px 20px rgba(248, 63, 112, 0.28);
-    --focus-ring: 0 0 0 3px rgba(248, 63, 112, 0.25);
-    --primary-gradient: linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
-    --primary-gradient-subtle: linear-gradient(135deg, #FFF0EB 0%, #FAF5FF 100%);
-    --font-primary: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-
-    /* Brand Component Scoped Overrides */
-    --brand-icon-bg: var(--primary-gradient);
-    --brand-icon-shadow: 0 2px 8px rgba(248, 63, 112, 0.35);
-    --brand-name-hub-color: var(--primary-coral);
-    --brand-name-color: var(--text-primary);
-    --brand-sub-color: var(--primary-coral);
+    /* Brand colors are shared via portal-tokens.css — do NOT duplicate here. */
+    --radius-xs: 4px;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --radius-full: 9999px;
+    --font-primary: var(--font-sans);
 
     font-family: var(--font-primary);
-    background-color: var(--background) !important;
+    background-color: var(--background);
     color: var(--text-primary);
     min-height: 100vh;
     overflow-x: hidden;
@@ -60,7 +28,7 @@ body.school-dashboard,
 .school-dashboard .school-layout,
 .school-dashboard .school-main-wrapper,
 .school-dashboard .school-body {
-    background-color: var(--background) !important;
+    background-color: var(--background);
 }
 
 body.school-sidebar-open {
@@ -164,6 +132,9 @@ body.school-sidebar-open {
     font-size: 0.6875rem;
     font-weight: 600;
     color: var(--primary-coral, #F83F70);
+    background-color: var(--primary-light, #FFF0EB);
+    border: 1px solid var(--primary-light-border, #FFDACB);
+    padding: 2px 9px;
     background-color: #FFF0EB;
     border: 1px solid #FFDACB;
     padding: 3px 12px;
@@ -172,6 +143,7 @@ body.school-sidebar-open {
     letter-spacing: 0.02em;
     line-height: 1.4;
     text-align: center;
+    margin-inline-end: 0;
     white-space: nowrap;
 }
 /* Sidebar School Card */
@@ -1655,12 +1627,12 @@ body.school-sidebar-open {
 
 @media (max-width: 1024px) {
     .school-grid-layout {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: 1fr;
     }
     .school-grade-grid,
     .school-class-grid,
     .school-grid-2col {
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -1668,16 +1640,16 @@ body.school-sidebar-open {
     .school-grade-grid,
     .school-class-grid,
     .school-grid-2col {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: 1fr;
     }
     .school-kpis-grid {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: 1fr;
     }
     .school-form__grid {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: 1fr;
     }
     .school-class-table {
-        font-size: 0.8125rem;
+        font-size: var(--text-sm);
     }
     .school-class-table tr {
         display: block;
@@ -1695,7 +1667,7 @@ body.school-sidebar-open {
         text-align: left;
     }
     .school-section-box {
-        padding: 1rem !important;
+        padding: 1rem;
     }
     .btn {
         min-height: 40px;
@@ -2078,6 +2050,17 @@ textarea:focus-visible {
 @media (max-width: 640px) {
     .school-grid-2col {
         grid-template-columns: 1fr;
+    }
+
+    /* Analytics chart header — stack title + kỳ badge on narrow screens */
+    .school-chart-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.6rem;
+    }
+    .school-chart-header .school-badge {
+        white-space: normal;
+        line-height: 1.4;
     }
 }
 
@@ -2893,9 +2876,9 @@ textarea:focus-visible {
 }
 
 .school-author-item input[type="checkbox"] {
-    margin: 0 !important;
+    margin: 0;
     cursor: pointer;
-    width: auto !important;
+    width: auto;
     flex-shrink: 0;
     transform: scale(1.1);
 }
@@ -2905,25 +2888,25 @@ textarea:focus-visible {
     align-items: center;
     justify-content: flex-start;
     gap: 0.75rem;
-    margin: 0 !important;
-    width: auto !important;
+    margin: 0;
+    width: auto;
     flex: 0 1 auto;
 }
 
 .school-author-name {
     font-weight: 600;
-    color: #1E293B;
+    color: var(--text-primary);
     font-size: 0.9rem;
-    margin: 0 !important;
+    margin: 0;
 }
 
 .school-author-class {
     font-size: 0.75rem;
-    color: #475569;
-    background: #F1F5F9;
+    color: var(--text-secondary);
+    background: var(--surface-hover);
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
-    margin: 0 !important;
+    margin: 0;
 }
 
 .school-author-item--active {
@@ -3182,20 +3165,20 @@ body.school-dashboard .school-sidebar__link:hover:not(.is-active) svg {
 }
 
 body.school-dashboard .school-sidebar__link.is-active {
-    background: var(--primary-gradient) !important;
-    color: #FFFFFF !important;
-    border-color: transparent !important;
-    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.35) !important;
+    background: var(--primary-gradient);
+    color: #FFFFFF;
+    border-color: transparent;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.35);
 }
 
 body.school-dashboard .school-sidebar__link.is-active::before {
-    display: none !important;
+    display: none;
 }
 
 body.school-dashboard .school-sidebar__link.is-active .school-sidebar__icon,
 body.school-dashboard .school-sidebar__link.is-active svg {
-    color: #FFFFFF !important;
-    stroke: #FFFFFF !important;
+    color: #FFFFFF;
+    stroke: #FFFFFF;
 }
 
 body.school-dashboard .school-sidebar__footer {
@@ -3203,7 +3186,7 @@ body.school-dashboard .school-sidebar__footer {
 }
 
 body.school-dashboard .school-sidebar__link--logout:hover {
-    background-color: #FEF2F2 !important;
+    background-color: var(--color-danger-light);
     color: #DC2626 !important;
 }
 
@@ -3256,8 +3239,8 @@ body.school-dashboard .school-header__account:hover {
 
 body.school-dashboard .school-header__avatar,
 body.school-dashboard .school-account-menu__avatar {
-    background: var(--primary-gradient) !important;
-    color: #FFFFFF !important;
+    background: var(--primary-gradient);
+    color: #FFFFFF;
     box-shadow: 0 2px 6px rgba(248, 63, 112, 0.25);
 }
 
@@ -3292,10 +3275,10 @@ body.school-dashboard .school-account-menu__item:hover {
 
 /* 3. WELCOME BANNER & HERO */
 body.school-dashboard .school-welcome {
-    background: linear-gradient(135deg, #FFFFFF 0%, #FFF8F5 100%) !important;
-    border-color: var(--border) !important;
-    border-left-color: var(--primary-coral) !important;
-    box-shadow: var(--shadow-soft) !important;
+    background: linear-gradient(135deg, var(--surface) 0%, var(--primary-light) 100%);
+    border-color: var(--border);
+    border-left-color: var(--primary-coral);
+    box-shadow: var(--shadow-soft);
 }
 
 body.school-dashboard .school-welcome::after {
@@ -3303,40 +3286,40 @@ body.school-dashboard .school-welcome::after {
 }
 
 body.school-dashboard .school-welcome__tag {
-    color: var(--primary-coral) !important;
-    background-color: #FFF0EB !important;
+    color: var(--primary-coral);
+    background-color: var(--primary-light);
 }
 
 body.school-dashboard .school-welcome__title {
-    color: var(--text-primary) !important;
+    color: var(--text-primary);
 }
 
 body.school-dashboard .school-welcome__description {
-    color: var(--text-secondary) !important;
+    color: var(--text-secondary);
 }
 
 /* 4. KPI CARDS & METRICS */
 body.school-dashboard .school-kpi-card {
-    background-color: var(--surface) !important;
-    border-color: var(--border) !important;
-    box-shadow: var(--shadow-soft) !important;
+    background-color: var(--surface);
+    border-color: var(--border);
+    box-shadow: var(--shadow-soft);
 }
 
 body.school-dashboard .school-kpi-card:hover {
-    border-color: rgba(255, 107, 107, 0.35) !important;
-    box-shadow: var(--shadow-glow) !important;
+    border-color: var(--primary-light-border);
+    box-shadow: var(--shadow-glow);
 }
 
 body.school-dashboard .school-kpi-card__icon {
-    color: var(--primary-coral) !important;
+    color: var(--primary-coral);
 }
 
 body.school-dashboard .school-kpi-card__value {
-    color: var(--text-primary) !important;
+    color: var(--text-primary);
 }
 
 body.school-dashboard .school-kpi-card__label {
-    color: var(--text-secondary) !important;
+    color: var(--text-secondary);
 }
 
 /* 5. CARDS, SECTIONS, PANELS & MODALS */
@@ -3348,109 +3331,109 @@ body.school-dashboard .school-modal,
 body.school-dashboard .school-guide-modal-box,
 body.school-dashboard .school-author-box,
 body.school-dashboard .school-card-subtle {
-    background-color: var(--surface) !important;
-    border-color: var(--border) !important;
-    box-shadow: var(--shadow-soft) !important;
+    background-color: var(--surface);
+    border-color: var(--border);
+    box-shadow: var(--shadow-soft);
 }
 
 body.school-dashboard .school-section-box:hover,
 body.school-dashboard .school-talent-card:hover,
 body.school-dashboard .school-project-card:hover {
-    border-color: var(--border-hover) !important;
-    box-shadow: 0 8px 24px rgba(50, 32, 20, 0.06) !important;
+    border-color: var(--border-hover);
+    box-shadow: 0 8px 24px rgba(50, 32, 20, 0.06);
 }
 
 body.school-dashboard .school-section-box__title {
-    color: var(--text-primary) !important;
+    color: var(--text-primary);
 }
 
 body.school-dashboard .school-section-box__subtitle {
-    color: var(--text-secondary) !important;
+    color: var(--text-secondary);
 }
 
 body.school-dashboard .school-section-box__link {
-    color: var(--primary-coral) !important;
+    color: var(--primary-coral);
 }
 
 body.school-dashboard .school-section-box__link:hover {
-    color: var(--primary-pink) !important;
+    color: var(--primary-pink);
 }
 
 body.school-dashboard .school-section-box__count {
-    background-color: #FFF0EB !important;
-    border-color: #FFDACB !important;
-    color: var(--primary-coral) !important;
+    background-color: var(--primary-light);
+    border-color: var(--primary-light-border);
+    color: var(--primary-coral);
 }
 
 body.school-dashboard .school-talent-card__avatar {
-    background: linear-gradient(135deg, #FFF0EB 0%, #FFF7F2 100%) !important;
-    border-color: #FFDACB !important;
-    color: var(--primary-coral) !important;
-    box-shadow: 0 2px 6px rgba(248, 63, 112, 0.08) !important;
+    background: linear-gradient(135deg, var(--primary-light) 0%, var(--surface-hover) 100%);
+    border-color: var(--primary-light-border);
+    color: var(--primary-coral);
+    box-shadow: 0 2px 6px rgba(248, 63, 112, 0.08);
 }
 
 /* 6. BUTTONS & ACTIONS */
 body.school-dashboard .btn-primary,
 body.school-dashboard button[type="submit"]:not(.btn-secondary):not(.btn-ghost):not(.btn-outline):not(.btn-danger) {
-    background: var(--primary-gradient) !important;
-    color: #FFFFFF !important;
-    border-color: transparent !important;
-    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28) !important;
+    background: var(--primary-gradient);
+    color: #FFFFFF;
+    border-color: transparent;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28);
 }
 
 body.school-dashboard .btn-primary:hover:not(:disabled),
 body.school-dashboard button[type="submit"]:hover:not(:disabled):not(.btn-secondary):not(.btn-ghost):not(.btn-outline):not(.btn-danger) {
-    box-shadow: 0 6px 20px rgba(248, 63, 112, 0.38) !important;
+    box-shadow: 0 6px 20px rgba(248, 63, 112, 0.38);
     filter: brightness(1.03);
 }
 
 body.school-dashboard .btn-secondary,
 body.school-dashboard .btn-outline {
-    background-color: #FFFFFF !important;
-    color: var(--text-primary) !important;
-    border-color: var(--border) !important;
+    background-color: var(--surface);
+    color: var(--text-primary);
+    border-color: var(--border);
 }
 
 body.school-dashboard .btn-secondary:hover:not(:disabled),
 body.school-dashboard .btn-outline:hover:not(:disabled) {
-    background-color: #FFF7F2 !important;
-    border-color: #FFB39E !important;
-    color: var(--primary-coral) !important;
+    background-color: var(--surface-hover);
+    border-color: var(--primary-light-border);
+    color: var(--primary-coral);
 }
 
 body.school-dashboard .btn-outline-primary {
-    background-color: #FFF0EB !important;
-    color: var(--primary-coral) !important;
-    border-color: var(--primary-light-border) !important;
+    background-color: var(--primary-light);
+    color: var(--primary-coral);
+    border-color: var(--primary-light-border);
 }
 
 body.school-dashboard .btn-outline-primary:hover:not(:disabled) {
-    background: var(--primary-gradient) !important;
-    color: #FFFFFF !important;
-    border-color: transparent !important;
-    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.35) !important;
+    background: var(--primary-gradient);
+    color: #FFFFFF;
+    border-color: transparent;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.35);
 }
 
 body.school-dashboard .btn-danger {
-    background: #FFFFFF !important;
-    color: #EF4444 !important;
-    border-color: #FECACA !important;
+    background: var(--surface);
+    color: var(--color-danger);
+    border-color: var(--color-danger-border);
 }
 
 body.school-dashboard .btn-danger:hover:not(:disabled) {
-    background: #FEF2F2 !important;
-    border-color: #EF4444 !important;
-    color: #DC2626 !important;
-    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2) !important;
+    background: var(--color-danger-light);
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
 }
 
 body.school-dashboard .btn:disabled,
 body.school-dashboard .btn[disabled],
 body.school-dashboard button:disabled {
-    background: #F0E6DD !important;
-    color: #A8988C !important;
-    border-color: #E5D7CC !important;
-    box-shadow: none !important;
+    background: var(--border-strong, #F0E6DD);
+    color: var(--text-muted, #A8988C);
+    border-color: var(--border);
+    box-shadow: none;
 }
 
 /* 7. FORM INPUTS & CONTROLS */
@@ -3471,33 +3454,33 @@ body.school-dashboard .school-status-select,
 body.school-dashboard .school-input-date,
 body.school-dashboard .form-control,
 body.school-dashboard .typeui-select {
-    background-color: #FFFFFF !important;
-    border-color: var(--border) !important;
-    color: var(--text-primary) !important;
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text-primary);
 }
 
 body.school-dashboard input:hover,
 body.school-dashboard select:hover,
 body.school-dashboard textarea:hover,
 body.school-dashboard .typeui-select:hover {
-    border-color: #FFB39E !important;
+    border-color: var(--primary-light-border);
 }
 
 body.school-dashboard input:focus,
 body.school-dashboard select:focus,
 body.school-dashboard textarea:focus,
 body.school-dashboard .typeui-select:focus {
-    border-color: var(--primary-coral) !important;
-    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.18) !important;
-    outline: none !important;
+    border-color: var(--primary-coral);
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.18);
+    outline: none;
 }
 
 body.school-dashboard input:disabled,
 body.school-dashboard select:disabled,
 body.school-dashboard textarea:disabled {
-    background-color: #F8F4F0 !important;
-    color: var(--text-muted) !important;
-    border-color: var(--border) !important;
+    background-color: var(--surface-hover);
+    color: var(--text-muted);
+    border-color: var(--border);
 }
 
 body.school-dashboard input[type="checkbox"],
@@ -3508,9 +3491,9 @@ body.school-dashboard input[type="radio"] {
 /* 8. TABLES & DATA CONTAINERS */
 body.school-dashboard table thead th,
 body.school-dashboard .school-class-table th {
-    background-color: #FAF3EE !important;
-    color: var(--text-secondary) !important;
-    border-bottom-color: var(--border) !important;
+    background-color: var(--surface-hover);
+    color: var(--text-secondary);
+    border-bottom-color: var(--border);
 }
 
 body.school-dashboard table tbody tr,
@@ -3519,68 +3502,68 @@ body.school-dashboard .school-modal__header,
 body.school-dashboard .school-modal__footer,
 body.school-dashboard .school-guide-modal-step,
 body.school-dashboard .school-project-card__actions {
-    border-color: var(--border) !important;
+    border-color: var(--border);
 }
 
 body.school-dashboard table tbody tr:hover,
 body.school-dashboard .school-class-table tbody tr:hover,
 body.school-dashboard .school-author-item:hover {
-    background-color: #FAF5F0 !important;
+    background-color: var(--surface-hover);
 }
 
 /* 9. BADGES, CHIPS & ACCENTS */
 body.school-dashboard :is(.school-badge--info, .school-skill-badge, .school-project-topic, .school-student-name-link, .school-project-status-badge--in_progress, .school-class-badge--primary, .school-talent-card__score-badge, .school-author-item--active) {
-    background-color: #FFF0EB !important;
-    border-color: #FFDACB !important;
-    color: var(--primary-coral) !important;
+    background-color: var(--primary-light);
+    border-color: var(--primary-light-border);
+    color: var(--primary-coral);
 }
 
 body.school-dashboard .school-student-name-link:hover {
-    color: var(--primary-pink) !important;
+    color: var(--primary-pink);
 }
 
 body.school-dashboard :is(.school-badge--purple, .school-avatar--blue, .school-guide-modal-number) {
-    background-color: #FAF5FF !important;
-    border-color: #F3E8FF !important;
-    color: var(--primary-violet) !important;
+    background-color: var(--secondary-light);
+    border-color: #F3E8FF;
+    color: var(--primary-violet);
 }
 
 body.school-dashboard .school-class-badge--neutral,
 body.school-dashboard .school-class-name-badge,
 body.school-dashboard .school-author-class {
-    background-color: #F8F4F0 !important;
-    border-color: var(--border) !important;
-    color: var(--text-secondary) !important;
+    background-color: var(--surface-hover);
+    border-color: var(--border);
+    color: var(--text-secondary);
 }
 
 /* 10. PROGRESS & TIMELINE */
 body.school-dashboard .school-progress-track {
-    background-color: #F0E6DD !important;
+    background-color: var(--border-strong);
 }
 
 body.school-dashboard .school-progress-fill {
-    background: var(--primary-gradient) !important;
+    background: var(--primary-gradient);
 }
 
 body.school-dashboard .school-timeline::before {
-    background-color: var(--border) !important;
+    background-color: var(--border);
 }
 
 body.school-dashboard .school-timeline__dot,
 body.school-dashboard .school-activity-item__indicator {
-    background: var(--primary-gradient) !important;
-    box-shadow: 0 2px 6px rgba(248, 63, 112, 0.25) !important;
+    background: var(--primary-gradient);
+    box-shadow: 0 2px 6px rgba(248, 63, 112, 0.25);
 }
 
 /* 11. AUDIT LOGS & ADVANCED VIEWS */
 body.school-dashboard .school-audit-kpi {
-    background-color: var(--surface) !important;
-    border-color: var(--border) !important;
-    box-shadow: var(--shadow-soft) !important;
+    background-color: var(--surface);
+    border-color: var(--border);
+    box-shadow: var(--shadow-soft);
 }
 
 body.school-dashboard .school-audit-kpi span {
-    color: var(--text-secondary) !important;
+    color: var(--text-secondary);
 }
 
 body.school-dashboard .school-audit-kpi strong {
@@ -3666,3 +3649,160 @@ body.school-dashboard .school-pagination__info {
     background: #DC2626 !important;
 }
 
+
+/* ==========================================================================
+   UI/UX Polish — spacing, hover, focus, mobile refinements
+   ========================================================================== */
+
+.school-dashboard .page-header,
+.school-dashboard .school-page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1.5rem 0 1.25rem;
+    border-bottom: 1px solid var(--border, #e7e5e4);
+    margin-bottom: 1.5rem;
+}
+
+.school-dashboard .page-header__title,
+.school-dashboard .school-page-title {
+    font-size: clamp(1.5rem, 3vw, 1.875rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--text-primary, #1c1917);
+    line-height: 1.2;
+    margin: 0;
+}
+
+.school-dashboard .page-header__subtitle {
+    margin: 0.35rem 0 0;
+    color: var(--text-secondary, #57534e);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    max-width: 60ch;
+}
+
+.school-dashboard .page-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex-wrap: wrap;
+}
+
+.school-dashboard .school-section-box,
+.school-dashboard .school-card,
+.school-dashboard .school-grade-card {
+    transition: border-color 0.18s ease, box-shadow 0.22s ease, transform 0.18s ease;
+}
+
+.school-dashboard .school-section-box:hover,
+.school-dashboard .school-grade-card:hover {
+    border-color: rgba(194, 65, 12, 0.30);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(194, 65, 12, 0.06);
+    transform: translateY(-2px);
+}
+
+.school-dashboard .school-kpi-card__value,
+.school-dashboard .school-stat-value {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
+
+.school-dashboard input,
+.school-dashboard select,
+.school-dashboard textarea {
+    font-family: inherit;
+    max-width: 100%;
+}
+
+.school-dashboard input:focus,
+.school-dashboard select:focus,
+.school-dashboard textarea:focus {
+    outline: none;
+    border-color: var(--primary, #c2410c);
+    box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.14);
+}
+
+.school-dashboard table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+}
+
+.school-dashboard table thead th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    background: #fafaf9;
+    color: var(--text-secondary, #57534e);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border, #e7e5e4);
+}
+
+.school-dashboard table tbody td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--border, #e7e5e4);
+    color: var(--text-primary, #1c1917);
+    vertical-align: middle;
+}
+
+.school-dashboard table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.school-dashboard table tbody tr:hover {
+    background: rgba(255, 247, 237, 0.55);
+}
+
+.school-dashboard table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.school-dashboard .school-account-menu {
+    border-radius: 12px;
+    box-shadow: 0 20px 44px rgba(28, 25, 23, 0.14);
+    border: 1px solid var(--border, #e7e5e4);
+    background: #fff;
+    overflow: hidden;
+}
+
+.school-dashboard .school-account-menu__item {
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.school-dashboard .school-account-menu__item:hover {
+    background: var(--primary-light, #fff7ed);
+    color: var(--primary, #c2410c);
+}
+
+@media (max-width: 768px) {
+    .school-dashboard .page-header,
+    .school-dashboard .school-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.875rem;
+        padding: 1.25rem 0 1rem;
+        margin-bottom: 1.25rem;
+    }
+    .school-dashboard .page-header__actions {
+        width: 100%;
+    }
+    .school-dashboard table {
+        font-size: 0.85rem;
+    }
+    .school-dashboard table thead th,
+    .school-dashboard table tbody td {
+        padding: 0.625rem 0.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .school-dashboard .page-header__title,
+    .school-dashboard .school-page-title {
+        font-size: 1.4rem;
+    }
+}

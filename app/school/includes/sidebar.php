@@ -73,6 +73,11 @@ $sidebarNav = [
         'route' => '/app/school/account.php',
         'icon'  => 'user',
     ],
+    [
+        'title' => 'Chứng chỉ / Minh chứng',
+        'route' => '/app/school/credentials.php',
+        'icon'  => 'award',
+    ],
 ];
 ?>
 <!-- Sidebar Overlay Backdrop for Mobile -->
@@ -161,6 +166,11 @@ $sidebarNav = [
                                     <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
                                     <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
                                     <path d="M18 2H6v9a6 6 0 0 0 12 0V2Z"></path>
+                                </svg>
+                            <?php elseif ($navItem['icon'] === 'award'): ?>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="8" r="7"></circle>
+                                    <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
                                 </svg>
                             <?php else: ?>
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

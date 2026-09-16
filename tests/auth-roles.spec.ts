@@ -80,6 +80,10 @@ async function loginAs(page: Page, email: string, password: string): Promise<voi
     page.click('button.auth-submit, button[data-submit]', { force: true }),
   ]);
   await page.waitForLoadState('domcontentloaded');
+  expect(
+    page.url(),
+    `[${email}] dang nhap KHONG thanh cong (van o /login.php) — BUG 2 false-positive: dang nhap that bai nhung se passed neu chi kiem 5xx.`,
+  ).not.toContain('/login.php');
 }
 
 async function detectSystemError(page: Page, res: Response | null): Promise<string | null> {
@@ -108,8 +112,7 @@ for (const spec of ROLE_SPECS) {
 
       await loginAs(page, spec.email, spec.password);
 
-      // Sau login hợp lệ, URL không được là /login.php với lỗi.
-      expect(page.url(), `[${spec.role}] sau login không rơi lại /login.php?error`).not.toContain('/login.php?error');
+      // loginAs da assert rook khoi /login.php; giu them check error-param de ro hon.
       const dashRes = await page.goto(spec.dashboard, { waitUntil: 'domcontentloaded', timeout: 15_000 });
       const err = await detectSystemError(page, dashRes);
       expect(err, `[${spec.role}] dashboard ${spec.dashboard} dính lỗi hệ thống: ${err ?? ''}`).toBeNull();

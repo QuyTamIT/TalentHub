@@ -267,13 +267,13 @@ echo "[Step 6] Issuing School Certificates from BTEC FPT...\n";
 $btecCerts = $pdo->query("SELECT id, name, code FROM school_certificate_catalog WHERE schoolId = '{$schoolId}'")->fetchAll(PDO::FETCH_ASSOC);
 
 $insertCert = $pdo->prepare("
-    INSERT INTO student_school_certificates (id, studentId, certificateCatalogId, status, issuedAt, issuedBy, evidenceContext, createdAt, updatedAt)
-    VALUES (?, ?, ?, 'issued', NOW(), ?, ?, NOW(), NOW())
-    ON DUPLICATE KEY UPDATE status = 'issued', issuedAt = NOW(), updatedAt = NOW()
+    INSERT INTO student_certificates (id, studentId, certificateCatalogId, status, issuedAt, issuedBy, issueSource, reason, activityName, evidenceContext, createdAt, updatedAt)
+    VALUES (?, ?, ?, 'issued', NOW(), ?, 'manual', ?, ?, ?, NOW(), NOW())
+    ON DUPLICATE KEY UPDATE status = 'issued', issuedAt = NOW(), reason = VALUES(reason), activityName = VALUES(activityName), updatedAt = NOW()
 ");
 
 foreach ($btecCerts as $c) {
-    $exists = $pdo->prepare("SELECT id FROM student_school_certificates WHERE studentId = ? AND certificateCatalogId = ?");
+    $exists = $pdo->prepare("SELECT id FROM student_certificates WHERE studentId = ? AND certificateCatalogId = ?");
     $exists->execute([$studentId, $c['id']]);
     if (!$exists->fetchColumn()) {
         $insertCert->execute([
@@ -281,6 +281,8 @@ foreach ($btecCerts as $c) {
             $studentId,
             $c['id'],
             $issuerUserId,
+            'Ghi nhận kết quả học tập và hoạt động xuất sắc',
+            'Chương trình BTEC FPT',
             json_encode([
                 'averageScore' => 94.00,
                 'evaluator' => 'Ban Đào tạo Cao đẳng Quốc tế BTEC FPT',

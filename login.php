@@ -112,6 +112,9 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
     <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="Đăng nhập TalentHub để tiếp tục vào không gian học tập và quản lý của bạn.">
+    <title>Đăng nhập | TalentHub</title>
     <meta name="description" content="Đăng nhập FTalentHub để tiếp tục vào không gian học tập và quản lý của bạn.">
     <title>Đăng nhập | FTalentHub</title>
     <link rel="stylesheet" href="assets/css/home.css">

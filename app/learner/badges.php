@@ -47,12 +47,38 @@ $learnerBadgeFilters = [
     ['id' => 'in_progress', 'label' => 'Đang tiến hành'],
     ['id' => 'locked', 'label' => 'Chưa mở'],
 ];
+
+/** Map rule fact codes → Vietnamese human-readable task descriptions */
+$badgeFactLabels = [
+    'confirmed_experience_hours' => fn(float $target): string => 'Tích lũy ' . ($target >= 1 ? number_format($target, 0) : $target) . ' giờ trải nghiệm thực tế được xác nhận (tham gia hoạt động, check-in và được giáo viên duyệt).',
+    'attended_activity_count' => fn(int $target): string => 'Tham gia hoàn thành ' . $target . ' hoạt động/trải nghiệm khác nhau tại nhà trường.',
+    'submitted_assessment_type_count' => fn(int $target): string => 'Hoàn thành nộp ' . $target . ' bài đánh giá năng lực thuộc các loại khác nhau (Holland, MBTI, DISC, Trí thông minh).',
+    'published_teacher_evaluation_count' => fn(int $target): string => 'Có ' . $target . ' bài đánh giá từ giáo viên được công bố trong hồ sơ năng lực.',
+];
+
+/**
+ * Build a human-readable milestone description for a badge's rule criteria.
+ * @param array{fact:string,operator:string,value:float|int} $criteria
+ * @return string
+ */
+function badgeMilestoneLabel(array $criteria, array $factLabels): string
+{
+    $fact = $criteria['fact'] ?? '';
+    $target = $criteria['value'] ?? 0;
+    if (isset($factLabels[$fact])) {
+        return ($factLabels[$fact])($target);
+    }
+    return 'Đạt tiêu chí: ' . $fact . ' ≥ ' . $target;
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="Theo dõi cấp độ và bộ sưu tập huy hiệu cá nhân của học sinh, sinh viên trên TalentHub.">
+    <title>Huy hiệu và cấp độ | TalentHub</title>
     <meta name="description" content="Theo dõi cấp độ và bộ sưu tập huy hiệu cá nhân của học sinh, sinh viên trên FTalentHub.">
     <title>Huy hiệu và cấp độ | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
@@ -206,6 +232,11 @@ $learnerBadgeFilters = [
                                 'progress' => $p['progressPercent'],
                                 'icon' => 'award',
                                 'awardedAt' => $p['awardedAt'] ?? null,
+                                'fact' => $p['fact'] ?? '',
+                                'milestone' => badgeMilestoneLabel(
+                                    ['fact' => $p['fact'] ?? '', 'operator' => 'gte', 'value' => $p['target'] ?? 0],
+                                    $badgeFactLabels
+                                ),
                             ];
                         }
                     } elseif (!($isDatabaseMode ?? false)) {
@@ -238,7 +269,12 @@ $learnerBadgeFilters = [
                                 </div>
                                 <span class="learner-badge-card__compact-state learner-badge-card__status--<?= learner_escape($badgeTone); ?>"><?= learner_escape($statusLabel); ?></span>
                                 <h3><?= learner_escape($badge['name']); ?></h3>
-                                <div class="learner-badge-card__compact-summary">
+                                 <?php if (!empty($badge['milestone'] ?? '')): ?>
+                                     <p class="learner-badge-card__milestone" style="margin: 6px 0 0; font-size: 12.5px; color: #5a6578; line-height: 1.4;">
+                                         <strong>Yêu cầu mở khóa:</strong> <?= learner_escape($badge['milestone']); ?>
+                                     </p>
+                                 <?php endif; ?>
+                                 <div class="learner-badge-card__compact-summary">
                                     <?php if ($badge['status'] === 'achieved'): ?>
                                         <span class="learner-badge-card__verified"><?= learner_icon('shield-check', 17); ?> Đã xác minh</span>
                                     <?php else: ?>

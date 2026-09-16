@@ -97,6 +97,8 @@ if ($resolved !== null && !empty($resolved['studentId']) && $pdo instanceof PDO)
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>Hồ sơ không khả dụng | Xác thực Năng lực TalentHub</title>
   <title>Hồ sơ không khả dụng | Xác thực Năng lực FTalentHub</title>
   <link rel="stylesheet" href="../../assets/css/learner-passport-cv.css">
   <style>

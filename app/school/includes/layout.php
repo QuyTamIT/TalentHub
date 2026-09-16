@@ -38,6 +38,9 @@ $bodyClass    = trim('school-dashboard ' . ($bodyClass ?? ''));
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="TalentHub School Dashboard - Quản lý hoạt động năng khiếu cho Nhà trường.">
+    <title><?= htmlspecialchars($pageTitle); ?> - <?= htmlspecialchars($schoolInfo['name']); ?> | TalentHub</title>
     <meta name="description" content="FTalentHub School Dashboard - Quản lý hoạt động năng khiếu cho Nhà trường.">
     <title><?= htmlspecialchars($pageTitle); ?> - <?= htmlspecialchars($schoolInfo['name']); ?> | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">

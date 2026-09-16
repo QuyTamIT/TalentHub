@@ -10,18 +10,22 @@ require dirname(__DIR__) . '/Database/seeds/Testing/MinimalAuthRbacSeeder.php';
 require dirname(__DIR__) . '/Database/seeds/Demo/SchoolDemoSeeder.php';
 require dirname(__DIR__) . '/Database/seeds/Demo/CompleteAiDemoDataset.php';
 require dirname(__DIR__) . '/Database/seeds/Demo/CompleteAiDemoSeeder.php';
+require dirname(__DIR__) . '/Database/seeds/Demo/BtecStructuralSeeder.php';
 require dirname(__DIR__) . '/Database/seeds/Demo/SchoolAiProjectCatalogDataset.php';
 require dirname(__DIR__) . '/Database/seeds/Demo/SchoolAiProjectCatalogSeeder.php';
 require dirname(__DIR__) . '/Database/seeds/Demo/SchoolCredentialDemoDataset.php';
 require dirname(__DIR__) . '/Database/seeds/Demo/SchoolCredentialDemoSeeder.php';
 require dirname(__DIR__) . '/Database/seeds/Demo/EnterpriseDemoSeeder.php';
+require dirname(__DIR__) . '/Database/seeds/Demo/EnrichmentDemoSeeder.php';
 require dirname(__DIR__) . '/Database/seeds/Local/AdminAccountSeeder.php';
 require dirname(__DIR__) . '/Database/seeds/learner/AssessmentCatalogMasterSeeder.php';
 
 use TalentHub\Config\Environment;
 use TalentHub\Database\Connection;
 use TalentHub\Database\Migration\MigrationRunner;
+use TalentHub\Database\Seeds\Demo\BtecStructuralSeeder;
 use TalentHub\Database\Seeds\Demo\CompleteAiDemoSeeder;
+use TalentHub\Database\Seeds\Demo\EnrichmentDemoSeeder;
 use TalentHub\Database\Seeds\Demo\EnterpriseDemoSeeder;
 use TalentHub\Database\Seeds\Demo\SchoolAiProjectCatalogSeeder;
 use TalentHub\Database\Seeds\Demo\SchoolCredentialDemoSeeder;
@@ -102,12 +106,14 @@ try {
             new DateTimeImmutable('today', new DateTimeZone('UTC')),
         );
         (new EnterpriseDemoSeeder())->run($pdo, $environment, $password);
+        (new BtecStructuralSeeder())->run($pdo);
         (new SchoolAiProjectCatalogSeeder())->run(
             $pdo,
             $environment,
             new DateTimeImmutable('today', new DateTimeZone('UTC')),
         );
         (new SchoolCredentialDemoSeeder())->run($pdo, $environment);
+        (new EnrichmentDemoSeeder())->run($pdo);
     } finally {
         $release = $pdo->prepare('SELECT RELEASE_LOCK(?)');
         $release->execute([LOCAL_SETUP_LOCK]);
@@ -173,10 +179,19 @@ function verifyLocalAccounts(PDO $pdo, array $accounts, array $passwords): void
 /** @return array<string,int> */
 function tableCounts(PDO $pdo): array
 {
-    $tables = ['users', 'schools', 'classes', 'student_profiles', 'teacher_profiles', 'enterprises', 'activities', 'projects', 'internship_posts'];
+    $tables = [
+        'users', 'schools', 'classes', 'student_profiles', 'teacher_profiles',
+        'enterprises', 'activities', 'projects', 'internship_posts',
+        'learner_recommendation_input_snapshots', 'learner_recommendation_runs',
+        'learner_ai_roadmaps', 'learner_ai_roadmap_phases', 'learner_ai_roadmap_tasks',
+    ];
     $counts = [];
     foreach ($tables as $table) {
-        $counts[$table] = (int) $pdo->query('SELECT COUNT(*) FROM `' . $table . '`')->fetchColumn();
+        try {
+            $counts[$table] = (int) $pdo->query('SELECT COUNT(*) FROM `' . $table . '`')->fetchColumn();
+        } catch (Throwable) {
+            $counts[$table] = -1;
+        }
     }
     return $counts;
 }
