@@ -29,48 +29,11 @@ $roleMessages=[
 ];
 $roleAlert=null;
 if($requiredRole!==null&&isset($roleMessages[$requiredRole])){
-    $isDbUserValid = static function (?array $candidate): bool {
-        if (!$candidate || empty($candidate['id'])) {
-            return false;
-        }
-        try {
-            $dbPdo = (new Connection(require __DIR__ . '/config/database.php'))->connect();
-            $stmt = $dbPdo->prepare('SELECT id, status FROM users WHERE id = :id LIMIT 1');
-            $stmt->execute(['id' => (string)$candidate['id']]);
-            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-            return is_array($row) && (($row['status'] ?? '') === 'active');
-        } catch (\Throwable) {
-            return false;
-        }
-    };
-
-    $roleSessionName = SessionManager::sessionNameForRole($requiredRole);
-    if (isset($_COOKIE[$roleSessionName])) {
-        if (session_status() === PHP_SESSION_ACTIVE) {
-            session_write_close();
-        }
-        $rSession = new SessionManager(array_merge(require __DIR__.'/config/session.php', ['name' => $roleSessionName]));
-        $rSession->start();
-        $rUser = $rSession->user();
-        if ($rUser !== null && \TalentHub\Rbac\RoleCodes::matches((string)($rUser['role'] ?? ''), $requiredRole)) {
-            if ($isDbUserValid($rUser)) {
-                header('Location: '.app_href(AuthPortalRouter::destination((string)$rUser['role'], $requestedNext)));
-                exit;
-            }
-            SessionManager::clearAllRoleSessions();
-        }
-        session_write_close();
-        $session->start();
-    }
-    $currentUser=$session->user();
-    $currentRole=$currentUser['role']??null;
-    if($currentRole!==null && \TalentHub\Rbac\RoleCodes::matches((string)$currentRole, $requiredRole)){
-        if ($isDbUserValid($currentUser)) {
-            header('Location: '.app_href(AuthPortalRouter::destination((string)$currentRole, $requestedNext)));
-            exit;
-        }
-        SessionManager::clearAllRoleSessions();
-    }
+    // SECURITY: do NOT auto-login from role cookies. The only way to enter a portal
+    // is through a fresh POST to this form with valid credentials. Previously this block
+    // would resume a session from any role-bound cookie without requiring a password,
+    // which allowed session-fixation attacks (e.g. setting TALENTHUB_ADMIN_SESS=<sid>).
+    // Show the role-appropriate prompt and let the user re-authenticate.
     $roleAlert=$roleMessages[$requiredRole];
 }
 
@@ -84,6 +47,8 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
     try{
         $session->assertCsrf(is_string($_POST['csrfToken']??null)?$_POST['csrfToken']:null);
         $pdo=(new Connection(require __DIR__.'/config/database.php'))->connect();$repository=new AuthRepository($pdo);$auth=new AuthService($repository);$limiter=new LoginRateLimiter($pdo);$ip=$_SERVER['REMOTE_ADDR']??null;$requestId=RequestId::make(null);
+        // Rate-limit check BEFORE attempting login to prevent credential-stuffing attacks.
+        $limiter->assertAllowed($emailValue,$ip);
         $user=$auth->login(['email'=>$emailValue,'password'=>$password],$requestId,$ip);
         if($requiredRole!==null && isset($roleMessages[$requiredRole]) && !\TalentHub\Rbac\RoleCodes::matches((string)$user['role'],$requiredRole)){
             throw new ApiException(403,'ROLE_MISMATCH','Tài khoản không thuộc vai trò '.$roleMessages[$requiredRole]['label'].'.');
@@ -100,7 +65,14 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
         $_SESSION['logged_in'] = true;
         SessionManager::writeUserToRoleSession($user, require __DIR__.'/config/session.php');
         header('Location: '.app_href(AuthPortalRouter::destination($user['role'],$requestedNext)));exit;
-    }catch(ApiException $exception){http_response_code($exception->status);$errorMessage=$exception->getMessage();foreach($exception->details as $detail){$fieldErrors[$detail['field']]=$detail['message'];}if(isset($exception->headers['Retry-After'])){header('Retry-After: '.$exception->headers['Retry-After']);}}
+    }catch(ApiException $exception){
+        // Record failed attempt for rate-limiting, then re-throw to show error.
+        if($exception->status === 401 || $exception->status === 403){
+            $limiter->recordFailure($emailValue,$ip);
+            $session->recordLoginFailure();
+        }
+        http_response_code($exception->status);$errorMessage=$exception->getMessage();foreach($exception->details as $detail){$fieldErrors[$detail['field']]=$detail['message'];}if(isset($exception->headers['Retry-After'])){header('Retry-After: '.$exception->headers['Retry-After']);}
+    }
     catch(Throwable $e){error_log('[Login Error] '.$e->getMessage());$errorMessage='Dịch vụ đăng nhập đang tạm thời gián đoạn. Vui lòng thử lại sau.';}
 }
 
@@ -114,7 +86,6 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light">
     <meta name="description" content="Đăng nhập TalentHub để tiếp tục vào không gian học tập và quản lý của bạn.">
-    <title>Đăng nhập | TalentHub</title>
     <meta name="description" content="Đăng nhập FTalentHub để tiếp tục vào không gian học tập và quản lý của bạn.">
     <title>Đăng nhập | FTalentHub</title>
     <link rel="stylesheet" href="assets/css/home.css">

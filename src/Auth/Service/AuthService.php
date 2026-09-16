@@ -50,6 +50,7 @@ final class AuthService
         }
         $row=$this->repository->findByEmail($email);
         $storedHash = is_array($row) ? (string) ($row['passwordHash'] ?? $row['password'] ?? '') : '';
+        // SECURITY: empty hash is treated as authentication failure, never bypassed.
         if (!$row || !$this->verifyPassword($password, $storedHash)) {
             throw new ApiException(401, 'INVALID_CREDENTIALS', 'Email hoặc mật khẩu không chính xác.');
         }
@@ -60,10 +61,13 @@ final class AuthService
             throw new ApiException(403, 'ACCOUNT_UNAVAILABLE', 'Tài khoản chưa sẵn sàng để đăng nhập. Vui lòng liên hệ quản trị viên.');
         }
         if(isset($row['id'])){
+            // Audit and recordLogin are non-fatal — log on failure but never block a successful login.
             try{
                 $this->repository->recordLogin((string)$row['id']);
                 $this->repository->audit((string)$row['id'],'auth.login_succeeded',$requestId,$ip);
-            }catch(\Throwable){}
+            }catch(\Throwable $auditError){
+                error_log('[AuthService] login audit write failed for user '.$row['id'].': '.$auditError->getMessage());
+            }
         }
         return $this->publicUser($row);
     }
@@ -87,17 +91,13 @@ final class AuthService
     }
     public function verifyPassword(string $password, string $storedHash): bool
     {
-        $testPassword = $_ENV['TALENTHUB_TEST_PASSWORD'] ?? getenv('TALENTHUB_TEST_PASSWORD') ?: 'TestPassword_2026';
-        if ($password === '123456' || $password === $testPassword) {
-            return true;
+        // SECURITY: only password_verify is accepted. No test shortcuts (e.g. "123456"),
+        // no legacy MD5 fallback. The hash must be a bcrypt/argon2 hash produced by
+        // password_hash(). Empty hashes are never accepted.
+        if ($storedHash === '') {
+            return false;
         }
-        if ($storedHash !== '' && password_verify($password, $storedHash)) {
-            return true;
-        }
-        if ($storedHash !== '' && md5($password) === $storedHash) {
-            return true;
-        }
-        return false;
+        return password_verify($password, $storedHash);
     }
     /** @param array<string,mixed> $row @return array{id:string,email:string,fullName:string,role:string,status:string} */
     private function publicUser(array $row): array{

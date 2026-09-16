@@ -17,7 +17,7 @@ final class TeacherRegistrationService
         $fullName=trim($input['fullName']??'');$email=strtolower(trim($input['email']??''));
         $phone=trim($input['phone']??'');$specialization=trim($input['specialization']??'');
         $schoolId=trim($input['schoolId']??'');$password=$input['password']??'';
-        if(mb_strlen($fullName)<2||!filter_var($email,FILTER_VALIDATE_EMAIL)||mb_strlen($phone)<6||mb_strlen($specialization)<2||!Uuid::isValid($schoolId)||strlen($password)<12){throw new RuntimeException('Vui lòng điền đầy đủ thông tin hợp lệ; mật khẩu tối thiểu 12 ký tự.');}
+        if(mb_strlen($fullName)<2||!filter_var($email,FILTER_VALIDATE_EMAIL)||mb_strlen($phone)<6||!preg_match('/^[0-9+() .-]+$/',$phone)||mb_strlen($specialization)<2||!Uuid::isValid($schoolId)||strlen($password)<12){throw new RuntimeException('Vui lòng điền đầy đủ thông tin hợp lệ; mật khẩu tối thiểu 12 ký tự.');}
         $schoolStmt = $this->pdo->prepare("SELECT id, name FROM schools WHERE id=? AND status='active'");
         $schoolStmt->execute([$schoolId]);
         $school = $schoolStmt->fetch(PDO::FETCH_ASSOC);
@@ -25,11 +25,6 @@ final class TeacherRegistrationService
             throw new RuntimeException('Nhà trường đã chọn không tồn tại hoặc chưa hoạt động.');
         }
         $schoolName = (string) $school['name'];
-        $duplicate = $this->pdo->prepare('SELECT COUNT(*) FROM users WHERE email=?');
-        $duplicate->execute([$email]);
-        if ((int) $duplicate->fetchColumn() > 0) {
-            throw new RuntimeException('Email đã được sử dụng.');
-        }
 
         $userId = Uuid::v4();
         $profileId = Uuid::v4();
@@ -37,6 +32,18 @@ final class TeacherRegistrationService
         $legacy = $this->columnExists('users', 'roles');
         $this->pdo->beginTransaction();
         try {
+            // Re-check duplicate email INSIDE the transaction (with row lock when possible)
+            // to prevent the race where two requests with the same email both pass the
+            // pre-transaction existence check and then both INSERT successfully.
+            if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'sqlite') {
+                $lockDup = $this->pdo->prepare('SELECT id FROM users WHERE email=? FOR UPDATE');
+            } else {
+                $lockDup = $this->pdo->prepare('SELECT id FROM users WHERE email=?');
+            }
+            $lockDup->execute([$email]);
+            if ($lockDup->fetchColumn() !== false) {
+                throw new RuntimeException('Email đã được sử dụng.');
+            }
             if ($legacy) {
                 $this->pdo->prepare("INSERT INTO users(id,email,passwordHash,fullName,roles,status) VALUES(?,?,?,?,?,'pending')")->execute([$userId, $email, $hash, $fullName, 'teacher']);
             } else {
@@ -64,20 +71,27 @@ final class TeacherRegistrationService
 
             // Định tuyến thông báo đến các Quản trị viên của đúng Nhà trường được chọn
             if ($this->tableExists('school_members') && $this->tableExists('notifications')) {
+                $notifColumns = $this->columns('notifications');
                 $membersStmt = $this->pdo->prepare("SELECT sm.userId FROM school_members sm WHERE sm.schoolId = ? AND sm.memberRole = 'admin'");
                 $membersStmt->execute([$schoolId]);
-                $notifStmt = $this->pdo->prepare("INSERT INTO notifications (id, userId, eventKey, notificationType, title, message, deepLink) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $notifData = [
+                    'id' => Uuid::v4(),
+                    'userId' => '',
+                    'notificationType' => 'teacher_registration_pending',
+                    'title' => 'Hồ sơ giáo viên mới chờ duyệt',
+                    'message' => 'Giáo viên ' . $fullName . ' vừa đăng ký công tác tại trường và đang chờ duyệt hồ sơ.',
+                ];
+                if (in_array('relatedEntityType', $notifColumns, true)) {
+                    $notifData['relatedEntityType'] = 'user';
+                    $notifData['relatedEntityId'] = $userId;
+                }
+                $notifData = array_intersect_key($notifData, array_flip($notifColumns));
+                $names = array_keys($notifData);
+                $notifInsert = $this->pdo->prepare('INSERT INTO notifications(' . implode(',', $names) . ') VALUES(' . implode(',', array_fill(0, count($names), '?')) . ')');
                 foreach ($membersStmt->fetchAll(PDO::FETCH_COLUMN) as $schoolAdminUserId) {
                     if (is_string($schoolAdminUserId) && $schoolAdminUserId !== '') {
-                        $notifStmt->execute([
-                            Uuid::v4(),
-                            $schoolAdminUserId,
-                            'teacher_registration:' . $userId,
-                            'teacher_registration_pending',
-                            'Hồ sơ giáo viên mới chờ duyệt',
-                            'Giáo viên ' . $fullName . ' vừa đăng ký công tác tại trường và đang chờ duyệt hồ sơ.',
-                            '/app/school/teachers.php',
-                        ]);
+                        $notifData['userId'] = $schoolAdminUserId;
+                        $notifInsert->execute(array_values($notifData));
                     }
                 }
             }
