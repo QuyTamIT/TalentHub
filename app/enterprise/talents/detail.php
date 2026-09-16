@@ -99,13 +99,16 @@ if ($rawTalent !== null) {
             is_numeric($rawLevelScore) && (int)$rawLevelScore >= 85 => 'Nâng cao',
             is_numeric($rawLevelScore) && (int)$rawLevelScore >= 65 => 'Trung bình',
             is_numeric($rawLevelScore) => 'Cơ bản',
-            default => (string) ($sk['proficiencyLevel'] ?? $sk['level'] ?? 'Nâng cao'),
+            default => (string) ($sk['proficiencyLevel'] ?? $sk['level'] ?? 'Chưa có điểm'),
         };
         $verifStatus = (string) ($sk['verification_status'] ?? $sk['verificationStatus'] ?? '');
         $skillsList[] = [
             'name'     => (string) ($sk['skillName'] ?? $sk['name'] ?? ''),
-            'level'    => $levelLabel,
-            'verified' => $verifStatus === 'verified' || !empty($sk['verified']),
+            'level'    => $sState === 'scored' && is_numeric($rawLevelScore)
+                ? rtrim(rtrim(number_format((float)$rawLevelScore, 2, '.', ''), '0'), '.') . '/100 · ' . $levelLabel
+                : $levelLabel,
+            'kind'     => ($sk['item_kind'] ?? 'skill') === 'skill_group' ? 'Nhóm kỹ năng' : '',
+            'verified' => $sState === 'scored' && ($verifStatus === 'verified' || !empty($sk['verified'])),
         ];
     }
 
@@ -651,6 +654,7 @@ $sidebarNav = [
                                                 <div class="ent-skill-chip">
                                                     <span><?= htmlspecialchars($sk['name']); ?></span>
                                                     <span class="ent-skill-chip__level"><?= htmlspecialchars($sk['level']); ?></span>
+                                                    <?php if ($sk['kind'] !== ''): ?><span class="ent-skill-chip__level"><?= htmlspecialchars($sk['kind']); ?></span><?php endif; ?>
                                                     <?php if ($sk['verified']): ?>
                                                         <span class="ent-skill-chip__check" title="Đã xác thực">
                                                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
