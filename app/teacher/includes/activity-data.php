@@ -181,7 +181,8 @@ function teacherActivitiesNormalize(array $row, ?DateTimeImmutable $now = null):
         'approval_reason' => trim((string) ($row['approvalReason'] ?? '')),
         'approval_requested_label' => teacherActivitiesApprovalDateLabel($row['approvalRequestedAt'] ?? null),
         'approved_at_label' => teacherActivitiesApprovalDateLabel($row['approvedAt'] ?? null),
-        'can_edit' => in_array($approvalStatus, ['draft', 'changes_requested'], true),
+        'can_edit' => in_array($approvalStatus, ['draft', 'changes_requested', 'approved'], true)
+            && !in_array($rawStatus, ['completed', 'archived'], true),
     ]);
 }
 

@@ -169,8 +169,11 @@ final class TeacherActivityRepository
             $activity->execute(['activityId' => $activityId]);
             $row = $activity->fetch(PDO::FETCH_ASSOC);
             if (!is_array($row)) throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động thuộc hồ sơ giáo viên này.');
-            if (isset($row['approvalStatus']) && in_array((string) $row['approvalStatus'], ['pending_school_review', 'approved', 'rejected'], true)) {
-                throw new ApiException(409, 'APPROVAL_STATUS_CONFLICT', 'Không thể sửa hoạt động khi đang chờ duyệt, đã duyệt hoặc đã bị từ chối.');
+            if (in_array((string) $row['status'], ['completed', 'archived'], true)) {
+                throw new ApiException(409, 'ACTIVITY_STATUS_CONFLICT', 'Không thể sửa hoạt động đã hoàn tất hoặc đã lưu trữ.');
+            }
+            if (isset($row['approvalStatus']) && in_array((string) $row['approvalStatus'], ['pending_school_review', 'rejected'], true)) {
+                throw new ApiException(409, 'APPROVAL_STATUS_CONFLICT', 'Không thể sửa hoạt động khi đang chờ duyệt hoặc đã bị từ chối.');
             }
             $occupied = $this->pdo->prepare("SELECT COUNT(*) FROM activity_registrations WHERE activityId=:activityId AND status IN ('approved','attended')");
             $occupied->execute(['activityId' => $activityId]);

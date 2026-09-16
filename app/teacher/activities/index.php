@@ -1683,7 +1683,9 @@ $teacherAssetUrl = static function (string $relPath): string {
                                                 <td data-label="Thao tác">
                                                     <div class="teacher-activities-row-actions">
                                                         <a href="?action=view&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-action">Chi tiết</a>
-                                                        <a href="?action=edit&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-action">Chỉnh sửa</a>
+                                                        <?php if (!empty($activity['can_edit'])): ?>
+                                                            <a href="?action=edit&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-action">Chỉnh sửa</a>
+                                                        <?php endif; ?>
                                                         <a href="?action=registrations&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-action teacher-activity-action--students" title="Xem danh sách sinh viên đã đăng ký hoạt động này">
                                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true" style="vertical-align:-2px;margin-right:2px"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>Xem sinh viên
                                                         </a>
