@@ -11,11 +11,13 @@ use TalentHub\Http\ApiException;
 use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
 use TalentHub\Learner\Data\Database\DatabaseTalentPassportRepository;
 use TalentHub\Learner\Data\Service\NotificationService;
+use TalentHub\Learner\Data\Service\EvidenceBackedScoreService;
 use TalentHub\Support\Uuid;
 use Throwable;
 
 final class EnterpriseTalentRepository
 {
+    private ?EvidenceBackedScoreService $scoreReader = null;
     public function __construct(
         private readonly PDO $pdo,
         private readonly ?NotificationService $notifications = null
@@ -338,6 +340,18 @@ final class EnterpriseTalentRepository
             }
         }
 
+        if ($this->tableExists('learner_evaluations')) {
+            foreach ($candidates as $studentId => &$candidate) {
+                $snapshot = $this->discoveryScores($studentId, $enterpriseId);
+                if ($snapshot === null) {
+                    unset($candidates[$studentId]);
+                    continue;
+                }
+                $candidate['skills'] = $this->mapCurrentSkills($snapshot['skills']);
+                $candidate['talent_score'] = $snapshot['summary']['score'];
+            }
+            unset($candidate);
+        }
         return array_values($candidates);
     }
 
@@ -552,6 +566,7 @@ final class EnterpriseTalentRepository
     public function listTalents(string $enterpriseId, array $filters = []): array
     {
         $now = $this->now();
+        $hasCurrentScores = $this->tableExists('learner_evaluations');
         $hasPartnership = $this->tableExists('school_enterprise_partnerships');
 
         $where = [
@@ -573,7 +588,7 @@ final class EnterpriseTalentRepository
             ? "EXISTS (SELECT 1 FROM project_members pm WHERE pm.studentId = student.id AND (pm.status = 'active' OR pm.status IS NULL))"
             : "0=1";
 
-        $where[] = "(
+        if (!$hasCurrentScores) $where[] = "(
             ({$talentScoreCol} IS NOT NULL AND {$talentScoreCol} > 0)
             OR {$assessSubCondition}
             OR EXISTS (SELECT 1 FROM student_skills ss WHERE ss.studentId = student.id AND (ss.levelScore > 0 OR ss.verificationStatus = 'verified'))
@@ -631,10 +646,11 @@ final class EnterpriseTalentRepository
         // Filter: Skill tag — JS gửi key 'skills' (comma-separated), cũng hỗ trợ 'skill_tag'/'skill' (legacy).
         // Lưu ý: filter 'skills' (multi) được xử lý thêm ở bước post-query PHP bên dưới (với alias map).
         // WHERE clause này chỉ xử lý single-skill hoặc first-skill khi chỉ có 1 kỹ năng được chọn.
-        $rawSkillsParam = trim((string) ($filters['skill_tag'] ?? $filters['skill'] ?? $filters['skills'] ?? ''));
+        $rawSkillsInput = $filters['skill_tag'] ?? $filters['skill'] ?? $filters['skills'] ?? '';
+        $rawSkillsParam = is_array($rawSkillsInput) ? implode(',', $rawSkillsInput) : trim((string)$rawSkillsInput);
         // Nếu có nhiều kỹ năng (comma-separated), bỏ qua bước SQL WHERE — post-processing sẽ handle.
         $skillTag = (str_contains($rawSkillsParam, ',') ? '' : $rawSkillsParam);
-        if ($skillTag !== '' && $skillTag !== 'all') {
+        if (!$hasCurrentScores && $skillTag !== '' && $skillTag !== 'all') {
             $where[] = 'EXISTS (
                 SELECT 1 FROM student_skills ss
                 JOIN skills sk ON ss.skillId = sk.id
@@ -647,7 +663,7 @@ final class EnterpriseTalentRepository
 
         // Filter: Keyword search across candidate name, headline, bio, school, class, skills
         $search = trim((string) ($filters['search'] ?? $filters['q'] ?? $filters['keyword'] ?? ''));
-        if ($search !== '' && $search !== 'all') {
+        if (!$hasCurrentScores && $search !== '' && $search !== 'all') {
             $searchWildcard = '%' . $search . '%';
             $where[] = '(u.fullName LIKE :search1 OR spd.headline LIKE :search2 OR spd.bio LIKE :search3 OR s.name LIKE :search4 OR c.name LIKE :search5 OR EXISTS (
                 SELECT 1 FROM student_skills ssk
@@ -674,7 +690,7 @@ final class EnterpriseTalentRepository
 
         // Filter: Major / Domain / Lĩnh vực năng lực
         $majorField = trim((string) ($filters['major_field'] ?? $filters['field'] ?? $filters['major'] ?? $filters['domain'] ?? ''));
-        if ($majorField !== '' && $majorField !== 'all') {
+        if (!$hasCurrentScores && $majorField !== '' && $majorField !== 'all') {
             if (stripos($majorField, 'AI') !== false || stripos($majorField, 'dữ liệu') !== false || stripos($majorField, 'Data') !== false || stripos($majorField, 'Trí tuệ Nhân tạo') !== false) {
                 $where[] = "(
                     spd.headline LIKE '%AI%'
@@ -800,6 +816,7 @@ final class EnterpriseTalentRepository
                 spd.avatarUrl,
                 accessGrant.grantedAt,
                 accessGrant.expiresAt,
+                student.createdAt AS studentCreatedAt,
                 COALESCE(
                     {$talentScoreCol},
                     {$scoredSubquery}
@@ -855,7 +872,7 @@ final class EnterpriseTalentRepository
         };
 
         $limitClause = '';
-        if (isset($filters['limit']) && is_numeric($filters['limit']) && (int) $filters['limit'] > 0) {
+        if (!$hasCurrentScores && isset($filters['limit']) && is_numeric($filters['limit']) && (int) $filters['limit'] > 0) {
             $limit = (int) $filters['limit'];
             $offset = isset($filters['offset']) && is_numeric($filters['offset']) ? max(0, (int) $filters['offset']) : 0;
             $limitClause = " LIMIT {$limit} OFFSET {$offset}";
@@ -917,9 +934,8 @@ final class EnterpriseTalentRepository
 
         // Post-process skills filter and populate verifiedSkills list
         $filterSkills = [];
-        if (isset($filters['skills'])) {
-            $rawSkills = is_array($filters['skills']) ? $filters['skills'] : explode(',', (string) $filters['skills']);
-            $filterSkills = array_values(array_filter(array_map('trim', $rawSkills)));
+        if ($rawSkillsParam !== '' && $rawSkillsParam !== 'all') {
+            $filterSkills = array_values(array_filter(array_map('trim', explode(',', $rawSkillsParam))));
         }
 
         $items = [];
@@ -927,8 +943,12 @@ final class EnterpriseTalentRepository
             $studentId = (string) $row['studentId'];
             $userId = (string) ($row['userId'] ?? '');
             // $dbSkills = kỹ năng thực tế từ student_skills (dùng cho "Kỹ năng xác thực" và Talent Profile)
-            $dbSkills = $this->allSkillsForStudent($studentId);
+            $snapshot = $hasCurrentScores ? $this->discoveryScores($studentId, $enterpriseId) : null;
+            if ($hasCurrentScores && $snapshot === null) continue;
+            $currentSkills = $snapshot !== null ? $this->mapCurrentSkills($snapshot['skills']) : $this->skillsWithDetailsForStudent($studentId, $enterpriseId);
+            $dbSkills = array_values(array_unique(array_column($currentSkills, 'name')));
             $studentProjects = $studentProjectsMap[$studentId] ?? $studentProjectsMap[$userId] ?? [];
+            if ($hasCurrentScores && $currentSkills === [] && $studentProjects === []) continue;
 
             // Extract inferred skills from project content — chỉ dùng cho AI matching/filter,
             // KHÔNG được gọi là "xác thực" vì không có nguồn gốc từ student_skills.
@@ -938,9 +958,22 @@ final class EnterpriseTalentRepository
                 ? array_values(array_unique(array_merge($dbSkills, $projectSkills)))
                 : $dbSkills;
 
+            if ($hasCurrentScores) {
+                $skillTerms = array_merge($dbSkills, array_column($currentSkills, 'code'), array_column($currentSkills, 'group_code'));
+                $searchText = implode(' ', array_filter(array_merge([
+                    $row['displayName'], $row['headline'], $row['bio'], $row['schoolName'], $row['className'],
+                ], $skillTerms, array_column($studentProjects, 'title'), array_column($studentProjects, 'description'), array_column($studentProjects, 'category')), 'is_string'));
+                if ($search !== '' && $search !== 'all' && mb_stripos($searchText, $search) === false) continue;
+                $domainText = implode(' ', array_filter(array_merge([
+                    $row['headline'], $row['bio'], $row['className'],
+                ], $skillTerms, array_column($studentProjects,'title'), array_column($studentProjects,'description'), array_column($studentProjects,'category')), 'is_string'));
+                if ($majorField !== '' && $majorField !== 'all' && !$this->matchesDiscoveryDomain($majorField, $domainText)) continue;
+            }
+
             if ($filterSkills !== []) {
                 $hasAllSkills = true;
-                $lowerSkills = array_map('mb_strtolower', $skills);
+                $lowerSkills = array_map('mb_strtolower', array_filter(array_merge($skills,
+                    array_column($currentSkills,'code'), array_column($currentSkills,'group_code')), static fn($s) => is_string($s) && $s !== ''));
 
                 $aliases = [
                     'nghiên cứu thị trường' => ['phân tích thị trường', 'nghiên cứu thị trường', 'market research', 'market analysis'],
@@ -979,10 +1012,11 @@ final class EnterpriseTalentRepository
                 }
             }
 
-            $score = is_numeric($row['talentScore'] ?? null) ? (float) $row['talentScore'] : null;
+            $score = $snapshot !== null ? $snapshot['summary']['score'] : (is_numeric($row['talentScore'] ?? null) ? (float) $row['talentScore'] : null);
             $items[] = [
                 'studentId' => $studentId,
                 'userId' => $userId,
+                '_createdAt' => $row['studentCreatedAt'] ?? '',
                 'displayName' => (string) ($row['displayName'] ?? 'Ứng viên'),
                 'schoolName' => (string) ($row['schoolName'] ?? ''),
                 'className' => (string) ($row['className'] ?? ''),
@@ -992,8 +1026,8 @@ final class EnterpriseTalentRepository
                 'bio' => (string) ($row['bio'] ?? ''),
                 'avatarUrl' => $row['avatarUrl'] !== null ? (string) $row['avatarUrl'] : null,
                 'talentScore' => $score === null ? null : min(100, max(0, $score)),
-                'skillCount' => count($skills),
-                'verifiedSkillCount' => (int) $row['verifiedSkillCount'],
+                'skillCount' => count($dbSkills),
+                'verifiedSkillCount' => count(array_filter($currentSkills, static fn($s) => ($s['scoreState'] ?? '') === 'scored')),
                 'verifiedSkills' => $dbSkills,
                 'skills' => $skills,
                 'projects' => $studentProjects,
@@ -1002,10 +1036,27 @@ final class EnterpriseTalentRepository
             ];
         }
 
-        return [
-            'items' => $items,
-            'total' => count($items),
-        ];
+        $total = count($items);
+        if ($hasCurrentScores) {
+            usort($items, static function($a,$b) use ($sort) {
+                $newest = strcmp($b['_createdAt'], $a['_createdAt']);
+                $verified = $b['verifiedSkillCount'] <=> $a['verifiedSkillCount'];
+                $count = $b['skillCount'] <=> $a['skillCount'];
+                return (match($sort) {
+                    'name' => strcmp($a['displayName'],$b['displayName']),
+                    'newest' => $newest,
+                    'skills' => $verified ?: $count ?: strcmp($a['displayName'],$b['displayName']),
+                    'exp_desc' => $count ?: $verified ?: $newest,
+                    default => (($b['talentScore'] ?? -1) <=> ($a['talentScore'] ?? -1)) ?: $verified ?: $newest,
+                }) ?: strcmp($a['studentId'],$b['studentId']);
+            });
+            if (isset($filters['limit']) && is_numeric($filters['limit']) && (int)$filters['limit'] > 0) {
+                $items = array_slice($items, max(0,(int)($filters['offset'] ?? 0)), (int)$filters['limit']);
+            }
+        }
+        foreach ($items as &$item) unset($item['_createdAt']);
+        unset($item);
+        return ['items'=>$items, 'total'=>$total];
     }
 
     public function getTalentDetail(string $enterpriseId, string $studentId): ?array
@@ -1097,6 +1148,8 @@ final class EnterpriseTalentRepository
         }
 
         $realStudentId = (string) $row['studentId'];
+        $snapshot = $this->tableExists('learner_evaluations') ? $this->discoveryScores($realStudentId, $enterpriseId) : null;
+        if ($this->tableExists('learner_evaluations') && $snapshot === null) return null;
         $contactAllowed = (bool) ((int) ($row['contactAllowed'] ?? 0) === 1);
         $hasPendingContact = (bool) ((int) ($row['hasPendingContactRequest'] ?? 0) === 1);
 
@@ -1111,7 +1164,7 @@ final class EnterpriseTalentRepository
             }
         }
 
-        $skills = !empty($aggregate['skills']) ? $aggregate['skills'] : $this->skillsWithDetailsForStudent($realStudentId);
+        $skills = $snapshot !== null ? $this->mapCurrentSkills($snapshot['skills']) : $this->skillsWithDetailsForStudent($realStudentId, $enterpriseId);
         $experience = !empty($aggregate['experience']['confirmed_entries']) ? $aggregate['experience'] : $this->experienceForStudent($realStudentId);
         $certificates = !empty($aggregate['certificates']) ? $aggregate['certificates'] : $this->certificatesForStudent($realStudentId);
         $projects = !empty($aggregate['projects']) ? $aggregate['projects'] : $this->projectsForStudent($realStudentId);
@@ -1127,7 +1180,7 @@ final class EnterpriseTalentRepository
             'headline' => (string) ($row['headline'] ?? ''),
             'bio' => (string) ($row['bio'] ?? ''),
             'avatarUrl' => $row['avatarUrl'] !== null ? (string) $row['avatarUrl'] : null,
-            'talent_score' => is_numeric($row['talentScore'] ?? null) ? (float) $row['talentScore'] : null,
+            'talent_score' => $snapshot !== null ? $snapshot['summary']['score'] : (is_numeric($row['talentScore'] ?? null) ? (float) $row['talentScore'] : null),
             'contactAllowed' => $contactAllowed,
             'hasPendingContactRequest' => $hasPendingContact,
             'skills' => $skills,
@@ -1406,8 +1459,11 @@ final class EnterpriseTalentRepository
     }
 
     /** @return list<string> */
-    public function allSkillsForStudent(string $studentId): array
+    public function allSkillsForStudent(string $studentId, ?string $enterpriseId = null): array
     {
+        if ($this->tableExists('learner_evaluations')) {
+            return array_column($this->skillsWithDetailsForStudent($studentId, $enterpriseId), 'name');
+        }
         $stmt = $this->pdo->prepare(<<<'SQL'
             SELECT s.name
             FROM student_skills ss
@@ -1523,8 +1579,13 @@ final class EnterpriseTalentRepository
     }
 
     /** @return list<array<string,mixed>> */
-    public function skillsWithDetailsForStudent(string $studentId): array
+    public function skillsWithDetailsForStudent(string $studentId, ?string $enterpriseId = null): array
     {
+        if ($this->tableExists('learner_evaluations')) {
+            if ($enterpriseId === null) return [];
+            $snapshot = $this->discoveryScores($studentId, $enterpriseId);
+            return $snapshot === null ? [] : $this->mapCurrentSkills($snapshot['skills']);
+        }
         $hasScoreState = $this->columnExists('student_skills', 'scoreState');
         $hasCreatedAt = $this->columnExists('student_skills', 'createdAt');
         $scoreStateCol = $hasScoreState ? 'ss.scoreState,' : 'NULL AS scoreState,';
@@ -1545,6 +1606,66 @@ final class EnterpriseTalentRepository
         SQL);
         $stmt->execute(['studentId' => $studentId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    private function discoveryScores(string $studentId, string $enterpriseId): ?array
+    {
+        try {
+            $this->scoreReader ??= new EvidenceBackedScoreService($this->pdo);
+            return $this->scoreReader->forEnterpriseDiscovery($studentId, $enterpriseId);
+        } catch (\DomainException) {
+            // No fallback to stale projections when recipient access is denied.
+            return null;
+        }
+    }
+
+    private function mapCurrentSkills(array $skills): array
+    {
+        $result = [];
+        foreach ($skills as $skill) {
+            $score = $skill['score'] ?? null;
+            $name = $skill['skill_name'];
+            $result[] = [
+                'id'=>$skill['skill_id'], 'skillId'=>$skill['skill_id'], 'skill_id'=>$skill['skill_id'],
+                'name'=>$name, 'skillName'=>$name, 'category'=>$skill['category'],
+                'code'=>$skill['code'] ?? '',
+                'levelScore'=>$score, 'level_score'=>$score,
+                'scoreState'=>$skill['state'], 'score_state'=>$skill['state'],
+                'verificationStatus'=>$skill['state']==='scored' ? 'verified' : 'pending',
+                'verification_status'=>$skill['state']==='scored' ? 'verified' : 'pending',
+                'item_kind'=>$skill['item_kind'] ?? 'skill',
+                'group_code'=>$skill['group_code'] ?? null,
+                'assessed_at'=>$skill['assessed_at'] ?? null,
+            ];
+        }
+        usort($result, static fn($a,$b) => ($b['levelScore'] ?? -1) <=> ($a['levelScore'] ?? -1)
+            ?: strcmp($a['name'],$b['name']));
+        return $result;
+    }
+
+    private function matchesDiscoveryDomain(string $domain, string $text): bool
+    {
+        $contains = static fn(string $haystack, string $term): bool => mb_strlen($term) <= 3
+            ? preg_match('/(?<![\p{L}\p{N}])' . preg_quote($term, '/') . '(?![\p{L}\p{N}])/iu', $haystack) === 1
+            : mb_stripos($haystack, $term) !== false;
+        $domains = [
+            ['ai','dữ liệu','data','trí tuệ nhân tạo','machine learning','python','pytorch','computer vision','langchain','prompt engineering'],
+            ['marketing','kinh doanh','qtkd','tmđt','quản trị','business'],
+            ['logistics','kho vận','cung ứng','supply chain'],
+            ['tài chính','kế toán','ngân hàng','finance','accounting','powerbi','excel'],
+            ['an toàn','security','bảo mật'],
+            ['công nghệ','phần mềm','web','lập trình','cntt','backend','frontend','react','node.js','python','javascript','java','php','docker','sql'],
+        ];
+        foreach ($domains as $terms) {
+            foreach ($terms as $term) {
+                if (!$contains($domain, $term)) continue;
+                foreach ($terms as $candidateTerm) {
+                    if ($contains($text, $candidateTerm)) return true;
+                }
+                return false;
+            }
+        }
+        return mb_stripos($text, $domain) !== false;
     }
 
     private function userIdForStudent(string $studentId): string

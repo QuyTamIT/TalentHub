@@ -120,10 +120,6 @@ final class EnterpriseMatchService
         ?int $limit = null
     ): array {
         $normalized = $this->normalizeJobRequirements($job);
-        $jobHash = hash('sha256', json_encode([
-            'job_id' => $normalized['id'],
-            'required_skills' => $normalized['required_skills'],
-        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         $candidates = $this->repository->matchCandidates($enterpriseId, $normalized['required_skills']);
         $generatedAt = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('c');
 
@@ -157,6 +153,7 @@ final class EnterpriseMatchService
                     'name' => (string) ($sk['name'] ?? ''),
                     'category' => (string) ($sk['category'] ?? 'technical'),
                     'level_score' => (float) ($sk['level_score'] ?? 0.0),
+                    'item_kind' => (string) ($sk['item_kind'] ?? 'skill'),
                 ];
             }
             $candProjects = [];
@@ -181,6 +178,15 @@ final class EnterpriseMatchService
                 'projects' => $candProjects,
             ];
         }
+
+        // Bind rankings to the actual current inputs, including lowered/removed
+        // grades and group scores. Candidate identity also binds anonymous refs.
+        $jobHash = hash('sha256', json_encode([
+            'schema' => 'enterprise-current-skills-1',
+            'job' => $normalized,
+            'candidate_ids' => array_column($candidates, 'student_id'),
+            'candidates' => $candidateProjections,
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
         // 1. Check durable cache in DB first for deterministic, instantaneous response
         $cached = $this->repository->cachedMatchRanking($enterpriseId, $jobHash);
@@ -351,6 +357,7 @@ final class EnterpriseMatchService
         }
         $lower = mb_strtolower(trim($name));
         $softTerms = [
+            'kỹ năng mềm', 'soft skills',
             'teamwork', 'làm việc nhóm', 'lam viec nhom',
             'communication', 'giao tiếp', 'giao tiếp & thuyết trình', 'giao tiep',
             'leadership', 'lãnh đạo', 'kỹ năng lãnh đạo', 'lanh dao',
@@ -670,6 +677,7 @@ final class EnterpriseMatchService
             $evidence = [];
 
             foreach ($candSkills as $skill) {
+                $isMatched = false;
                 $sState = $skill['score_state'] ?? null;
                 if ($sState === 'missing_source' || $sState === 'evidence_only') {
                     continue;
@@ -931,6 +939,7 @@ final class EnterpriseMatchService
             $evidence = [];
 
             foreach ($candSkills as $sk) {
+                $isMatched = false;
                 $sState = $sk['score_state'] ?? null;
                 if ($sState === 'missing_source' || $sState === 'evidence_only') {
                     continue;

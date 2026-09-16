@@ -99,6 +99,7 @@ storage/test-screenshots/**
 !/tests/learner_project_registration_boundary_test.php
 !/tests/school_ai_insight_ui_test.ps1
 !/tests/enterprise_ai_gemini_matcher_test.php
+!/tests/enterprise_teacher_skill_sync_test.php
 !/tests/enterprise_ai_matches_api_test.php
 !/tests/enterprise_ai_matches_ui_test.ps1
 !/tests/*.spec.ts
