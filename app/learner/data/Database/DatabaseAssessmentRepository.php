@@ -11,6 +11,8 @@ use TalentHub\Learner\Data\Enums\AssessmentAttemptStatus;
 use TalentHub\Learner\Data\Enums\EvaluationStatus;
 use TalentHub\Learner\Data\Support\Uuid;
 
+require_once dirname(__DIR__, 4) . '/src/Modules/Skills/Repository/SkillGroupRepository.php';
+
 final class DatabaseAssessmentRepository extends AbstractDatabaseRepository implements AssessmentRepository
 {
     private const ALL_SQL = 'SELECT id, code, name, type, status FROM talent_tests ORDER BY name, id';
@@ -234,6 +236,40 @@ final class DatabaseAssessmentRepository extends AbstractDatabaseRepository impl
         return array_values($evaluations);
     }
 
+    /** Keep historical skill revisions and revoked feedback out of the learner response. */
+    private function withPublishedDetails(array $evaluations, string $studentId): array
+    {
+        $schema = new SchemaInspector($this->pdo, $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite'
+            ? 'main' : (string)$this->pdo->query('SELECT DATABASE()')->fetchColumn());
+        foreach ($evaluations as &$evaluation) $evaluation['skills'] = [];
+        unset($evaluation);
+        if ($schema->hasColumn('learner_evaluations', 'legacyAssessmentId')) {
+            $query = $this->pdo->prepare("SELECT e.* FROM learner_evaluations e WHERE e.studentId=?
+                AND (e.status<>'draft' OR e.publishedAt IS NOT NULL)
+                AND NOT EXISTS (SELECT 1 FROM learner_evaluations n WHERE n.seriesId=e.seriesId AND n.studentId=e.studentId
+                    AND n.revision>e.revision AND (n.status<>'draft' OR n.publishedAt IS NOT NULL))");
+            $query->execute([$studentId]);
+            foreach ($query->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+                $id = (string)($row['legacyAssessmentId'] ?? '');
+                if (!isset($evaluations[$id])) continue;
+                if ($row['status'] !== 'published' || empty($row['publishedAt']) || !empty($row['revokedAt']) || !empty($row['supersededAt'])) {
+                    unset($evaluations[$id]);
+                    continue;
+                }
+                if (!$schema->hasTable('learner_evaluation_items')) continue;
+                $items = $this->pdo->prepare("SELECT i.label,i.score,i.maxScore,s.name AS skillName,s.category
+                    FROM learner_evaluation_items i LEFT JOIN skills s ON s.id=i.skillId
+                    WHERE i.evaluationId=? AND i.itemKind='skill' AND i.confirmed=1 ORDER BY i.label,i.id");
+                $items->execute([$row['id']]);
+                $evaluations[$id]['skills'] = $items->fetchAll(\PDO::FETCH_ASSOC);
+            }
+        }
+        foreach ((new \TalentHub\Modules\Skills\Repository\SkillGroupRepository($this->pdo))->publishedForStudent($studentId) as $group) {
+            if (isset($evaluations[$group['assessment_id']])) $evaluations[$group['assessment_id']]['skills'][] = $group;
+        }
+        return $evaluations;
+    }
+
     public function publishedEvaluationsForStudent(string $studentId): array
     {
         $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
@@ -292,7 +328,7 @@ final class DatabaseAssessmentRepository extends AbstractDatabaseRepository impl
             }
         }
 
-        return array_values($evaluations);
+        return array_values($this->withPublishedDetails($evaluations, $studentId));
     }
 
     public function publishedCatalog(string $studentId, string $educationBand): array

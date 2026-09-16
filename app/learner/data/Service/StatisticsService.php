@@ -361,7 +361,8 @@ final class StatisticsService
     {
         $cards = [];
         foreach ($skills as $skill) {
-            $score = (int) max(0, min(100, round((float) $skill['score'])));
+            $score = max(0, min(100, round((float) $skill['score'], 2)));
+            if (floor($score) === $score) $score = (int)$score;
             $cards[] = [
                 'name' => (string) $skill['name'],
                 'score' => $score,
@@ -374,7 +375,7 @@ final class StatisticsService
         return $cards;
     }
 
-    private function skillLevel(int $score): string
+    private function skillLevel(float $score): string
     {
         return match (true) {
             $score >= 85 => 'Rất tốt',

@@ -33,6 +33,11 @@ storage/test-screenshots/**
 
 # Local-only planning, QA, and coding-agent material.
 /tests/*
+!/tests/teacher_evaluation_group_sync_test.php
+!/tests/teacher_evaluation_cv_sync_test.php
+!/tests/teacher_evaluation_workflow_sync_test.php
+!/tests/learner_evaluation_sync_ui_test.cjs
+!/tests/learner_statistics_teacher_skills_test.php
 !/tests/learner_journey_dashboard_ui_test.ps1
 !/tests/learner_credential_cards_ui_test.ps1
 !/tests/teacher_grading_hardening_test.php

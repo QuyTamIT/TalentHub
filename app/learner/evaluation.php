@@ -2,12 +2,14 @@
 /** TalentHub Learner - Competency evaluation & Teacher Feedback */
 require __DIR__ . '/includes/student-data.php';
 require_once __DIR__ . '/includes/icons.php';
+header('Cache-Control: no-store, private, max-age=0');
 
 $pageTitle = 'Đánh giá & Nhận xét Năng lực';
 $currentRoute = '/app/learner/evaluation.php';
 $evaluationSourceState = 'ready';
 
 $skillCategoryNames = [
+    'skill_group' => 'Nhóm kỹ năng',
     'technical' => 'Công nghệ & Kỹ thuật',
     'business' => 'Kinh doanh & Khởi nghiệp',
     'marketing' => 'Marketing & Truyền thông',
@@ -43,28 +45,6 @@ if ($isDatabaseMode) {
     try {
         $studentIdForEval = learner_current_student_id();
         $publishedEvaluations = learner_repository_factory()->assessment()->publishedEvaluationsForStudent($studentIdForEval);
-
-        $evalPdo = ($GLOBALS['learner_page_context'] ?? [])['pdo'] ?? null;
-        $skillsByEvalId = [];
-        if ($evalPdo instanceof PDO) {
-            try {
-                $skillStmt = $evalPdo->prepare("
-                    SELECT le.legacyAssessmentId, lei.label, lei.score, lei.maxScore, s.name AS skillName, s.category
-                    FROM learner_evaluation_items lei
-                    JOIN learner_evaluations le ON le.id = lei.evaluationId
-                    LEFT JOIN skills s ON s.id = lei.skillId
-                    WHERE le.studentId = ? AND lei.itemKind = 'skill' AND lei.confirmed = 1
-                    ORDER BY lei.score DESC
-                ");
-                $skillStmt->execute([$studentIdForEval]);
-                foreach ($skillStmt->fetchAll(PDO::FETCH_ASSOC) as $skRow) {
-                    $legId = (string) ($skRow['legacyAssessmentId'] ?? '');
-                    if ($legId !== '') {
-                        $skillsByEvalId[$legId][] = $skRow;
-                    }
-                }
-            } catch (\Throwable) {}
-        }
 
         $evaluationTerms = [];
         $defaultEvaluationTerm = '';
@@ -110,7 +90,7 @@ if ($isDatabaseMode) {
                 ? mb_strtoupper(mb_substr($words[0], 0, 1) . mb_substr(end($words), 0, 1))
                 : 'GV';
 
-            $termSkills = $skillsByEvalId[$evaluationId] ?? [];
+            $termSkills = $eval['skills'] ?? [];
 
             $evaluationTerms[$evaluationId] = [
                 'label' => $evaluationLabel,
@@ -678,14 +658,12 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
                                 <?php $evalSkills = $currentEvaluation['skills'] ?? []; ?>
                                 <?php if (!empty($evalSkills)): ?>
                                     <?php foreach ($evalSkills as $sk): ?>
-                                        <span class="eval-tag" title="Điểm năng lực: <?= number_format((float) ($sk['score'] ?? 0), 1); ?>/100">
-                                            ✦ <?= learner_escape($sk['label'] ?? $sk['skillName']); ?> <strong>(<?= number_format((float) ($sk['score'] ?? 0), 0); ?>/100)</strong>
+                                        <span class="eval-tag">
+                                            ✦ <?= learner_escape($sk['label'] ?? $sk['skillName']); ?> <strong>(<?= learner_escape((string)$sk['score']); ?>/<?= learner_escape((string)($sk['maxScore'] ?? 100)); ?>)</strong>
                                         </span>
                                     <?php endforeach; ?>
                                 <?php else: ?>
-                                    <span class="eval-tag">✦ Tư duy giải quyết vấn đề</span>
-                                    <span class="eval-tag">✦ Tinh thần trách nhiệm</span>
-                                    <span class="eval-tag">✦ Kỹ năng thực hành</span>
+                                    <span>Chưa có kỹ năng được giảng viên chấm trong đợt này.</span>
                                 <?php endif; ?>
                             </div>
                         </section>
@@ -725,11 +703,11 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
                                                     </span>
                                                 </div>
                                                 <div class="eval-skill-score-group">
-                                                    <span class="eval-skill-score"><?= number_format($sScore, 1); ?> <small>/ 100</small></span>
+                                                    <span class="eval-skill-score"><?= learner_escape((string)$sScore); ?> <small>/ <?= learner_escape((string)$sMax); ?></small></span>
                                                     <span class="eval-skill-percent">(<?= round($sPct); ?>%)</span>
                                                 </div>
                                             </div>
-                                            <div class="eval-progress-track" role="progressbar" aria-label="<?= learner_escape($sName); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($sScore); ?>">
+                                            <div class="eval-progress-track" role="progressbar" aria-label="<?= learner_escape($sName); ?>" aria-valuemin="0" aria-valuemax="<?= learner_escape($sMax); ?>" aria-valuenow="<?= learner_escape($sScore); ?>">
                                                 <div class="eval-progress-fill eval-progress-fill--<?= learner_escape($sTone); ?>" style="width: <?= learner_escape($sPct); ?>%;"></div>
                                             </div>
                                         </div>
@@ -750,7 +728,7 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
                                     <?= learner_icon('chart', 18); ?>
                                     <span>Tiêu chí Phương pháp & Thái độ làm việc</span>
                                 </h3>
-                                <span class="eval-rubric-hint">Rubric thang điểm 10.0</span>
+                                <span class="eval-rubric-hint">Thang điểm theo từng tiêu chí</span>
                             </div>
                             <p class="eval-card-subtitle" style="margin-bottom: 0.75rem;">
                                 Các tiêu chí bổ trợ đánh giá phương pháp học tập, tính chủ động và khả năng phối hợp nhóm.
@@ -769,7 +747,7 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
                                     <div class="eval-rubric-item" data-evaluation-criterion="">
                                         <div class="eval-rubric-item__header">
                                             <span class="eval-rubric-item__name"><?= learner_escape($criterion['name']); ?></span>
-                                            <span class="eval-rubric-item__score"><?= number_format($scoreVal, 1); ?> <small>/ <?= number_format($maximum, 0); ?></small></span>
+                                            <span class="eval-rubric-item__score"><?= learner_escape((string)$scoreVal); ?> <small>/ <?= learner_escape((string)$maximum); ?></small></span>
                                         </div>
                                         <div class="eval-rubric-item__track" role="progressbar" aria-label="<?= learner_escape($criterion['name']); ?>" aria-valuemin="0" aria-valuemax="<?= learner_escape($maximum); ?>" aria-valuenow="<?= learner_escape($scoreVal); ?>">
                                             <div class="eval-rubric-item__fill eval-progress-fill--<?= learner_escape($tone); ?>" style="width: <?= learner_escape($percentage); ?>%;"></div>

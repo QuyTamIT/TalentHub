@@ -70,6 +70,7 @@ final class LearnerOpportunityProfile
      * @var list<array{source_id:string,title:string,issuer:string,issue_date:?string,verification_status:string}>
      */
     private readonly array $certificates;
+    private array $teacherEvaluations = [];
 
 
     private function __construct(
@@ -98,7 +99,7 @@ final class LearnerOpportunityProfile
     {
         $payload = $input->payload();
 
-        return new self(
+        $profile = new self(
             self::resolveEducationBand($payload),
             self::collectSkills($payload),
             self::collectAssessmentDimensions($payload),
@@ -109,7 +110,17 @@ final class LearnerOpportunityProfile
             self::collectSkillEvidenceRefs($input),
             self::collectCertificates($payload, $input),
         );
+        foreach ($payload['evaluations'] ?? [] as $evaluation) {
+            if (!is_array($evaluation) || !self::isPublishedEvaluation($evaluation)) continue;
+            $profile->teacherEvaluations[] = array_intersect_key($evaluation, array_flip([
+                'published_at', 'updated_at', 'overall_score', 'feedback', 'revision', 'skill_scores', 'skill_group_scores', 'criteria_scores',
+            ]));
+        }
+        return $profile;
     }
+
+    /** Published, consent-filtered teacher evidence used for provider explanations. */
+    public function teacherEvaluations(): array { return $this->teacherEvaluations; }
 
     public function educationBand(): ?string
     {

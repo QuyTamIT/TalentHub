@@ -10,6 +10,8 @@ use PDO;
 use TalentHub\Learner\Ai\Sources\PublishedEvaluationSource;
 use Throwable;
 
+require_once dirname(__DIR__, 5) . '/src/Modules/Skills/Repository/SkillGroupRepository.php';
+
 final class DatabasePublishedEvaluationSource implements PublishedEvaluationSource
 {
     private const REQUIRED_COLUMNS = ['id', 'studentId', 'activityId', 'overallScore', 'status', 'publishedAt'];
@@ -53,10 +55,15 @@ SQL;
         ]);
         $evaluations = $this->legacyForStudent($studentId, $canonical);
         if ($canonical) {
+            $active = '';
+            foreach (['revokedAt', 'supersededAt'] as $column) {
+                if ($this->hasColumns('learner_evaluations', [$column])) $active .= " AND ev.{$column} IS NULL";
+            }
             $statement = $this->pdo->prepare("SELECT ev.* FROM learner_evaluations ev
                 WHERE ev.studentId = :student_id AND ev.status = 'published' AND ev.publishedAt IS NOT NULL
-                AND ev.revision = (SELECT MAX(newer.revision) FROM learner_evaluations newer
-                    WHERE newer.seriesId = ev.seriesId AND newer.studentId = ev.studentId)");
+                {$active} AND NOT EXISTS (SELECT 1 FROM learner_evaluations newer
+                    WHERE newer.seriesId = ev.seriesId AND newer.studentId = ev.studentId
+                    AND newer.revision>ev.revision AND (newer.status<>'draft' OR newer.publishedAt IS NOT NULL))");
             $statement->execute(['student_id' => trim($studentId)]);
             foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
                 $publishedAt = self::timestamp($row['publishedAt']);
@@ -73,15 +80,45 @@ SQL;
                     'published_at' => $publishedAt,
                     'updated_at' => self::timestamp($row['updatedAt']) ?? $publishedAt,
                     'feedback' => (string) ($row['comment'] ?? ''),
+                    'criteria_scores' => $this->criteriaItems((string)($row['legacyAssessmentId'] ?? ''), $studentId),
                     'skill_scores' => $items['scores'],
                     'skill_codes' => $items['codes'],
                     'tags' => $items['codes'],
                 ];
             }
         }
+        $groupsBySource = [];
+        foreach ((new \TalentHub\Modules\Skills\Repository\SkillGroupRepository($this->pdo))->publishedForStudent(trim($studentId)) as $group) {
+            $groupsBySource[$group['source_id']][] = [
+                'code'=>$group['code'], 'group_code'=>$group['group_code'], 'name'=>$group['name'],
+                'score'=>$group['score'], 'max_score'=>100.0, 'verification_status'=>'verified',
+                'item_kind'=>'skill_group',
+            ];
+        }
+        foreach ($evaluations as &$evaluation) {
+            $evaluation['skill_group_scores'] = $groupsBySource[$evaluation['evaluation_id']] ?? [];
+        }
+        unset($evaluation);
         usort($evaluations, static fn (array $a, array $b): int =>
             strcmp($b['published_at'], $a['published_at']) ?: strcmp($b['evaluation_id'], $a['evaluation_id']));
         return $evaluations;
+    }
+
+    /** Rubric criteria are context scores, never inferred individual skill proficiency. */
+    private function criteriaItems(string $assessmentId, string $studentId): array
+    {
+        if ($assessmentId === '' || !$this->hasColumns('assessment_scores', ['assessmentId','criteriaId','score'])
+            || !$this->hasColumns('assessment_criteria', ['id','code','name','maxScore'])) return [];
+        $query = $this->pdo->prepare("SELECT c.code,c.name,s.score,c.maxScore FROM assessment_scores s
+            JOIN assessment_criteria c ON c.id=s.criteriaId JOIN assessments a ON a.id=s.assessmentId
+            WHERE a.id=? AND a.studentId=? AND a.status='published' AND a.publishedAt IS NOT NULL ORDER BY c.code");
+        $query->execute([$assessmentId, $studentId]);
+        $items = [];
+        foreach ($query->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            if (!is_numeric($row['score']) || !is_numeric($row['maxScore']) || (float)$row['maxScore'] <= 0) continue;
+            $items[] = ['code'=>$row['code'],'name'=>$row['name'],'score'=>(float)$row['score'],'max_score'=>(float)$row['maxScore']];
+        }
+        return $items;
     }
 
     /** Only explicit, confirmed scores with a valid declared scale establish proficiency. */
@@ -159,6 +196,7 @@ SQL;
                 'activity_id' => (string) $row['activity_id'],
                 'overall_score' => (float) $row['overall_score'],
                 'published_at' => $publishedAt,
+                'criteria_scores' => $this->criteriaItems((string)$row['evaluation_id'], $studentId),
             ];
             if (is_numeric($row['presentation_score'] ?? null)) {
                 $evaluation['presentation_score'] = (float) $row['presentation_score'];

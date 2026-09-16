@@ -49,7 +49,7 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
                 }
             }
             $result=['student'=>$student,'skills'=>[],'projects'=>[],'internships'=>[],'teacher_evaluations'=>[],'assessment_results'=>[],'experience'=>['confirmed_entries'=>[],'summary'=>['total_hours'=>0.0,'total_activities'=>0]],'badges'=>[],'certificates'=>[]];
-            foreach ($official['skills'] as $skill) {
+            foreach (array_merge($official['skills'], $official['skill_groups'] ?? []) as $skill) {
                 if ($skill['state'] !== 'scored' || $skill['score'] === null) continue;
                 $result['skills'][]=array_merge($skill, [
                     'level_score'=>$skill['score'], 'score_state'=>'scored', 'skill_status'=>'active',

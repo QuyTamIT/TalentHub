@@ -39,6 +39,7 @@
     };
 
     const SKILL_CATEGORY_LABELS = {
+        skill_group: 'Nhóm kỹ năng',
         technical: 'Kỹ thuật',
         soft: 'Kỹ năng mềm',
         creative: 'Sáng tạo',
@@ -246,7 +247,7 @@
     }
 
     function buildSkillItem(skill) {
-        const score = Math.max(0, Math.min(100, Math.round(Number(skill?.score) || 0)));
+        const score = Math.max(0, Math.min(100, Number(skill?.score) || 0));
         const tone = String(skill?.tone || 'secondary');
         const category = String(skill?.category || 'soft');
 

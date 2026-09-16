@@ -306,7 +306,7 @@ final class DatabaseStatisticsRepository extends AbstractDatabaseRepository impl
     {
         $result = $this->officialScores(Uuid::normalizeDatabase($studentId, 'student_id'));
         $skills = [];
-        foreach ($result['skills'] as $skill) {
+        foreach (array_merge($result['skills'], $result['skill_groups'] ?? []) as $skill) {
             if ($skill['state'] !== 'scored' || $skill['score'] === null) continue;
             $skills[] = ['name' => $skill['name'], 'category' => $skill['category'], 'score' => $skill['score']];
         }

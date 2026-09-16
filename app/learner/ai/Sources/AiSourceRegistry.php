@@ -488,7 +488,7 @@ final class AiSourceRegistry
         if (($targetType === 'evaluation' || ($targetType === null && ($registry === null || !isset($registry->sources['evaluation'])))) && $source instanceof PublishedEvaluationSource) {
             return self::legacyListAdapter($source, 'evaluation', 'evaluation', [
                 'overall_score', 'presentation_score', 'published_at', 'skill_tags', 'skill_codes', 'skills',
-                'context_type', 'context_id', 'updated_at', 'skill_scores', 'tags', 'feedback', 'revision',
+                'context_type', 'context_id', 'updated_at', 'skill_scores', 'skill_group_scores', 'criteria_scores', 'tags', 'feedback', 'revision',
             ], 'evaluation_id', 'published_at');
         }
         if (($targetType === 'opportunity' || ($targetType === null && ($registry === null || !isset($registry->sources['opportunity'])))) && $source instanceof OpportunitySource) {
@@ -626,7 +626,7 @@ final class AiSourceRegistry
             if ($record['source_type'] !== 'evaluation') {
                 continue;
             }
-            foreach ($record['data']['skill_scores'] ?? [] as $skill) {
+            foreach (array_merge($record['data']['skill_scores'] ?? [], $record['data']['skill_group_scores'] ?? []) as $skill) {
                 $code = strtolower(trim((string) ($skill['code'] ?? '')));
                 $score = $skill['score'] ?? null;
                 if ($code === '' || !is_numeric($score) || $score < 0 || $score > 100 || ($skill['verification_status'] ?? '') !== 'verified') {
@@ -645,6 +645,8 @@ final class AiSourceRegistry
                     'evidence_ref' => $record['evidence_ref'],
                     'data' => [
                         'code' => $code,
+                        'name' => $skill['name'] ?? $code,
+                        'item_kind' => $skill['item_kind'] ?? 'skill',
                         'level_score' => (float) $score,
                         'verification_status' => 'verified',
                         'score_state' => 'scored',

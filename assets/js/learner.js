@@ -859,7 +859,7 @@
                         const percentage = maximum > 0
                             ? Math.max(0, Math.min(100, scoreVal / maximum * 100))
                             : 0;
-                        score.innerHTML = `${scoreVal.toFixed(1)} <small>/ ${maximum.toFixed(0)}</small>`;
+                        score.innerHTML = `${scoreVal} <small>/ ${maximum}</small>`;
                         heading.append(name, score);
 
                         const track = document.createElement('div');
@@ -902,7 +902,7 @@
                             const catBadge = document.createElement('span');
                             const catKey = sk.category || 'technical';
                             catBadge.className = `eval-cat-badge eval-cat-badge--${catKey}`;
-                            catBadge.textContent = SKILL_CATEGORY_LABELS[catKey] || 'Chuyên môn';
+                            catBadge.textContent = catKey === 'skill_group' ? 'Nhóm kỹ năng' : (SKILL_CATEGORY_LABELS[catKey] || 'Chuyên môn');
 
                             titleGroup.append(nameStrong, catBadge);
 
@@ -914,7 +914,7 @@
                             const scoreVal = Number(sk.score) || 0;
                             const maxScore = Number(sk.maxScore) || 100;
                             const pct = maxScore > 0 ? Math.max(0, Math.min(100, (scoreVal / maxScore) * 100)) : 0;
-                            scoreSpan.innerHTML = `${scoreVal.toFixed(1)} <small>/ 100</small>`;
+                            scoreSpan.innerHTML = `${scoreVal} <small>/ ${maxScore}</small>`;
 
                             const pctSpan = document.createElement('span');
                             pctSpan.className = 'eval-skill-percent';
@@ -928,7 +928,7 @@
                             track.setAttribute('role', 'progressbar');
                             track.setAttribute('aria-label', sk.label || sk.skillName || 'Kỹ năng');
                             track.setAttribute('aria-valuemin', '0');
-                            track.setAttribute('aria-valuemax', '100');
+                            track.setAttribute('aria-valuemax', String(maxScore));
                             track.setAttribute('aria-valuenow', String(scoreVal));
 
                             const fillTone = SKILL_TONE_MAP[catKey] || 'primary';
@@ -969,15 +969,14 @@
                             span.className = 'eval-tag';
                             const score = Number(sk.score) || 0;
                             const name = sk.label || sk.skillName || 'Kỹ năng';
-                            span.textContent = `✦ ${name} (${score.toFixed(0)}/100)`;
+                            span.textContent = `✦ ${name} (${score}/${Number(sk.maxScore) || 100})`;
                             return span;
                         });
                         evaluationSkills.replaceChildren(label, ...tags);
                     } else {
-                        const t1 = document.createElement('span'); t1.className = 'eval-tag'; t1.textContent = '✦ Tư duy giải quyết vấn đề';
-                        const t2 = document.createElement('span'); t2.className = 'eval-tag'; t2.textContent = '✦ Tinh thần trách nhiệm';
-                        const t3 = document.createElement('span'); t3.className = 'eval-tag'; t3.textContent = '✦ Kỹ năng thực hành';
-                        evaluationSkills.replaceChildren(label, t1, t2, t3);
+                        const empty = document.createElement('span');
+                        empty.textContent = 'Chưa có kỹ năng được giảng viên chấm trong đợt này.';
+                        evaluationSkills.replaceChildren(label, empty);
                     }
                 }
             };

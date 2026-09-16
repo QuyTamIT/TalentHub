@@ -59,7 +59,8 @@ final class PassportCvViewModel
             $rawScore = array_key_exists('level_score',$skill) ? $skill['level_score'] : ($skill['levelScore'] ?? ($skill['score'] ?? null));
             $score = $state === 'evidence_only' || $rawScore === null
                 ? null
-                : max(0, min(100, (int) round((float)$rawScore)));
+                : max(0, min(100, round((float)$rawScore, 2)));
+            if ($score !== null && floor($score) === $score) $score = (int)$score;
             $cv['skills'][]=[
                 'name'=>$name,
                 'score'=>$score,

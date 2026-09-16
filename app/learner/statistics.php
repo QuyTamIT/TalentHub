@@ -98,6 +98,7 @@ if ($statsData !== null) {
 }
 
 $skillCategoryLabels = [
+    'skill_group' => 'Nhóm kỹ năng',
     'technical' => 'Kỹ thuật',
     'soft' => 'Kỹ năng mềm',
     'creative' => 'Sáng tạo',
@@ -415,7 +416,7 @@ $fieldLabelMap = [
                         <section class="learner-card learner-statistics-panel learner-skill-panel" aria-labelledby="learner-skills-title">
                             <div class="learner-statistics-panel__heading">
                                 <h2 id="learner-skills-title">Năng lực kỹ năng cốt lõi</h2>
-                                <span class="learner-skill-panel__hint">Điểm /100 · cập nhật từ hoạt động đã xác nhận</span>
+                                <span class="learner-skill-panel__hint">Điểm /100 · kỹ năng và nhóm kỹ năng đã được giảng viên chấm</span>
                             </div>
                             <ol class="learner-skill-bars-list" data-skills-list <?= $skillCards === [] ? 'hidden' : ''; ?>>
                                 <?php foreach ($skillCards as $skill): ?>
