@@ -61,6 +61,7 @@ final class RolePermissionSeeder
             'checkin.read_managed',
             'assessment.read_managed',
             'assessment.update_managed',
+            'project_member.create_managed', 'project_member.read_managed',
         ],
         'school' => [
             'school_profile.read_own', 'school_profile.update_own', 'school_dashboard.read_own',
@@ -79,6 +80,9 @@ final class RolePermissionSeeder
             'project.create_own_school', 'project.update_own_school',
             'sponsorship.read_own_school_project', 'notification.send_own_school',
             'partnership.read_own_school', 'partnership.review_own_school',
+            'safeguarding.read_own_school', 'safeguarding.update_own_school', 'safeguarding.approve_own_student',
+            'internship_application.read_own_school', 'internship_mentor.assign_own_school',
+            'school_profile_access_log.read_own_school',
         ],
         'enterprise' => [
             'business_profile.read_own', 'business_profile.update_own', 'business_dashboard.read_own',

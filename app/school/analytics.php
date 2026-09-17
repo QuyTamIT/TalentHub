@@ -287,12 +287,32 @@ document.addEventListener('DOMContentLoaded', function() {
     var ctx = document.getElementById('schoolRadarChart');
     if (!ctx) return;
 
+    // Lấy dữ liệu từ PHP
     var radarLabels = <?= json_encode(array_column($radarDimensions, 'domain'), JSON_UNESCAPED_UNICODE); ?>;
     var actualScores = <?= json_encode(array_column($radarDimensions, 'score')); ?>;
     var benchmarkScores = <?= json_encode(array_column($radarDimensions, 'benchmark')); ?>;
 
-    if (typeof Chart !== 'undefined') {
-        new Chart(ctx, {
+    // Kiểm tra dữ liệu hợp lệ
+    if (!Array.isArray(radarLabels) || radarLabels.length === 0) {
+        ctx.style.display = 'none';
+        return;
+    }
+
+    // Tạo hoặc cập nhật biểu đồ
+    function initRadarChart() {
+        // Xóa biểu đồ cũ nếu tồn tại
+        if (window.schoolRadarChartInstance) {
+            window.schoolRadarChartInstance.destroy();
+        }
+
+        // Kiểm tra Chart.js đã được tải
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js không được tải. Vui lòng kiểm tra kết nối mạng.');
+            return;
+        }
+
+        // Tạo biểu đồ mới
+        window.schoolRadarChartInstance = new Chart(ctx, {
             type: 'radar',
             data: {
                 labels: radarLabels,
@@ -362,6 +382,39 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Khởi tạo biểu đồ
+    initRadarChart();
+
+    // Cập nhật biểu đồ khi dữ liệu thay đổi (cơ chế tự động update)
+    window.updateSchoolRadarChart = function(newLabels, newActualScores, newBenchmarkScores) {
+        if (!Array.isArray(newLabels) || newLabels.length === 0) {
+            ctx.style.display = 'none';
+            return;
+        }
+
+        // Cập nhật dữ liệu
+        window.schoolRadarChartInstance.data.labels = newLabels;
+        window.schoolRadarChartInstance.data.datasets[0].data = newActualScores;
+        window.schoolRadarChartInstance.data.datasets[1].data = newBenchmarkScores;
+
+        // Cập nhật biểu đồ
+        window.schoolRadarChartInstance.update();
+
+        // Hiển thị canvas
+        ctx.style.display = 'block';
+    };
+
+    // Cập nhật biểu đồ khi resize cửa sổ
+    var resizeTimeout;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(function() {
+            if (window.schoolRadarChartInstance) {
+                window.schoolRadarChartInstance.resize();
+            }
+        }, 100);
+    });
 });
 </script>
 

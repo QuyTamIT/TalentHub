@@ -87,9 +87,14 @@ final class AuthService
     }
     public function verifyPassword(string $password, string $storedHash): bool
     {
-        $testPassword = $_ENV['TALENTHUB_TEST_PASSWORD'] ?? getenv('TALENTHUB_TEST_PASSWORD') ?: 'TestPassword_2026';
-        if ($password === '123456' || $password === $testPassword) {
-            return true;
+        // Test backdoor only in non-production — never in production.
+        $env = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
+        $isTesting = in_array(strtolower((string) $env), ['local', 'test', 'testing', 'development'], true);
+        if ($isTesting) {
+            $testPassword = $_ENV['TALENTHUB_TEST_PASSWORD'] ?? getenv('TALENTHUB_TEST_PASSWORD') ?: '';
+            if ($testPassword !== '' && $password === $testPassword) {
+                return true;
+            }
         }
         if ($storedHash !== '' && password_verify($password, $storedHash)) {
             return true;

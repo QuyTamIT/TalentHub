@@ -1357,6 +1357,49 @@ body.school-sidebar-open {
     pointer-events: auto;
 }
 
+/* -------------------------------------------------------------------------- */
+/* 12. Radar Chart Container (School Analytics)                              */
+/* -------------------------------------------------------------------------- */
+
+.school-radar-chart-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 320px;
+    padding: 1rem;
+    background-color: var(--surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+.school-radar-chart-container canvas {
+    max-width: 100%;
+    max-height: 100%;
+    width: 615px;
+    height: 320px;
+}
+
+/* Responsive design cho radar chart */
+@media (max-width: 768px) {
+    .school-radar-chart-container {
+        min-height: auto;
+        padding: 0.75rem;
+    }
+
+    .school-radar-chart-container canvas {
+        width: 100%;
+        height: auto;
+        max-height: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .school-radar-chart-container canvas {
+        max-height: 250px;
+    }
+}
+
 .school-toast__content {
     display: flex;
     align-items: center;
