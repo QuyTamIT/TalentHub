@@ -1423,14 +1423,19 @@ body.ent-sidebar-open {
 /* Tablet & Small Desktop (768px to 1199.98px, including iPad Pro 1024px) */
 @media (max-width: 1199.98px) {
     .ent-sidebar {
-        transform: translateX(-100%);
+        transform: translateX(-105%);
+        visibility: hidden;
+        pointer-events: none;
         box-shadow: none;
-        width: var(--sidebar-width);
-        z-index: var(--z-dropdown);
+        width: min(300px, 85vw);
+        z-index: 1050;
+        transition: transform var(--transition-base), visibility var(--transition-base);
     }
 
     .ent-sidebar.is-open {
         transform: translateX(0);
+        visibility: visible;
+        pointer-events: auto;
         box-shadow: var(--shadow-xl);
     }
 
@@ -8348,11 +8353,6 @@ body.ent-sidebar-open {
 
 /* ── lg: 1024px — Sidebar collapse ─────────────────────────────────── */
 @media (max-width: 1024px) {
-    .ent-sidebar {
-        width: var(--sidebar-width);
-        z-index: var(--z-sidebar);
-    }
-
     .ent-main-wrapper {
         margin-left: 0;
         width: 100%;

@@ -278,7 +278,7 @@
         const sidebarToggle = document.getElementById('learner-sidebar-toggle');
         const sidebarClose = document.getElementById('learner-sidebar-close');
         const sidebarBackdrop = document.getElementById('learner-sidebar-backdrop');
-        const drawerMedia = global.matchMedia('(max-width: 1100px)');
+        const drawerMedia = global.matchMedia('(max-width: 1199.98px)');
 
         const setSidebarOpen = (shouldOpen, restoreFocus = true) => {
             if (!sidebar || !sidebarToggle) return;
@@ -288,6 +288,7 @@
 
             sidebar.classList.toggle('is-open', shouldOpen);
             sidebarBackdrop?.classList.toggle('is-visible', shouldOpen);
+            sidebarBackdrop?.classList.toggle('is-active', shouldOpen);
             sidebarToggle.setAttribute('aria-expanded', String(shouldOpen));
             sidebarToggle.setAttribute('aria-label', shouldOpen ? 'Đóng danh mục điều hướng' : 'Mở danh mục điều hướng');
             document.body.classList.toggle('learner-sidebar-open', shouldOpen);
@@ -320,6 +321,11 @@
         sidebarClose?.addEventListener('click', () => setSidebarOpen(false));
         sidebarBackdrop?.addEventListener('click', () => setSidebarOpen(false));
         drawerMedia.addEventListener('change', syncSidebarMode);
+        global.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && sidebar?.classList.contains('is-open')) {
+                setSidebarOpen(false);
+            }
+        });
         syncSidebarMode();
 
         document.querySelectorAll('[data-pending-route]').forEach((link) => {

@@ -159,6 +159,10 @@ if (($_GET['action'] ?? '') === 'queue_feed') {
 <div class="admin-shell">
     <div class="sidebar-scrim" data-sidebar-close hidden></div>
     <aside class="sidebar" id="admin-sidebar" aria-label="Điều hướng quản trị">
+        <!-- Mobile Drawer Close Button -->
+        <button class="sidebar-close-btn" id="admin-sidebar-close" type="button" data-sidebar-close aria-label="Đóng danh mục điều hướng">
+            <?= icon('close') ?>
+        </button>
         <a href="<?= htmlspecialchars(function_exists('app_href') ? app_href('/app/admin/index.php') : '/app/admin/index.php'); ?>" class="brand" aria-label="FTalentHub Admin - Tổng quan">
             <img src="<?= htmlspecialchars(function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : '/assets/images/talenthub-logo.png'); ?>" alt="FTalentHub Logo" class="admin-sidebar__logo-img" style="display: block; width: 178px; max-width: 100%; height: auto; object-fit: contain; aspect-ratio: 401 / 122;">
         </a>

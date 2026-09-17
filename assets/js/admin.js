@@ -4,7 +4,8 @@
   const root = document.documentElement;
   const sidebar = document.querySelector('#admin-sidebar');
   const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
-  const sidebarClose = document.querySelector('[data-sidebar-close]');
+  const sidebarCloseButtons = document.querySelectorAll('[data-sidebar-close]');
+  const scrim = document.querySelector('.sidebar-scrim');
   const commandDialog = document.querySelector('[data-command-dialog]');
   const commandInput = document.querySelector('[data-command-input]');
   const commandResults = document.querySelector('[data-command-results]');
@@ -22,20 +23,47 @@
   };
 
   const closeSidebar = () => {
-    if (!sidebar || !sidebarToggle || !sidebarClose) return;
+    if (!sidebar) return;
     sidebar.classList.remove('is-open');
-    sidebarToggle.setAttribute('aria-expanded', 'false');
-    sidebarClose.hidden = true;
+    if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', 'false');
+    if (scrim) scrim.hidden = true;
   };
 
-  sidebarToggle?.addEventListener('click', () => {
+  const openSidebar = () => {
+    if (!sidebar) return;
+    sidebar.classList.add('is-open');
+    if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', 'true');
+    if (scrim) scrim.hidden = false;
+  };
+
+  sidebarToggle?.addEventListener('click', (event) => {
+    event.stopPropagation();
     const open = !sidebar?.classList.contains('is-open');
-    sidebar?.classList.toggle('is-open', open);
-    sidebarToggle.setAttribute('aria-expanded', String(open));
-    if (sidebarClose) sidebarClose.hidden = !open;
+    if (open) {
+      openSidebar();
+    } else {
+      closeSidebar();
+    }
   });
-  sidebarClose?.addEventListener('click', closeSidebar);
-  window.addEventListener('resize', () => { if (window.innerWidth > 860) closeSidebar(); });
+
+  sidebarCloseButtons.forEach((btn) => {
+    btn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      closeSidebar();
+    });
+  });
+
+  window.addEventListener('resize', () => {
+    if (window.innerWidth >= 1200 && sidebar?.classList.contains('is-open')) {
+      closeSidebar();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && sidebar?.classList.contains('is-open')) {
+      closeSidebar();
+    }
+  });
 
   root.dataset.theme = 'light';
   localStorage.removeItem('talenthub-admin-theme');

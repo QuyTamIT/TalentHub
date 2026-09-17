@@ -338,6 +338,7 @@ body.learner-app,
     z-index: 45;
     inset: 0;
     visibility: hidden;
+    pointer-events: none;
     background: rgba(15, 23, 42, 0.48);
     opacity: 0;
     transition: opacity var(--transition-base), visibility var(--transition-base);
@@ -345,6 +346,7 @@ body.learner-app,
 
 .learner-sidebar-backdrop.is-visible {
     visibility: visible;
+    pointer-events: auto;
     opacity: 1;
 }
 
@@ -4146,16 +4148,20 @@ body.learner-sidebar-open {
 
 /* Tablet ------------------------------------------------------------------ */
 
-@media (max-width: 1100px) {
+@media (max-width: 1199.98px) {
     .learner-sidebar {
         width: min(310px, 86vw);
         box-shadow: var(--shadow-lg);
         transform: translateX(-105%);
-        transition: transform var(--transition-base);
+        visibility: hidden;
+        pointer-events: none;
+        transition: transform var(--transition-base), visibility var(--transition-base);
     }
 
     .learner-sidebar.is-open {
         transform: translateX(0);
+        visibility: visible;
+        pointer-events: auto;
     }
 
     .learner-icon-button.learner-sidebar__close {

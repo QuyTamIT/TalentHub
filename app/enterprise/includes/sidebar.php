@@ -27,6 +27,11 @@ if (!in_array('/app/enterprise/partnerships.php', array_column($sidebarNav, 'rou
 <div class="ent-sidebar-backdrop" id="ent-sidebar-backdrop" aria-hidden="true"></div>
 
 <aside class="ent-sidebar" id="ent-sidebar">
+    <!-- Mobile Drawer Close Button -->
+    <button class="ent-sidebar__close" id="ent-sidebar-close" type="button" aria-label="Đóng danh mục điều hướng">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+
     <!-- Brand Logo -->
     <div class="ent-sidebar__brand">
         <a href="<?= htmlspecialchars(function_exists('app_href') ? app_href('/app/enterprise/index.php') : '/app/enterprise/index.php'); ?>"

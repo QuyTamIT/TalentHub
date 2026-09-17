@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initTeacherSidebar() {
     const toggleBtn = document.getElementById('teacher-sidebar-toggle');
+    const closeBtn = document.getElementById('teacher-sidebar-close');
     const sidebar = document.getElementById('teacher-sidebar');
     const backdrop = document.getElementById('teacher-sidebar-backdrop');
 
@@ -20,12 +21,14 @@ function initTeacherSidebar() {
 
     function openSidebar() {
         sidebar.classList.add('is-open');
+        toggleBtn.setAttribute('aria-expanded', 'true');
         if (backdrop) backdrop.classList.add('is-active');
         document.body.classList.add('teacher-sidebar-open');
     }
 
     function closeSidebar() {
         sidebar.classList.remove('is-open');
+        toggleBtn.setAttribute('aria-expanded', 'false');
         if (backdrop) backdrop.classList.remove('is-active');
         document.body.classList.remove('teacher-sidebar-open');
     }
@@ -39,12 +42,25 @@ function initTeacherSidebar() {
         }
     });
 
+    if (closeBtn) {
+        closeBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            closeSidebar();
+        });
+    }
+
     if (backdrop) {
         backdrop.addEventListener('click', closeSidebar);
     }
 
     document.addEventListener('click', (event) => {
         if (sidebar.classList.contains('is-open') && !sidebar.contains(event.target) && !toggleBtn.contains(event.target)) {
+            closeSidebar();
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 1200 && sidebar.classList.contains('is-open')) {
             closeSidebar();
         }
     });

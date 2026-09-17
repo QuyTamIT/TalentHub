@@ -94,6 +94,7 @@ function initSchoolAccountDropdown() {
 
 function initSchoolSidebar() {
     const toggleBtn = document.getElementById('school-sidebar-toggle');
+    const closeBtn = document.getElementById('school-sidebar-close');
     const sidebar = document.getElementById('school-sidebar');
     const backdrop = document.getElementById('school-sidebar-backdrop');
 
@@ -101,12 +102,14 @@ function initSchoolSidebar() {
 
     function openSidebar() {
         sidebar.classList.add('is-open');
+        toggleBtn.setAttribute('aria-expanded', 'true');
         if (backdrop) backdrop.classList.add('is-active');
         document.body.classList.add('school-sidebar-open');
     }
 
     function closeSidebar() {
         sidebar.classList.remove('is-open');
+        toggleBtn.setAttribute('aria-expanded', 'false');
         if (backdrop) backdrop.classList.remove('is-active');
         document.body.classList.remove('school-sidebar-open');
     }
@@ -120,6 +123,13 @@ function initSchoolSidebar() {
         }
     });
 
+    if (closeBtn) {
+        closeBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            closeSidebar();
+        });
+    }
+
     if (backdrop) {
         backdrop.addEventListener('click', closeSidebar);
     }
@@ -128,6 +138,12 @@ function initSchoolSidebar() {
         if (sidebar.classList.contains('is-open')
             && !sidebar.contains(event.target)
             && !toggleBtn.contains(event.target)) {
+            closeSidebar();
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 1200 && sidebar.classList.contains('is-open')) {
             closeSidebar();
         }
     });

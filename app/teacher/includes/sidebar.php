@@ -104,6 +104,11 @@ $teacherNav = [
 <div class="teacher-sidebar-backdrop" id="teacher-sidebar-backdrop" aria-hidden="true"></div>
 
 <aside class="teacher-sidebar" id="teacher-sidebar">
+    <!-- Mobile Drawer Close Button -->
+    <button class="teacher-sidebar__close" id="teacher-sidebar-close" type="button" aria-label="Đóng danh mục điều hướng">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+
     <!-- Brand Logo -->
     <div class="teacher-sidebar__brand">
         <a href="<?= htmlspecialchars(function_exists('app_href') ? app_href('/app/teacher/index.php') : '/app/teacher/index.php'); ?>"

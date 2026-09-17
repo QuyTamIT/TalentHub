@@ -23,22 +23,25 @@ function initMobileSidebar() {
     const toggleBtn = document.getElementById('ent-sidebar-toggle');
     const sidebar = document.getElementById('ent-sidebar');
     const backdrop = document.getElementById('ent-sidebar-backdrop');
+    const closeBtn = document.getElementById('ent-sidebar-close');
 
-    if (!toggleBtn || !sidebar) return;
+    if (!sidebar) return;
 
     function openSidebar() {
         sidebar.classList.add('is-open');
         if (backdrop) backdrop.classList.add('is-active');
         document.body.classList.add('ent-sidebar-open');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
     }
 
     function closeSidebar() {
         sidebar.classList.remove('is-open');
         if (backdrop) backdrop.classList.remove('is-active');
         document.body.classList.remove('ent-sidebar-open');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
     }
 
-    toggleBtn.addEventListener('click', (e) => {
+    toggleBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
         if (sidebar.classList.contains('is-open')) {
             closeSidebar();
@@ -47,13 +50,18 @@ function initMobileSidebar() {
         }
     });
 
+    closeBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeSidebar();
+    });
+
     if (backdrop) {
         backdrop.addEventListener('click', closeSidebar);
     }
 
     // Close sidebar when clicking outside on smaller screens
     document.addEventListener('click', (e) => {
-        if (sidebar.classList.contains('is-open') && !sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
+        if (sidebar.classList.contains('is-open') && !sidebar.contains(e.target) && (!toggleBtn || !toggleBtn.contains(e.target))) {
             closeSidebar();
         }
     });
@@ -61,6 +69,13 @@ function initMobileSidebar() {
     // Close on Escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && sidebar.classList.contains('is-open')) {
+            closeSidebar();
+        }
+    });
+
+    // Auto-close on resize to Desktop
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 1200 && sidebar.classList.contains('is-open')) {
             closeSidebar();
         }
     });

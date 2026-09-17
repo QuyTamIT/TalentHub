@@ -2853,14 +2853,20 @@ body.teacher-sidebar-open { overflow: hidden; }
 
 @media (max-width: 1199.98px) {
     .teacher-sidebar {
-        width: 280px;
-        transform: translateX(-100%);
+        width: min(300px, 85vw);
+        transform: translateX(-105%);
+        visibility: hidden;
+        pointer-events: none;
         box-shadow: none;
+        z-index: 1050;
+        transition: transform var(--transition-base), visibility var(--transition-base);
     }
 
     .teacher-sidebar.is-open {
         transform: translateX(0);
-        box-shadow: var(--shadow-lg);
+        visibility: visible;
+        pointer-events: auto;
+        box-shadow: var(--shadow-xl);
     }
 
     .teacher-main-wrapper { margin-left: 0; width: 100%; }

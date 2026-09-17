@@ -2254,15 +2254,20 @@ dialog::backdrop {
     .operations-grid { grid-template-columns: 1fr; }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1199.98px) {
     .sidebar {
         transform: translateX(-100%);
-        transition: transform var(--transition-base);
+        visibility: hidden;
+        pointer-events: none;
+        transition: transform var(--transition-base), visibility var(--transition-base);
         box-shadow: var(--shadow-md);
+        z-index: 1050;
     }
 
     .sidebar.is-open {
         transform: translateX(0);
+        visibility: visible;
+        pointer-events: auto;
     }
 
     .workspace      { padding-left: 0; }

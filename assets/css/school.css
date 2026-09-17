@@ -1516,14 +1516,19 @@ body.school-sidebar-open {
 /* Tablet & Small Desktop */
 @media (max-width: 1199.98px) {
     .school-sidebar {
-        transform: translateX(-100%);
+        transform: translateX(-105%);
+        visibility: hidden;
+        pointer-events: none;
         box-shadow: none;
-        width: 280px;
-        z-index: var(--z-dropdown);
+        width: min(300px, 85vw);
+        z-index: 1050;
+        transition: transform var(--transition-base), visibility var(--transition-base);
     }
 
     .school-sidebar.is-open {
         transform: translateX(0);
+        visibility: visible;
+        pointer-events: auto;
         box-shadow: var(--shadow-xl);
     }
 
@@ -1791,17 +1796,6 @@ textarea:focus-visible {
 
 /* ── lg: 1024px — Sidebar collapse ─────────────────────────────────── */
 @media (max-width: 1024px) {
-    .school-sidebar {
-        transform: translateX(calc(-1 * var(--sidebar-width)));
-        width: var(--sidebar-width);
-        z-index: var(--z-sidebar);
-    }
-
-    .school-sidebar.is-open {
-        transform: translateX(0);
-        box-shadow: var(--shadow-xl);
-    }
-
     .school-main-wrapper {
         margin-left: 0;
         width: 100%;
