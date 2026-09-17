@@ -49,7 +49,7 @@
     --brand-icon-size:    36px;
     --brand-icon-radius:  8px;
     --brand-icon-bg:      linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-    --brand-icon-shadow:  0 2px 8px rgba(255, 107, 0, 0.30), 0 0 0 3px rgba(255, 107, 0, 0.10);
+    --brand-icon-shadow:  0 2px 8px rgba(154, 52, 18, 0.30), 0 0 0 3px rgba(154, 52, 18, 0.10);
     --brand-icon-color:   #FFFFFF;
 
     /* Brand name */
@@ -225,9 +225,9 @@
     justify-content: center;
     font-size: 0.6875rem;
     font-weight: 600;
-    color: var(--primary-coral, #F83F70);
-    background-color: #FFF0EB;
-    border: 1px solid #FFDACB;
+    color: var(--primary-coral);
+    background-color: var(--primary-light);
+    border: 1px solid var(--border-hover);
     padding: 3px 12px;
     border-radius: 999px;
     margin: 8px auto 0 auto;
@@ -455,9 +455,9 @@
     --brand-master-logo-width: 178px;
     --brand-master-role-size: 0.6875rem;
     --brand-master-role-weight: 600;
-    --brand-master-role-color: var(--primary-coral, #F83F70);
-    --brand-master-role-bg: #FFF0EB;
-    --brand-master-role-border: #FFDACB;
+    --brand-master-role-color: var(--primary-coral);
+    --brand-master-role-bg: var(--primary-light);
+    --brand-master-role-border: var(--border-hover);
     --brand-master-padding-bottom: 0.875rem;
     --brand-master-margin-bottom: 1rem;
 }

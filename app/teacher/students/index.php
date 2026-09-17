@@ -387,11 +387,11 @@ $talentScoreSortUrl = './index.php?' . http_build_query($sortUrlParams);
                                     <input type="hidden" name="sort" value="<?= teacher_students_escape($sort); ?>">
                                     <input type="hidden" name="dir" value="<?= teacher_students_escape($dir); ?>">
                                 <?php endif; ?>
-                                <button type="submit" class="btn btn-sm btn-primary" style="height: 2.375rem; padding: 0 0.875rem; white-space: nowrap; border-radius: var(--radius-md, 8px);">
+                                <button type="submit" class="btn btn-sm btn-primary" data-testid="student-search-btn" style="height: 2.375rem; padding: 0 0.875rem; white-space: nowrap; border-radius: var(--radius-md, 8px);">
                                     Tìm
                                 </button>
                                 <?php if ($search !== ''): ?>
-                                    <a href="./index.php<?= $sort !== '' ? '?sort=' . urlencode($sort) . '&dir=' . urlencode($dir) : ''; ?>" class="btn btn-sm btn-outline" style="height: 2.375rem; padding: 0 0.75rem; white-space: nowrap; border-radius: var(--radius-md, 8px);">
+                                    <a href="./index.php<?= $sort !== '' ? '?sort=' . urlencode($sort) . '&dir=' . urlencode($dir) : ''; ?>" class="btn btn-sm btn-outline" data-testid="clear-search-btn" style="height: 2.375rem; padding: 0 0.75rem; white-space: nowrap; border-radius: var(--radius-md, 8px);">
                                         Xoá
                                     </a>
                                 <?php endif; ?>
@@ -417,7 +417,7 @@ $talentScoreSortUrl = './index.php?' . http_build_query($sortUrlParams);
                                         : 'Dữ liệu học viên sẽ xuất hiện khi có học viên trong lớp hoặc tham gia hoạt động do bạn phụ trách.'; ?>
                                 </p>
                                 <?php if ($search !== ''): ?>
-                                    <a href="./index.php" class="btn btn-sm btn-outline">Xem tất cả học viên</a>
+                                    <a href="./index.php" class="btn btn-sm btn-outline" data-testid="view-all-students">Xem tất cả học viên</a>
                                 <?php endif; ?>
                             </div>
                         <?php else: ?>
@@ -447,9 +447,9 @@ $talentScoreSortUrl = './index.php?' . http_build_query($sortUrlParams);
                                         <?php foreach ($rows as $row): ?>
                                             <tr>
                                                 <!-- 1. Học viên -->
-                                                <td data-label="Học viên">
+                                                <td data-label="Học viên" data-testid="student-name">
                                                     <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                                        <div style="width: 2.375rem; height: 2.375rem; border-radius: 50%; background: linear-gradient(135deg, var(--primary) 0%, #ea580c 100%); color: #fff; font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 0.8125rem; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                                        <div style="width: 2.375rem; height: 2.375rem; border-radius: 50%; background: linear-gradient(135deg, var(--primary) 0%, #ea580c 100%); color: #fff; font-weight: 600; display: flex; align-items: center; justify-content: center; font-size: 0.8125rem; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" data-testid="student-avatar">
                                                             <?= teacher_students_escape($row['avatarInitials']); ?>
                                                         </div>
                                                         <div>
@@ -475,7 +475,7 @@ $talentScoreSortUrl = './index.php?' . http_build_query($sortUrlParams);
                                                 </td>
 
                                                 <!-- 3. Điểm năng lực -->
-                                                <td data-label="Điểm năng lực">
+                                                <td data-label="Điểm năng lực" data-testid="student-talent-score">
                                                     <?php if ($row['talentScore'] !== null): ?>
                                                         <div style="display: inline-flex; align-items: baseline; gap: 0.25rem;">
                                                             <span style="font-weight: 700; font-size: 1.0625rem; color: var(--color-success, #16a34a);">
@@ -489,7 +489,7 @@ $talentScoreSortUrl = './index.php?' . http_build_query($sortUrlParams);
                                                 </td>
 
                                                 <!-- 4. Giờ trải nghiệm -->
-                                                <td data-label="Giờ trải nghiệm">
+                                                <td data-label="Giờ trải nghiệm" data-testid="student-experience-hours">
                                                     <?php if ((float) $row['experienceHours'] > 0): ?>
                                                         <span style="font-weight: 600; font-size: 0.875rem; color: var(--text-primary);">
                                                             <?= number_format((float) $row['experienceHours'], 1); ?> giờ

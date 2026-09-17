@@ -205,9 +205,9 @@
     font-weight: var(--font-bold, 700);
     padding: 0.35rem 0.875rem;
     border-radius: var(--radius-full, 9999px);
-    background: linear-gradient(135deg, #FF6B45 0%, #F83F70 100%);
+    background: linear-gradient(135deg, #c2410c 0%, #9a3412 100%);
     color: #FFFFFF;
-    box-shadow: 0 2px 8px rgba(248, 63, 112, 0.35);
+    box-shadow: 0 2px 8px rgba(154, 52, 18, 0.35);
 }
 
 /* Role Card Icon */
@@ -279,16 +279,16 @@
 
 /* Popular Card CTA: Sunset Coral Brand Gradient */
 .role-card--popular .role-card__cta.btn-primary {
-    background: linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%) !important;
+    background: linear-gradient(135deg, #c2410c 0%, #9a3412 25%, #A14FC9 50%, #8B4DE8 75%, #A14FC9 100%) !important;
     color: #FFFFFF !important;
     border: none !important;
-    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.35);
+    box-shadow: 0 4px 14px rgba(154, 52, 18, 0.35);
 }
 
 .role-card--popular:hover .role-card__cta.btn-primary,
 .role-card--popular .role-card__cta.btn-primary:hover {
-    background: linear-gradient(135deg, #F83F70 0%, #F23585 28%, #A14FC9 65%, #8B4DE8 100%) !important;
-    box-shadow: 0 6px 20px rgba(248, 63, 112, 0.45);
+    background: linear-gradient(135deg, #9a3412 0%, #9a3412 28%, #A14FC9 65%, #8B4DE8 100%) !important;
+    box-shadow: 0 6px 20px rgba(154, 52, 18, 0.45);
     transform: translateY(-2px);
 }
 

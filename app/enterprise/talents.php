@@ -577,7 +577,7 @@ $sidebarNav = [
                                     $inferredCount = max(0, count($allSkills) - $verifiedCount);
                                     $studyStatus = (string) ($talent['studyStatus'] ?? 'Sinh viên');
                                 ?>
-                                <article class="ent-talent-card-item" data-talent-id="<?= $tId ?>">
+                                <article class="ent-talent-card-item" data-talent-id="<?= $tId ?>" data-testid="talent-card">
                                     <div class="ent-talent-card-item__header">
                                         <div class="ent-talent-card-item__user">
                                             <div class="ent-talent-card-item__avatar">
@@ -585,7 +585,7 @@ $sidebarNav = [
                                             </div>
                                             <div class="ent-talent-card-item__title-box">
                                                 <div class="ent-talent-card-item__name-row">
-                                                    <a href="<?= $detailUrl ?>" class="ent-talent-card-item__name">
+                                                    <a href="<?= $detailUrl ?>" class="ent-talent-card-item__name" data-testid="talent-name-link">
                                                         <?= $tName ?>
                                                     </a>
                                                     <?php if ($score !== null): ?>
@@ -610,10 +610,11 @@ $sidebarNav = [
                                             </div>
                                         </div>
 
-                                        <button type="button" 
-                                                class="ent-bookmark-btn" 
-                                                data-action="save" 
-                                                data-talent-id="<?= $tId ?>" 
+                                        <button type="button"
+                                                class="ent-bookmark-btn"
+                                                data-action="save"
+                                                data-talent-id="<?= $tId ?>"
+                                                data-testid="talent-bookmark-btn"
                                                 title="Lưu hồ sơ này"
                                                 aria-label="Lưu hồ sơ">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -671,10 +672,10 @@ $sidebarNav = [
                                             <span><?= !empty($talent['contactAllowed']) ? 'Đã có quyền liên hệ' : 'Hồ sơ có consent' ?></span>
                                         </div>
                                         <div class="ent-talent-card-item__actions">
-                                            <a href="<?= $detailUrl ?>" class="btn btn-secondary btn-sm">
+                                            <a href="<?= $detailUrl ?>" class="btn btn-secondary btn-sm" data-testid="talent-view-profile-btn">
                                                 Xem hồ sơ
                                             </a>
-                                            <a href="<?= $detailUrl ?>" class="btn btn-primary btn-sm">
+                                            <a href="<?= $detailUrl ?>" class="btn btn-primary btn-sm" data-testid="talent-invite-btn">
                                                 <?= !empty($talent['hasPendingContactRequest']) ? 'Đã yêu cầu' : 'Mời ứng tuyển' ?>
                                             </a>
                                         </div>
@@ -696,7 +697,7 @@ $sidebarNav = [
                                 <p class="ent-empty-state__desc">
                                     Không có ứng viên nào đáp ứng toàn bộ các tiêu chí bộ lọc hiện tại. Thử mở rộng phạm vi tìm kiếm hoặc đặt lại các bộ lọc.
                                 </p>
-                                <button type="button" class="btn btn-primary" id="empty-reset-btn">
+                                <button type="button" class="btn btn-primary" id="empty-reset-btn" data-testid="reset-filters-btn">
                                     Đặt lại bộ lọc
                                 </button>
                             </div>

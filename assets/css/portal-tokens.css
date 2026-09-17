@@ -1,11 +1,12 @@
 /* ==========================================================================
    TalentHub — Shared Portal Design Tokens (portal-tokens.css)
-   SINGLE SOURCE OF TRUTH for all portal color tokens.
-   Import this file in every portal CSS instead of duplicating variables.
+   SHARED PORTAL TOKENS - Import from design-tokens.css for brand colors.
    Load order: home.css → portal-tokens.css → [portal].css
+
+   NOTE: This file contains portal-specific tokens. Core brand colors are
+   imported from design-tokens.css to maintain single source of truth.
    ========================================================================== */
 
-/* ── Sunset / Coral Brand System (shared across ALL portals) ── */
 .learner-app,
 body.learner-app,
 body.teacher-dashboard,
@@ -17,19 +18,21 @@ body.school-dashboard,
 .auth-page,
 .role-selection-page,
 .contact-page {
-    /* ── Brand Colors ── */
-    --primary:                  #FF6B45;
-    --primary-coral:            #F83F70;
-    --primary-pink:             #F23585;
-    --primary-purple:           #A14FC9;
-    --primary-violet:           #8B4DE8;
-    --primary-hover:            #F83F70;
-    --primary-light:            #FFF0EB;
-    --primary-light-border:     #FFDACB;
-    --primary-dark:             #E04058;
-    --primary-accent:           #FF6B45;
-    --color-brand:              #FF6B45;
-    --color-brand-hover:        #F83F70;
+    /* ── Import Brand Colors from Design Tokens (Single Source of Truth) ── */
+    /* Renamed variables for portal consistency */
+    --primary:                  var(--color-brand, #c2410c);
+    --primary-coral:            var(--color-brand-hover, #9a3412);
+    --primary-pink:             var(--color-brand-hover, #9a3412);
+    --primary-purple:           var(--color-brand-hover, #9a3412);
+    --primary-violet:           var(--color-brand-hover, #9a3412);
+    --primary-hover:            var(--color-brand-hover, #9a3412);
+    --primary-light:            var(--color-brand-soft, #fff7ed);
+    --primary-light-border:     var(--color-brand-soft, #fff7ed);
+    --primary-dark:             #9a3412;
+    --primary-accent:           var(--color-brand, #c2410c);
+    /* DEPRECATED: Use --primary instead */
+    --color-brand:              var(--color-brand, #c2410c);
+    --color-brand-hover:        var(--color-brand-hover, #9a3412);
 
     --secondary:                #A14FC9;
     --secondary-hover:          #8B4DE8;

@@ -1904,16 +1904,19 @@ button, input {
    ========================================================================== */
 body.landing-page,
 .landing-page {
-    /* Scoped Design Tokens for Homepage (Synchronized with Enterprise, Teacher & Student) */
-    --primary: #FF6B45;
-    --primary-coral: #F83F70;
-    --primary-pink: #F23585;
-    --primary-purple: #A14FC9;
-    --primary-violet: #8B4DE8;
-    --primary-hover: #F83F70;
-    --primary-light: #FFF0EB;
-    --primary-light-border: #FFDACB;
-    --primary-dark: #E04058;
+    /* Scoped Design Tokens for Homepage
+       Brand colors synchronized with design-tokens.css (Single Source of Truth)
+       Colors from design-tokens.css: #c2410c (brand), #9a3412 (brand-hover)
+    */
+    --primary: #c2410c;
+    --primary-coral: #9a3412;
+    --primary-pink: #9a3412;
+    --primary-purple: #9a3412;
+    --primary-violet: #9a3412;
+    --primary-hover: #9a3412;
+    --primary-light: #fff7ed;
+    --primary-light-border: #fff7ed;
+    --primary-dark: #9a3412;
     --secondary: #A14FC9;
     --secondary-hover: #8B4DE8;
     --secondary-light: #FAF5FF;
@@ -1938,9 +1941,9 @@ body.landing-page,
     --radius-xl: 20px;
     --radius-full: 9999px;
     --shadow-soft: 0 4px 20px rgba(50, 32, 20, 0.04);
-    --shadow-glow: 0 6px 20px rgba(248, 63, 112, 0.28);
-    --focus-ring: 0 0 0 3px rgba(248, 63, 112, 0.25);
-    --primary-gradient: linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
+    --shadow-glow: 0 6px 20px rgba(154, 52, 18, 0.28);
+    --focus-ring: 0 0 0 3px rgba(154, 52, 18, 0.25);
+    --primary-gradient: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 25%, var(--secondary) 50%, var(--secondary-hover) 75%, var(--secondary) 100%);
     --primary-gradient-subtle: linear-gradient(135deg, #FFF0EB 0%, #FAF5FF 100%);
     --landing-ink: #322014;
     --landing-cream: #FDF7F1;
@@ -2500,9 +2503,9 @@ body.landing-page,
 }
 
 .landing-page .expansion-badge {
-    background: rgba(248, 63, 112, 0.22);
-    color: #FFDACB;
-    border: 1px solid rgba(255, 107, 69, 0.45);
+    background: rgba(154, 52, 18, 0.22);
+    color: var(--border-hover);
+    border: 1px solid rgba(194, 65, 12, 0.45);
 }
 
 .landing-page .expansion-info p {

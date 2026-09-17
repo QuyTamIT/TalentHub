@@ -430,7 +430,7 @@ if (($_GET['action'] ?? '') === 'queue_feed') {
                             <span class="status-dot is-ok"></span>
                             <span data-tasks-sync-time>Đồng bộ thời gian thực</span>
                         </div>
-                        <button class="button secondary tasks-btn-refresh" type="button" data-tasks-refresh>
+                        <button class="button secondary tasks-btn-refresh" type="button" data-tasks-refresh data-testid="refresh-tasks-btn">
                             <?= icon('pulse') ?><span>Làm mới tác vụ</span>
                         </button>
                     </div>
@@ -537,7 +537,7 @@ if (($_GET['action'] ?? '') === 'queue_feed') {
         <select id="organization-decision" class="typeui-select" data-organization-decision hidden><option value="verified">Phê duyệt</option><option value="rejected">Từ chối</option><option value="pending">Chuyển về chờ duyệt</option><option value="suspended">Đình chỉ</option></select>
         <label class="field-label" for="action-reason">Lý do <span aria-hidden="true">*</span></label>
         <textarea id="action-reason" rows="4" minlength="5" required placeholder="Nhập lý do để ghi vào audit log..."></textarea>
-        <div class="dialog-actions"><button class="button secondary" value="cancel">Hủy</button><button class="button primary" type="submit" value="confirm" data-action-submit>Xác nhận</button></div>
+        <div class="dialog-actions"><button class="button secondary" value="cancel">Hủy</button><button class="button primary" type="submit" value="confirm" data-action-submit data-testid="confirm-action-btn">Xác nhận</button></div>
     </form>
 </dialog>
 
@@ -551,7 +551,7 @@ if (($_GET['action'] ?? '') === 'queue_feed') {
             <label>Vai trò<select name="role" class="typeui-select" required><option value="student">Học viên</option><option value="teacher">Giáo viên</option><option value="school">Nhà trường</option><option value="enterprise">Doanh nghiệp</option><option value="platform_admin">Quản trị hệ thống</option></select></label>
             <label data-password-field>Mật khẩu tạm thời<input name="password" type="password" minlength="12" autocomplete="new-password"><small>Tối thiểu 12 ký tự; chỉ bắt buộc khi tạo mới.</small></label>
         </div>
-        <div class="dialog-actions"><button class="button secondary" type="button" data-account-close>Hủy</button><button class="button primary" type="submit">Lưu tài khoản</button></div>
+        <div class="dialog-actions"><button class="button secondary" type="button" data-account-close data-testid="cancel-account-btn">Hủy</button><button class="button primary" type="submit" data-testid="save-account-btn">Lưu tài khoản</button></div>
     </form>
 </dialog>
 
