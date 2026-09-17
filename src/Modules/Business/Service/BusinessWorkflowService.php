@@ -145,9 +145,28 @@ final class BusinessWorkflowService
         if (!preg_match('/^[A-Z]{3}$/', $currency)) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Currency không hợp lệ.');
         }
+        $projectId = (string) ($input['projectId'] ?? '');
+        if ($projectId === '') {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'projectId là bắt buộc.');
+        }
+
+        $project = $this->repository->findProject($projectId);
+        if ($project === null) {
+            throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy dự án.');
+        }
+        if (($project['status'] ?? '') === 'completed') {
+            throw new ApiException(422, 'INVALID_STATE_TRANSITION', 'Dự án đã hoàn thành và không còn nhận tài trợ.');
+        }
+        if (($project['status'] ?? '') !== 'in_progress') {
+            throw new ApiException(422, 'INVALID_STATE_TRANSITION', 'Dự án hiện không ở trạng thái tiếp nhận tài trợ.');
+        }
+        if ($project['fundingGoal'] === null || (float) $project['fundingGoal'] <= 0) {
+            throw new ApiException(422, 'INVALID_STATE_TRANSITION', 'Dự án không có kế hoạch nhận tài trợ.');
+        }
+
         $id = $this->repository->sponsor(
             $this->enterprise($userId),
-            (string) ($input['projectId'] ?? ''),
+            $projectId,
             $amount,
             $currency,
             isset($input['note']) ? $this->text($input['note'], 'note', 0, 1000) : null

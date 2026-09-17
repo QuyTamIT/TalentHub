@@ -205,7 +205,9 @@ foreach ($dbProjects as $p) {
         'school_badge' => $schCode,
         'category' => $cat,
         'status' => (string) ($p['status'] ?? 'in_progress'),
-        'status_label' => $pct >= 100 ? 'Đã đạt mục tiêu' : ($pct >= 80 ? 'Tiềm năng cao' : 'Đang gọi vốn'),
+        'status_label' => ($p['status'] ?? '') === 'completed'
+            ? 'Đã hoàn thành'
+            : ($pct >= 100 ? 'Đã đạt mục tiêu' : ($pct >= 80 ? 'Tiềm năng cao' : 'Đang gọi vốn')),
         'raised_amount' => $raised,
         'target_amount' => $target,
         'percentage' => $pct,
@@ -480,9 +482,15 @@ $totalPledgedDisplay  = $totalPledgedAmount > 0
                                     <h3 style="font-size: 16px; font-weight: 700; color: #322014; margin: 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 44px; flex: 1;">
                                         <?= htmlspecialchars($project['title']); ?>
                                     </h3>
-                                    <span style="background: #FFF0EB; color: #E04058; border: 1px solid #FFDACB; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0;">
-                                        <?= htmlspecialchars($project['status_label'] ?? 'Đang gọi vốn'); ?>
-                                    </span>
+                                    <?php if (($project['status'] ?? '') === 'completed'): ?>
+                                        <span style="background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px;">
+                                            <span>✓</span> Đã hoàn thành
+                                        </span>
+                                    <?php else: ?>
+                                        <span style="background: #FFF0EB; color: #E04058; border: 1px solid #FFDACB; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0;">
+                                            <?= htmlspecialchars($project['status_label'] ?? 'Đang gọi vốn'); ?>
+                                        </span>
+                                    <?php endif; ?>
                                 </div>
 
                                 <!-- Hàng 2: Trường THPT / Đại học chủ quản • Số thành viên -->
@@ -512,7 +520,14 @@ $totalPledgedDisplay  = $totalPledgedAmount > 0
 
                                 <!-- Hàng 4: Cụm nút hành động -->
                                 <div style="display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 14px; border-top: 1px solid #F0E6DD;">
-                                    <?php if ($total_sponsored >= $fundingGoal && $fundingGoal > 0): ?>
+                                    <?php if (($project['status'] ?? '') === 'completed'): ?>
+                                        <button type="button" 
+                                                style="width: 100%; min-height: 44px; background-color: #F8FAFC; color: #64748B; border: 1px solid #E2E8F0; font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 999px; cursor: not-allowed; text-align: center; transition: all 0.2s ease;"
+                                                disabled
+                                                title="Dự án đã hoàn thành và không còn nhận tài trợ">
+                                            Dự án đã hoàn thành
+                                        </button>
+                                    <?php elseif ($total_sponsored >= $fundingGoal && $fundingGoal > 0): ?>
                                         <button type="button" 
                                                 style="width: 100%; min-height: 44px; background-color: #F0E6DD; color: #A8988C; border: none; font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 999px; cursor: not-allowed; text-align: center; transition: all 0.2s ease;"
                                                 disabled>
@@ -737,6 +752,12 @@ $totalPledgedDisplay  = $totalPledgedAmount > 0
 
             <form id="sponsorship-active-form">
                 <div class="spon-modal-body">
+                    <!-- Alert thông báo lỗi / trạng thái ở phía trên popup -->
+                    <div id="spon-modal-alert" style="display: none; background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; padding: 10px 14px; border-radius: 8px; font-size: 0.8125rem; font-weight: 500; margin-bottom: 1.25rem; align-items: center; gap: 8px;">
+                        <span style="font-size: 16px; flex-shrink: 0;">⚠️</span>
+                        <span id="spon-modal-alert-msg" style="flex: 1; line-height: 1.4;"></span>
+                    </div>
+
                     <div class="spon-form-target-box" id="form-target-info" style="margin-bottom: 1.25rem;">
                         <div style="font-size: 0.8125rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Kinh phí còn cần gọi:</div>
                         <div style="font-size: 1.25rem; font-weight: 800; color: var(--primary);" id="form-needed-amount">12.000.000 VNĐ</div>

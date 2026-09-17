@@ -257,6 +257,14 @@ final class BusinessWorkflowRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
+    public function findProject(string $id): ?array
+    {
+        $stmt = $this->pdo->prepare("SELECT id, title, status, fundingGoal FROM projects WHERE id = ? LIMIT 1");
+        $stmt->execute([$id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     public function sponsor(string $enterpriseId, string $projectId, string $amount, string $currency, ?string $note): string
     {
         $id = Uuid::v4();
