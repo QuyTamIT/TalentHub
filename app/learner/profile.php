@@ -620,29 +620,37 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
             <div style="padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; background: #F8FAFC; padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid #E2E8F0;">
                     <div>
+                        <small style="color: #64748B; display: block;">Doanh nghiệp</small>
+                        <strong style="color: #0F172A; font-size: 0.9rem;" data-intern-enterprise>Chưa ghi nhận</strong>
+                    </div>
+                    <div>
+                        <small style="color: #64748B; display: block;">Trường</small>
+                        <strong style="color: #0F172A; font-size: 0.9rem;" data-intern-school>Chưa ghi nhận</strong>
+                    </div>
+                    <div>
                         <small style="color: #64748B; display: block;">Thời gian thực tập</small>
-                        <strong style="color: #0F172A; font-size: 0.9rem;" data-intern-dates>Chưa rõ</strong>
+                        <strong style="color: #0F172A; font-size: 0.9rem;" data-intern-dates>Chưa ghi nhận</strong>
                     </div>
                     <div>
                         <small style="color: #64748B; display: block;">Tổng thời gian</small>
-                        <strong style="color: #0F172A; font-size: 0.9rem;" data-intern-hours>0 giờ</strong>
+                        <strong style="color: #0F172A; font-size: 0.9rem;" data-intern-hours>Chưa ghi nhận</strong>
                     </div>
                     <div style="grid-column: span 2;">
                         <small style="color: #64748B; display: block;">Giảng viên hướng dẫn</small>
-                        <strong style="color: #0F172A; font-size: 0.9rem;" data-intern-mentor>Chưa cập nhật</strong>
+                        <strong style="color: #0F172A; font-size: 0.9rem;" data-intern-mentor>Chưa ghi nhận</strong>
                     </div>
                 </div>
 
                 <div>
                     <h4 style="margin: 0 0 0.35rem; font-size: 0.85rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.03em;">Báo cáo &amp; Đóng góp cá nhân</h4>
-                    <p style="margin: 0; color: #1E293B; line-height: 1.55; white-space: pre-wrap;" data-intern-notes>Chưa có ghi chú.</p>
+                    <p style="margin: 0; color: #1E293B; line-height: 1.55; white-space: pre-wrap;" data-intern-notes>Chưa ghi nhận.</p>
                 </div>
 
                 <div>
                     <h4 style="margin: 0 0 0.35rem; font-size: 0.85rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.03em;">Đánh giá từ Giảng viên hướng dẫn</h4>
                     <div style="background: #F0FDF4; border: 1px solid #BBF7D0; padding: 0.85rem 1rem; border-radius: 8px;">
                         <p style="margin: 0; color: #15803D; font-style: italic; line-height: 1.5;" data-intern-feedback>Chưa có nhận xét.</p>
-                        <small style="color: #166534; display: block; margin-top: 0.35rem;">Duyệt ngày: <span data-intern-reviewed-at></span></small>
+                        <small style="color: #166534; display: block; margin-top: 0.35rem;">Duyệt ngày: <span data-intern-reviewed-at>Chưa ghi nhận</span></small>
                     </div>
                 </div>
 

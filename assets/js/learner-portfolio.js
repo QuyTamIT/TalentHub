@@ -44,8 +44,9 @@
     if(isCompletedFilter){
      items=items.filter(i=>{
       const rep=i.report||{};
-      if(i.kind==='internship') return rep.status==='verified' && rep.stage==='completed';
-      return rep.status==='verified' || i.projectStatus==='completed';
+      const hasMentor=Boolean(i.mentorName);
+      if(i.kind==='internship') return rep.status==='verified' && rep.stage==='completed' && hasMentor;
+      return (rep.status==='verified' || i.projectStatus==='completed') && hasMentor;
      });
     }
     list.replaceChildren();
@@ -77,7 +78,8 @@
 
     const header=el('div');
     const title=el('h3',item.title);
-    const org=el('p',item.organization || 'Doanh nghiệp đối tác','portfolio-compact-card__org');
+    const orgSubtitle = [item.enterpriseName, item.schoolName].filter(Boolean).join(' · ') || item.organization || 'Doanh nghiệp đối tác';
+    const org=el('p',orgSubtitle,'portfolio-compact-card__org');
     header.append(title, org);
 
     const meta=el('div',undefined,'portfolio-compact-card__meta');
@@ -95,7 +97,7 @@
 
     const badgesRow = el('div', undefined, 'learner-project-card__badges');
     badgesRow.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; border-top: 1px solid #F1F5F9; padding-top: 0.75rem; margin-top: 0.25rem;';
-    const roleBadge = el('span', item.kind === 'internship' ? 'Thực tập sinh' : 'Thành viên', 'learner-badge');
+    const roleBadge = el('span', item.kind === 'internship' ? 'Thực tập sinh' : (item.memberRole || 'Thành viên'), 'learner-badge');
     roleBadge.style.cssText = 'background: #F1F5F9; color: #475569; font-weight: 600; font-size: 0.75rem; padding: 3px 9px; border-radius: 6px;';
     const statusBadge = el('span', '● Đã xác nhận hoàn thành', 'learner-badge');
     statusBadge.style.cssText = 'font-weight: 600; font-size: 0.75rem; padding: 3px 9px; border-radius: 6px; background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC;';
@@ -113,10 +115,15 @@
     });
 
     const partnerLink = el('a', '🏢 Doanh nghiệp', 'learner-btn learner-btn--outline');
-    partnerLink.href = `partner.php?type=enterprise&id=${encodeURIComponent(item.contextId)}`;
-    partnerLink.title = 'Xem thông tin doanh nghiệp trong hệ sinh thái';
-    partnerLink.target = '_blank';
-    partnerLink.rel = 'noopener noreferrer';
+    const enterpriseId = item.enterpriseId;
+    if (enterpriseId) {
+     partnerLink.href = `partner.php?type=enterprise&id=${encodeURIComponent(enterpriseId)}`;
+     partnerLink.title = 'Xem thông tin doanh nghiệp trong hệ sinh thái';
+     partnerLink.target = '_blank';
+     partnerLink.rel = 'noopener noreferrer';
+    } else {
+     partnerLink.hidden = true;
+    }
     partnerLink.style.cssText = 'font-size: 0.82rem; padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; color: #475569; text-decoration: none;';
 
     actionsRow.append(detailBtn, partnerLink);
@@ -188,17 +195,35 @@
    const rep = item.report || {};
    const setTxt = (id, val) => {
     const node = modal.querySelector(id);
-    if (node) node.textContent = val || 'Chưa cập nhật';
+    if (node) node.textContent = val || 'Chưa ghi nhận';
    };
 
+   const enterpriseName = item.enterpriseName || (item.kind === 'internship' ? item.organization : '') || '';
+   const schoolName = item.schoolName || (item.kind === 'project' ? item.organization : '') || '';
+   const orgSubtitle = [enterpriseName, schoolName].filter(Boolean).join(' · ') || item.organization || 'Chưa ghi nhận';
+
    setTxt('[data-intern-title]', item.title);
-   setTxt('[data-intern-org]', item.organization);
-   setTxt('[data-intern-mentor]', item.mentorName || 'Giảng viên hướng dẫn');
-   setTxt('[data-intern-dates]', `${rep.startDate || 'Chưa rõ'} → ${rep.endDate || 'Đã hoàn thành'}`);
+   setTxt('[data-intern-org]', orgSubtitle);
+   setTxt('[data-intern-enterprise]', enterpriseName || 'Chưa ghi nhận');
+   setTxt('[data-intern-school]', schoolName || 'Chưa ghi nhận');
+   setTxt('[data-intern-mentor]', item.mentorName || 'Chưa ghi nhận');
+
+   const startDate = rep.startDate || '';
+   const endDate = rep.endDate || '';
+   let datesStr = 'Chưa ghi nhận';
+   if (startDate && endDate) {
+    datesStr = `${startDate} → ${endDate}`;
+   } else if (startDate) {
+    datesStr = `${startDate} → Đã hoàn thành`;
+   } else if (endDate) {
+    datesStr = `Hoàn thành ngày ${endDate}`;
+   }
+   setTxt('[data-intern-dates]', datesStr);
+
    setTxt('[data-intern-hours]', rep.hours ? `${rep.hours} giờ` : 'Chưa ghi nhận');
-   setTxt('[data-intern-notes]', rep.notes || 'Không có ghi chú thêm.');
+   setTxt('[data-intern-notes]', rep.notes || 'Chưa ghi nhận');
    setTxt('[data-intern-feedback]', rep.feedback || 'Chưa có nhận xét.');
-   setTxt('[data-intern-reviewed-at]', rep.reviewedAt || 'Đã xác nhận');
+   setTxt('[data-intern-reviewed-at]', rep.reviewedAt || 'Chưa ghi nhận');
 
    const repoLink = modal.querySelector('[data-intern-repo]');
    if (repoLink) {
@@ -227,20 +252,33 @@
    const skillsList = modal.querySelector('[data-intern-skills]');
    if (skillsList) {
     skillsList.replaceChildren();
-    if (rep.skills && rep.skills.length) {
-     rep.skills.forEach(s => {
+    const skills = (rep.skills && rep.skills.length) ? rep.skills : [];
+    if (skills.length) {
+     skills.forEach(s => {
       const li = el('li', s.name, 'learner-badge learner-badge--primary');
       li.style.cssText = 'display: inline-block; margin: 3px 6px 3px 0; background: #EFF6FF; color: #1D4ED8; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.8rem;';
+      if (s.id || s.skillId) li.dataset.skillId = s.id || s.skillId;
+      if (s.score !== null && s.score !== undefined) li.dataset.score = s.score;
+      if (s.sourceType) li.dataset.sourceType = s.sourceType;
+      if (s.evidenceStatus) li.dataset.evidenceStatus = s.evidenceStatus;
       skillsList.append(li);
      });
     } else {
-     skillsList.append(el('li', 'Không có kỹ năng ghi nhận bổ sung.'));
+     const emptyLi = el('li', 'Không có kỹ năng được ghi nhận.');
+     emptyLi.style.cssText = 'color: #64748B; font-style: italic; font-size: 0.875rem;';
+     skillsList.append(emptyLi);
     }
    }
 
    const ecoBtn = modal.querySelector('[data-intern-eco-link]');
    if (ecoBtn) {
-    ecoBtn.href = `partner.php?type=enterprise&id=${encodeURIComponent(item.contextId)}`;
+    const entId = item.enterpriseId;
+    if (entId) {
+     ecoBtn.href = `partner.php?type=enterprise&id=${encodeURIComponent(entId)}`;
+     ecoBtn.hidden = false;
+    } else {
+     ecoBtn.hidden = true;
+    }
    }
 
    if (global.LearnerUI && typeof global.LearnerUI.openModal === 'function') {

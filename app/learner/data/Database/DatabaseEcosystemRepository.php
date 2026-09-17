@@ -130,6 +130,16 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
                     self::SCHOOL_SQL,
                     ['partner_id' => $partnerId] + $this->schoolVisibilityParameters()
                 );
+                if ($partner === null) {
+                    $resolvedSchoolId = $this->resolveSchoolId($partnerId);
+                    if ($resolvedSchoolId !== null && $resolvedSchoolId !== $partnerId) {
+                        $partner = $this->fetchOne(
+                            'findPartner.school.resolved',
+                            self::SCHOOL_SQL,
+                            ['partner_id' => $resolvedSchoolId] + $this->schoolVisibilityParameters()
+                        );
+                    }
+                }
                 return $partner === null ? null : $this->normalizeSchool($partner);
             }
             if ($type === 'enterprise') {
@@ -138,6 +148,16 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
                     self::ENTERPRISE_SQL,
                     ['partner_id' => $partnerId] + $this->enterpriseVisibilityParameters()
                 );
+                if ($partner === null) {
+                    $resolvedEnterpriseId = $this->resolveEnterpriseId($partnerId);
+                    if ($resolvedEnterpriseId !== null && $resolvedEnterpriseId !== $partnerId) {
+                        $partner = $this->fetchOne(
+                            'findPartner.enterprise.resolved',
+                            self::ENTERPRISE_SQL,
+                            ['partner_id' => $resolvedEnterpriseId] + $this->enterpriseVisibilityParameters()
+                        );
+                    }
+                }
                 return $partner === null ? null : $this->normalizeEnterprise($partner);
             }
         } catch (\Throwable $e) {
@@ -180,6 +200,10 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
     {
         try {
             $partnerId = Uuid::normalizeDatabase($partnerId, 'enterprise_id');
+            $resolvedId = $this->resolveEnterpriseId($partnerId);
+            if (!empty($resolvedId)) {
+                $partnerId = $resolvedId;
+            }
             $params = ['enterprise_id' => $partnerId] + $this->opportunityVisibilityParameters();
             if ($studentId !== null && $studentId !== '') {
                 $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
@@ -330,5 +354,94 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
         };
 
         return $opportunity;
+    }
+
+    private function resolveEnterpriseId(string $id): ?string
+    {
+        // 1. Check if $id is a project ID (from paid project_sponsorships or approved school_enterprise_partnerships)
+        try {
+            $stmt = $this->pdo->prepare("SELECT enterpriseId FROM project_sponsorships WHERE projectId = :id AND status = 'paid' ORDER BY createdAt DESC LIMIT 1");
+            $stmt->execute(['id' => $id]);
+            $res = $stmt->fetchColumn();
+            if (!empty($res)) {
+                return (string) $res;
+            }
+        } catch (\Throwable) {}
+
+        try {
+            $stmt = $this->pdo->prepare("SELECT sep.enterpriseId FROM projects p INNER JOIN school_enterprise_partnerships sep ON sep.schoolId = p.schoolId AND sep.status = 'approved' WHERE p.id = :id ORDER BY sep.createdAt DESC LIMIT 1");
+            $stmt->execute(['id' => $id]);
+            $res = $stmt->fetchColumn();
+            if (!empty($res)) {
+                return (string) $res;
+            }
+        } catch (\Throwable) {}
+
+        // 2. Check if $id is a school_enterprise_partnerships ID
+        try {
+            $stmt = $this->pdo->prepare("SELECT enterpriseId FROM school_enterprise_partnerships WHERE id = :id AND status = 'approved' LIMIT 1");
+            $stmt->execute(['id' => $id]);
+            $res = $stmt->fetchColumn();
+            if (!empty($res)) {
+                return (string) $res;
+            }
+        } catch (\Throwable) {}
+
+        // 3. Check if $id is an internship_applications ID
+        try {
+            $stmt = $this->pdo->prepare("SELECT ip.enterpriseId FROM internship_applications ia INNER JOIN internship_posts ip ON ip.id = ia.postId WHERE ia.id = :id LIMIT 1");
+            $stmt->execute(['id' => $id]);
+            $res = $stmt->fetchColumn();
+            if (!empty($res)) {
+                return (string) $res;
+            }
+        } catch (\Throwable) {}
+
+        // 4. Check if $id is an internship_posts ID
+        try {
+            $stmt = $this->pdo->prepare("SELECT enterpriseId FROM internship_posts WHERE id = :id LIMIT 1");
+            $stmt->execute(['id' => $id]);
+            $res = $stmt->fetchColumn();
+            if (!empty($res)) {
+                return (string) $res;
+            }
+        } catch (\Throwable) {}
+
+        // 5. Check if $id is an enterprise member / user ID
+        try {
+            $stmt = $this->pdo->prepare("SELECT enterpriseId FROM enterprise_members WHERE userId = :id LIMIT 1");
+            $stmt->execute(['id' => $id]);
+            $res = $stmt->fetchColumn();
+            if (!empty($res)) {
+                return (string) $res;
+            }
+        } catch (\Throwable) {}
+
+        return null;
+    }
+
+    private function resolveSchoolId(string $id): ?string
+    {
+        // 1. Check if $id is a project ID
+        try {
+            $stmt = $this->pdo->prepare("SELECT schoolId FROM projects WHERE id = :id LIMIT 1");
+            $stmt->execute(['id' => $id]);
+            $res = $stmt->fetchColumn();
+            if (!empty($res)) {
+                return (string) $res;
+            }
+        } catch (\Throwable) {}
+
+        // 2. Check if $id is a school_enterprise_partnerships ID
+        try {
+            $stmt = $this->pdo->prepare("SELECT schoolId FROM school_enterprise_partnerships WHERE id = :id AND status = 'approved' LIMIT 1");
+            $stmt->execute(['id' => $id]);
+            $res = $stmt->fetchColumn();
+            if (!empty($res)) {
+                return (string) $res;
+            }
+        } catch (\Throwable) {}
+
+        return null;
     }
 }

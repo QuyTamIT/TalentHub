@@ -36,26 +36,33 @@ final class PortfolioRepository
     public function listForStudent(string $studentId, bool $completedOnly = false): array
     {
         $student = $this->student($studentId);
-        $projectSql = "SELECT 'project' kind,p.id contextId,p.title,s.name organization,u.fullName mentorName,r.id reportId,p.status projectStatus FROM projects p JOIN schools s ON s.id=p.schoolId JOIN project_members pm ON pm.projectId=p.id AND pm.studentId=:studentId LEFT JOIN teacher_profiles tp ON tp.id=p.mentorTeacherId LEFT JOIN users u ON u.id=tp.userId LEFT JOIN project_submissions r ON r.projectId=p.id AND r.studentId=:studentId2 WHERE p.schoolId=:schoolId AND (pm.status='active' OR r.id IS NOT NULL) ORDER BY p.title";
+        $sponsorSql = $this->hasTable('project_sponsorships') ? "(SELECT e.name FROM project_sponsorships ps JOIN enterprises e ON e.id=ps.enterpriseId WHERE ps.projectId=p.id AND ps.status='paid' ORDER BY ps.createdAt DESC LIMIT 1)" : "NULL";
+        $sponsorIdSql = $this->hasTable('project_sponsorships') ? "(SELECT ps.enterpriseId FROM project_sponsorships ps WHERE ps.projectId=p.id AND ps.status='paid' ORDER BY ps.createdAt DESC LIMIT 1)" : "NULL";
+        $partnerSql = $this->hasTable('school_enterprise_partnerships') ? "(SELECT e.name FROM school_enterprise_partnerships sep JOIN enterprises e ON e.id=sep.enterpriseId WHERE sep.schoolId=p.schoolId AND sep.status='approved' ORDER BY sep.createdAt DESC LIMIT 1)" : "NULL";
+        $partnerIdSql = $this->hasTable('school_enterprise_partnerships') ? "(SELECT sep.enterpriseId FROM school_enterprise_partnerships sep WHERE sep.schoolId=p.schoolId AND sep.status='approved' ORDER BY sep.createdAt DESC LIMIT 1)" : "NULL";
+
+        $projectSql = "SELECT 'project' kind,p.id contextId,p.title,s.name organization,s.name schoolName,COALESCE({$sponsorSql},{$partnerSql}) enterpriseName,COALESCE({$sponsorIdSql},{$partnerIdSql}) enterpriseId,u.fullName mentorName,tp.id mentorTeacherId,p.startAt projectStartAt,p.endAt projectEndAt,p.description projectDescription,p.topic projectTopic,p.projectUrl,p.status projectStatus,p.updatedAt projectUpdatedAt,pm.role memberRole,pm.contribution memberContribution,r.id reportId FROM projects p JOIN schools s ON s.id=p.schoolId JOIN project_members pm ON pm.projectId=p.id AND pm.studentId=:studentId LEFT JOIN teacher_profiles tp ON tp.id=p.mentorTeacherId LEFT JOIN users u ON u.id=tp.userId LEFT JOIN project_submissions r ON r.projectId=p.id AND r.studentId=:studentId2 WHERE p.schoolId=:schoolId AND (pm.status='active' OR r.id IS NOT NULL) ORDER BY p.title";
         $project = $this->pdo->prepare($projectSql);
         $project->execute(['studentId'=>$studentId,'studentId2'=>$studentId,'schoolId'=>$student['schoolId']]);
 
-        $internSql = "SELECT 'internship' kind,a.id contextId,ip.title,e.name organization,u.fullName mentorName,r.id reportId,a.status applicationStatus FROM internship_applications a JOIN internship_posts ip ON ip.id=a.postId JOIN enterprises e ON e.id=ip.enterpriseId LEFT JOIN internship_mentor_assignments ima ON ima.applicationId=a.id LEFT JOIN teacher_profiles tp ON tp.id=ima.mentorTeacherId LEFT JOIN users u ON u.id=tp.userId LEFT JOIN learner_internship_reports r ON r.applicationId=a.id AND r.studentId=:studentId2 WHERE a.studentId=:studentId AND (a.status='accepted' OR r.id IS NOT NULL) ORDER BY ip.title";
+        $internSql = "SELECT 'internship' kind,a.id contextId,ip.title,e.name organization,e.name enterpriseName,e.id enterpriseId,s.name schoolName,u.fullName mentorName,tp.id mentorTeacherId,r.id reportId,a.status applicationStatus,a.appliedAt,a.reviewedAt appReviewedAt,a.reviewerNote,ip.skillsJson postSkillsJson FROM internship_applications a JOIN internship_posts ip ON ip.id=a.postId JOIN enterprises e ON e.id=ip.enterpriseId LEFT JOIN student_profiles sp ON sp.id=a.studentId LEFT JOIN classes c ON c.id=sp.classId LEFT JOIN schools s ON s.id=c.schoolId LEFT JOIN internship_mentor_assignments ima ON ima.applicationId=a.id LEFT JOIN teacher_profiles tp ON tp.id=ima.mentorTeacherId LEFT JOIN users u ON u.id=tp.userId LEFT JOIN learner_internship_reports r ON r.applicationId=a.id AND r.studentId=:studentId2 WHERE a.studentId=:studentId AND (a.status='accepted' OR r.id IS NOT NULL) ORDER BY ip.title";
         $intern = $this->pdo->prepare($internSql);
         $intern->execute(['studentId'=>$studentId,'studentId2'=>$studentId]);
 
-        $projectRows = $this->contextRows($project->fetchAll(PDO::FETCH_ASSOC) ?: [],'project');
-        $internRows = $this->contextRows($intern->fetchAll(PDO::FETCH_ASSOC) ?: [],'internship');
+        $projectRows = $this->contextRows($project->fetchAll(PDO::FETCH_ASSOC) ?: [],'project',$studentId);
+        $internRows = $this->contextRows($intern->fetchAll(PDO::FETCH_ASSOC) ?: [],'internship',$studentId);
 
         if ($completedOnly) {
             $projectRows = array_values(array_filter($projectRows, static function(array $item): bool {
                 $status = $item['report']['status'] ?? '';
                 $pStatus = $item['projectStatus'] ?? '';
-                return $status === 'verified' || $pStatus === 'completed';
+                $hasMentor = !empty($item['mentorName']);
+                return ($status === 'verified' || $pStatus === 'completed') && $hasMentor;
             }));
             $internRows = array_values(array_filter($internRows, static function(array $item): bool {
                 $report = $item['report'] ?? [];
-                return ($report['status'] ?? '') === 'verified' && ($report['stage'] ?? '') === 'completed';
+                $hasMentor = !empty($item['mentorName']);
+                return ($report['status'] ?? '') === 'verified' && ($report['stage'] ?? '') === 'completed' && $hasMentor;
             }));
         }
 
@@ -234,8 +241,109 @@ JOIN users u ON u.id=eligible.reviewedByUserId");
         ];
     }
 
-    private function contextRows(array $rows,?string $forcedKind): array { return array_map(function(array $r)use($forcedKind){$kind=$forcedKind??$r['kind'];$out=['kind'=>$kind,'contextId'=>$r['contextId'],'title'=>$r['title'],'organization'=>$r['organization'],'mentorName'=>$r['mentorName']??null];foreach(['studentName','studentId','projectStatus','applicationStatus']as$k)if(array_key_exists($k,$r))$out[$k]=$r[$k];$out['report']=$r['reportId']?$this->row($kind,$r['reportId']):null;return$out;},$rows); }
-    private function row(string $kind,string $id): array { $m=$this->kind($kind);$s=$this->pdo->prepare("SELECT *,{$m['context']} contextId FROM {$m['table']} WHERE id=:id");$s->execute(['id'=>$id]);$r=$s->fetch(PDO::FETCH_ASSOC);if(!$r)$this->fail(404,'RESOURCE_NOT_FOUND','Không tìm thấy báo cáo.');foreach(['version','revision']as$k)$r[$k]=(int)$r[$k];if($r['hours']!==null)$r['hours']=(float)$r['hours'];unset($r[$m['context']]);$metadata=$this->portfolioSkillMetadataAvailable()?',ps.score,ps.sourceType,ps.evidenceStatus':",NULL AS score,CASE WHEN ps.kind='internship' THEN 'internship_completion' ELSE 'project_submission' END AS sourceType,'verified' AS evidenceStatus";$skills=$this->pdo->prepare("SELECT s.id,s.name{$metadata} FROM learner_portfolio_skills ps JOIN skills s ON s.id=ps.skillId WHERE ps.kind=:kind AND ps.reportId=:id ORDER BY s.name,s.id");$skills->execute(['kind'=>$kind,'id'=>$id]);$r['skills']=array_map(static function(array $skill):array{$skill['score']=$skill['score']===null?null:(float)$skill['score'];return$skill;},$skills->fetchAll(PDO::FETCH_ASSOC)?:[]);$h=$this->pdo->prepare('SELECT version,status,actorUserId,createdAt,snapshotJson FROM learner_portfolio_history WHERE kind=:kind AND reportId=:id ORDER BY version');$h->execute(['kind'=>$kind,'id'=>$id]);$r['history']=array_map(static function($x){$snapshot=json_decode($x['snapshotJson'],true)?:[];return array_merge($snapshot,['version'=>(int)$x['version'],'status'=>$x['status'],'actorUserId'=>$x['actorUserId'],'createdAt'=>$x['createdAt']]);},$h->fetchAll(PDO::FETCH_ASSOC)?:[]);return$r; }
+    private function contextRows(array $rows, ?string $forcedKind, ?string $studentId = null): array
+    {
+        return array_map(function (array $r) use ($forcedKind, $studentId) {
+            $kind = $forcedKind ?? $r['kind'];
+            $out = [
+                'kind' => $kind,
+                'contextId' => $r['contextId'],
+                'title' => $r['title'],
+                'organization' => $r['organization'],
+                'enterpriseName' => $r['enterpriseName'] ?? null,
+                'schoolName' => $r['schoolName'] ?? null,
+                'enterpriseId' => $r['enterpriseId'] ?? null,
+                'mentorName' => $r['mentorName'] ?? null,
+            ];
+            foreach (['studentName', 'studentId', 'projectStatus', 'applicationStatus', 'memberRole'] as $k) {
+                if (array_key_exists($k, $r)) {
+                    $out[$k] = $r[$k];
+                }
+            }
+            $report = !empty($r['reportId']) ? $this->row($kind, (string)$r['reportId']) : null;
+
+            if ($kind === 'project' && ($r['projectStatus'] ?? '') === 'completed') {
+                if ($report === null) {
+                    $report = [
+                        'id' => null,
+                        'studentId' => $r['studentId'] ?? $studentId,
+                        'version' => 1,
+                        'revision' => 1,
+                        'status' => 'verified',
+                        'stage' => 'completed',
+                        'startDate' => !empty($r['projectStartAt']) ? substr((string)$r['projectStartAt'], 0, 10) : null,
+                        'endDate' => !empty($r['projectEndAt']) ? substr((string)$r['projectEndAt'], 0, 10) : null,
+                        'hours' => null,
+                        'notes' => !empty($r['memberContribution']) ? (string)$r['memberContribution'] : (!empty($r['projectDescription']) ? (string)$r['projectDescription'] : (!empty($r['projectTopic']) ? (string)$r['projectTopic'] : null)),
+                        'feedback' => null,
+                        'reviewedAt' => !empty($r['projectUpdatedAt']) ? substr((string)$r['projectUpdatedAt'], 0, 19) : null,
+                        'repositoryUrl' => !empty($r['projectUrl']) ? (string)$r['projectUrl'] : null,
+                        'demoUrl' => null,
+                        'skills' => [],
+                        'history' => [],
+                    ];
+                } else {
+                    if (empty($report['startDate']) && !empty($r['projectStartAt'])) {
+                        $report['startDate'] = substr((string)$r['projectStartAt'], 0, 10);
+                    }
+                    if (empty($report['endDate']) && !empty($r['projectEndAt'])) {
+                        $report['endDate'] = substr((string)$r['projectEndAt'], 0, 10);
+                    }
+                    if (empty($report['notes'])) {
+                        $report['notes'] = !empty($r['memberContribution']) ? (string)$r['memberContribution'] : (!empty($r['projectDescription']) ? (string)$r['projectDescription'] : (!empty($r['projectTopic']) ? (string)$r['projectTopic'] : null));
+                    }
+                    if (empty($report['repositoryUrl']) && !empty($r['projectUrl'])) {
+                        $report['repositoryUrl'] = (string)$r['projectUrl'];
+                    }
+                    if (empty($report['reviewedAt']) && !empty($r['projectUpdatedAt'])) {
+                        $report['reviewedAt'] = substr((string)$r['projectUpdatedAt'], 0, 19);
+                    }
+                }
+
+                $targetStudentId = $r['studentId'] ?? $studentId;
+                if (empty($report['feedback']) && !empty($r['mentorTeacherId']) && !empty($targetStudentId)) {
+                    $assessment = $this->mentorAssessment((string)$r['mentorTeacherId'], (string)$targetStudentId);
+                    if ($assessment) {
+                        $report['feedback'] = $assessment['comment'];
+                        if (!empty($assessment['publishedAt'])) {
+                            $report['reviewedAt'] = substr((string)$assessment['publishedAt'], 0, 19);
+                        }
+                    }
+                }
+            }
+
+            $out['report'] = $report;
+            return $out;
+        }, $rows);
+    }
+
+    private function projectSkills(string $projectId): array
+    {
+        if (!$this->hasTable('project_skill_tags') || !$this->hasTable('skills')) {
+            return [];
+        }
+        $s = $this->pdo->prepare("SELECT s.id, s.name FROM project_skill_tags pst JOIN skills s ON s.id = pst.skillId AND s.status = 'active' WHERE pst.projectId = :id ORDER BY s.name, s.id");
+        $s->execute(['id' => $projectId]);
+        return $s->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    private function mentorAssessment(string $teacherId, string $studentId): ?array
+    {
+        if (!$this->hasTable('assessments')) {
+            return null;
+        }
+        $stmt = $this->pdo->prepare("SELECT id, comment, publishedAt FROM assessments WHERE teacherId = :teacherId AND studentId = :studentId AND status = 'published' ORDER BY publishedAt DESC LIMIT 1");
+        $stmt->execute(['teacherId' => $teacherId, 'studentId' => $studentId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            return null;
+        }
+        return [
+            'comment' => $row['comment'] ?? null,
+            'publishedAt' => $row['publishedAt'] ?? null,
+        ];
+    }
+    private function row(string $kind,string $id): array { $m=$this->kind($kind);$s=$this->pdo->prepare("SELECT *,{$m['context']} contextId FROM {$m['table']} WHERE id=:id");$s->execute(['id'=>$id]);$r=$s->fetch(PDO::FETCH_ASSOC);if(!$r)$this->fail(404,'RESOURCE_NOT_FOUND','Không tìm thấy báo cáo.');foreach(['version','revision']as$k)$r[$k]=(int)$r[$k];if($r['hours']!==null)$r['hours']=(float)$r['hours'];unset($r[$m['context']]);$metadata=$this->portfolioSkillMetadataAvailable()?',ps.score,ps.sourceType,ps.evidenceStatus':",NULL AS score,CASE WHEN ps.kind='internship' THEN 'internship_completion' ELSE 'project_submission' END AS sourceType,'verified' AS evidenceStatus";$skills=$this->pdo->prepare("SELECT s.id,ps.skillId,s.name{$metadata} FROM learner_portfolio_skills ps JOIN skills s ON s.id=ps.skillId WHERE ps.kind=:kind AND ps.reportId=:id ORDER BY s.name,s.id");$skills->execute(['kind'=>$kind,'id'=>$id]);$r['skills']=array_map(static function(array $skill):array{$skill['score']=$skill['score']===null?null:(float)$skill['score'];return$skill;},$skills->fetchAll(PDO::FETCH_ASSOC)?:[]);$h=$this->pdo->prepare('SELECT version,status,actorUserId,createdAt,snapshotJson FROM learner_portfolio_history WHERE kind=:kind AND reportId=:id ORDER BY version');$h->execute(['kind'=>$kind,'id'=>$id]);$r['history']=array_map(static function($x){$snapshot=json_decode($x['snapshotJson'],true)?:[];return array_merge($snapshot,['version'=>(int)$x['version'],'status'=>$x['status'],'actorUserId'=>$x['actorUserId'],'createdAt'=>$x['createdAt']]);},$h->fetchAll(PDO::FETCH_ASSOC)?:[]);return$r; }
     private function find(string $kind,string $studentId,string $contextId): ?array { $m=$this->kind($kind);$s=$this->pdo->prepare("SELECT *,{$m['context']} contextId FROM {$m['table']} WHERE studentId=:studentId AND {$m['context']}=:contextId");$s->execute(compact('studentId','contextId'));$r=$s->fetch(PDO::FETCH_ASSOC);return$r?:null; }
     private function student(string $id, bool $lock=false): array { $suffix=$lock&&$this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':'';$s=$this->pdo->prepare("SELECT sp.id,sp.userId,u.status,c.schoolId FROM student_profiles sp JOIN users u ON u.id=sp.userId JOIN roles r ON r.id=u.roleId AND r.code='student' JOIN classes c ON c.id=sp.classId WHERE sp.id=:id{$suffix}");$s->execute(['id'=>$id]);$r=$s->fetch(PDO::FETCH_ASSOC);if(!$r)$this->fail(404,'RESOURCE_NOT_FOUND','Không tìm thấy học sinh.');if($r['status']!=='active')$this->fail(403,'PERMISSION_DENIED','Tài khoản học sinh không hoạt động.');return$r; }
     private function teacher(string $userId, bool $lock=false): array { $suffix=$lock&&$this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':'';$s=$this->pdo->prepare("SELECT tp.id teacherId,tp.schoolId,u.status FROM teacher_profiles tp JOIN users u ON u.id=tp.userId JOIN roles r ON r.id=u.roleId AND r.code='teacher' WHERE tp.userId=:id{$suffix}");$s->execute(['id'=>$userId]);$r=$s->fetch(PDO::FETCH_ASSOC);if(!$r||$r['status']!=='active')$this->fail(403,'PERMISSION_DENIED','Giáo viên không hoạt động.');return$r; }
