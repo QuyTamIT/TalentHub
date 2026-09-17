@@ -39,9 +39,14 @@ try {
         $studentId,
         (string) $user['id'],
         trim((string) ($_POST['notificationId'] ?? '')),
-        strtolower(trim((string) ($_POST['decision'] ?? ''))),
+        $decision = strtolower(trim((string) ($_POST['decision'] ?? ''))),
         RequestId::make($_SERVER['HTTP_X_REQUEST_ID'] ?? null),
     );
+
+    // Validate decision is only 'accepted' or 'rejected'
+    if (!in_array($decision, ['accepted', 'rejected'], true)) {
+        throw new ApiException(400, 'INVALID_DECISION', 'Phương thức không hợp lệ. Chỉ được chấp nhận (accepted) hoặc từ chối (rejected).');
+    }
     $message = $result['status'] === 'accepted'
         ? "Bạn đã chấp nhận lời mời thực tập từ {$result['enterpriseName']}!"
         : 'Bạn đã từ chối lời mời thực tập.';

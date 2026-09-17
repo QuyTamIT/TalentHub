@@ -141,7 +141,7 @@ ON DUPLICATE KEY UPDATE
     `updatedAt` = NOW(6);
 
 -- ----------------------------------------------------------------------------
--- 2. SEED ENTERPRISE USERS (Password: Talenthub@123)
+-- 2. SEED ENTERPRISE USERS (Password: Talenthub@123 - LƯU Ý: Hardcoded password chỉ cho demo)
 -- ----------------------------------------------------------------------------
 INSERT INTO `users` (`id`, `roleId`, `email`, `passwordHash`, `fullName`, `status`, `createdAt`, `updatedAt`)
 VALUES

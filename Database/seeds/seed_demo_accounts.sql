@@ -1,7 +1,7 @@
 -- ============================================================================
 -- TalentHub - Database Seed Script for 4 Demo Accounts
 -- Compatible with MySQL 8+ / MariaDB (HeidiSQL / Laragon)
--- All accounts password: Talenthub@123
+-- LƯU Ý: Demo accounts được sử dụng cho development/testing ONLY. Password được hardcode dưới đây chỉ để demo purposes.
 -- ============================================================================
 
 USE `talenthub`;

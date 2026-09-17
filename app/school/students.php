@@ -85,75 +85,88 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
         $studentRoleIdStmt = $pdo->query("SELECT id FROM roles WHERE code = 'student' LIMIT 1");
         $studentRoleId = (string) $studentRoleIdStmt->fetchColumn();
 
-        foreach ($rows as $row) {
-            $fullName = trim((string)($row[0] ?? ''));
-            $email = trim(strtolower((string)($row[1] ?? '')));
-            $className = trim((string)($row[2] ?? '10A1'));
-            $major = trim((string)($row[3] ?? 'Công nghệ thông tin'));
-            $phone = trim((string)($row[4] ?? ''));
-            $dob = trim((string)($row[5] ?? '2005-01-01'));
+        $pdo->beginTransaction();
 
-            if ($fullName === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $errorCount++;
-                continue;
+        try {
+            foreach ($rows as $row) {
+                $fullName = trim((string)($row[0] ?? ''));
+                $email = trim(strtolower((string)($row[1] ?? '')));
+                $className = trim((string)($row[2] ?? '10A1'));
+                $major = trim((string)($row[3] ?? 'Công nghệ thông tin'));
+                $phone = trim((string)($row[4] ?? ''));
+                $dob = trim((string)($row[5] ?? '2005-01-01'));
+
+                if ($fullName === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $errorCount++;
+                    continue;
+                }
+
+                // Find or create class in this school
+                $classStmt = $pdo->prepare("SELECT id FROM classes WHERE schoolId = ? AND name = ? LIMIT 1");
+                $classStmt->execute([$schoolId, $className]);
+                $targetClassId = $classStmt->fetchColumn();
+                if (!$targetClassId) {
+                    $targetClassId = Uuid::v4();
+                    $pdo->prepare("INSERT INTO classes (id, schoolId, name, gradeLevel, academicYear, status, createdAt, updatedAt) VALUES (?, ?, ?, 1, '2025-2026', 'active', NOW(), NOW())")
+                        ->execute([$targetClassId, $schoolId, $className]);
+                }
+
+                // Find or create user
+                $userStmt = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+                $userStmt->execute([$email]);
+                $targetUserId = $userStmt->fetchColumn();
+                if (!$targetUserId) {
+                    $targetUserId = Uuid::v4();
+                    $pdo->prepare("INSERT INTO users (id, email, fullName, passwordHash, roleId, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW())")
+                        ->execute([$targetUserId, $email, $fullName, $defaultPasswordHash, $studentRoleId]);
+                } else {
+                    $pdo->prepare("UPDATE users SET fullName = ?, status = 'active' WHERE id = ?")
+                        ->execute([$fullName, $targetUserId]);
+                }
+
+                // Find or create student_profiles
+                $spStmt = $pdo->prepare("SELECT id FROM student_profiles WHERE userId = ? LIMIT 1");
+                $spStmt->execute([$targetUserId]);
+                $targetSpId = $spStmt->fetchColumn();
+                if (!$targetSpId) {
+                    $targetSpId = Uuid::v4();
+                    $pdo->prepare("INSERT INTO student_profiles (id, userId, classId, phone, dateOfBirth, studyStatus, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW())")
+                        ->execute([$targetSpId, $targetUserId, $targetClassId, $phone, $dob]);
+                } else {
+                    $pdo->prepare("UPDATE student_profiles SET classId = ?, phone = ?, studyStatus = 'active' WHERE id = ?")
+                        ->execute([$targetClassId, $phone, $targetSpId]);
+                }
+
+                // Find or create student_profile_details
+                $spdStmt = $pdo->prepare("SELECT id FROM student_profile_details WHERE studentId = ? LIMIT 1");
+                $spdStmt->execute([$targetSpId]);
+                if ($spdStmt->fetchColumn()) {
+                    $pdo->prepare("UPDATE student_profile_details SET headline = ? WHERE studentId = ?")
+                        ->execute([$major, $targetSpId]);
+                } else {
+                    $pdo->prepare("INSERT INTO student_profile_details (id, studentId, headline, bio, createdAt, updatedAt) VALUES (?, ?, ?, ?, NOW(), NOW())")
+                        ->execute([Uuid::v4(), $targetSpId, $major, "Sinh viên chuyên ngành {$major} - {$context['school']['name']}"]);
+                }
+
+                $importCount++;
             }
 
-            // Find or create class in this school
-            $classStmt = $pdo->prepare("SELECT id FROM classes WHERE schoolId = ? AND name = ? LIMIT 1");
-            $classStmt->execute([$schoolId, $className]);
-            $targetClassId = $classStmt->fetchColumn();
-            if (!$targetClassId) {
-                $targetClassId = Uuid::v4();
-                $pdo->prepare("INSERT INTO classes (id, schoolId, name, gradeLevel, academicYear, status, createdAt, updatedAt) VALUES (?, ?, ?, 1, '2025-2026', 'active', NOW(), NOW())")
-                    ->execute([$targetClassId, $schoolId, $className]);
-            }
+            $pdo->commit();
 
-            // Find or create user
-            $userStmt = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
-            $userStmt->execute([$email]);
-            $targetUserId = $userStmt->fetchColumn();
-            if (!$targetUserId) {
-                $targetUserId = Uuid::v4();
-                $pdo->prepare("INSERT INTO users (id, email, fullName, passwordHash, roleId, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW())")
-                    ->execute([$targetUserId, $email, $fullName, $defaultPasswordHash, $studentRoleId]);
-            } else {
-                $pdo->prepare("UPDATE users SET fullName = ?, status = 'active' WHERE id = ?")
-                    ->execute([$fullName, $targetUserId]);
+            $flashMsg = "Đã import thành công {$importCount} sinh viên vào nhà trường!";
+            if ($errorCount > 0) {
+                $flashMsg .= " (Bỏ qua {$errorCount} dòng sai email/họ tên)";
             }
+            header('Location: ' . app_href('/app/school/students.php?msg=imported&msg_text=' . urlencode($flashMsg)));
+            exit;
 
-            // Find or create student_profiles
-            $spStmt = $pdo->prepare("SELECT id FROM student_profiles WHERE userId = ? LIMIT 1");
-            $spStmt->execute([$targetUserId]);
-            $targetSpId = $spStmt->fetchColumn();
-            if (!$targetSpId) {
-                $targetSpId = Uuid::v4();
-                $pdo->prepare("INSERT INTO student_profiles (id, userId, classId, phone, dateOfBirth, studyStatus, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW())")
-                    ->execute([$targetSpId, $targetUserId, $targetClassId, $phone, $dob]);
-            } else {
-                $pdo->prepare("UPDATE student_profiles SET classId = ?, phone = ?, studyStatus = 'active' WHERE id = ?")
-                    ->execute([$targetClassId, $phone, $targetSpId]);
-            }
+        } catch (PDOException $e) {
+            $pdo->rollBack();
 
-            // Find or create student_profile_details
-            $spdStmt = $pdo->prepare("SELECT id FROM student_profile_details WHERE studentId = ? LIMIT 1");
-            $spdStmt->execute([$targetSpId]);
-            if ($spdStmt->fetchColumn()) {
-                $pdo->prepare("UPDATE student_profile_details SET headline = ? WHERE studentId = ?")
-                    ->execute([$major, $targetSpId]);
-            } else {
-                $pdo->prepare("INSERT INTO student_profile_details (id, studentId, headline, bio, createdAt, updatedAt) VALUES (?, ?, ?, ?, NOW(), NOW())")
-                    ->execute([Uuid::v4(), $targetSpId, $major, "Sinh viên chuyên ngành {$major} - {$context['school']['name']}"]);
-            }
-
-            $importCount++;
+            $errorFlash = "Có lỗi xảy ra trong quá trình import. Vui lòng thử lại hoặc export file CSV có lỗi và theo dõi log.";
+            header('Location: ' . app_href('/app/school/students.php?msg=error&msg_text=' . urlencode($errorFlash)));
+            exit;
         }
-
-        $flashMsg = "Đã import thành công {$importCount} sinh viên vào nhà trường!";
-        if ($errorCount > 0) {
-            $flashMsg .= " (Bỏ qua {$errorCount} dòng sai email/họ tên)";
-        }
-        header('Location: ' . app_href('/app/school/students.php?msg=imported&msg_text=' . urlencode($flashMsg)));
-        exit;
     }
 }
 

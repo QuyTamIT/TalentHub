@@ -95,14 +95,8 @@ try {
     $resolvedStudentId = (string) $student['studentId'];
 
     // 3. Save into internship_applications (Status: 'invited')
-    $appCheck = $pdo->prepare("
-        SELECT id, status FROM internship_applications
-        WHERE postId = ? AND studentId = ?
-        ORDER BY updatedAt DESC
-        LIMIT 1
-    ");
-    $appCheck->execute([$postId, $resolvedStudentId]);
-    $existingApp = $appCheck->fetch(PDO::FETCH_ASSOC);
+    // Using atomic INSERT ... ON DUPLICATE KEY UPDATE to prevent race condition
+    $appId = Uuid::v4();
 
     $invitationPrefix = "[LỜI MỜI THỰC TẬP TỪ " . mb_strtoupper($enterpriseName) . "]\n";
     $finalMessage = $invitationPrefix . ($message !== '' ? $message : "Trân trọng mời bạn tham gia ứng tuyển và thực tập cho vị trí {$postTitle} tại {$enterpriseName}.");
@@ -110,43 +104,46 @@ try {
         $finalMessage = mb_substr($finalMessage, 0, 497) . '...';
     }
 
-    if ($existingApp) {
-        $st = (string) $existingApp['status'];
-        if (in_array($st, ['accepted', 'hired', 'interview', 'interviewing', 'reviewing'], true)) {
-            $statusLabel = match($st) {
-                'accepted', 'hired' => 'Đã tiếp nhận thực tập',
-                'interview', 'interviewing' => 'Đang trong quá trình phỏng vấn',
-                'reviewing' => 'Đang được xét duyệt hồ sơ',
-                default => 'Đang xử lý'
-            };
-            http_response_code(409);
-            echo json_encode([
-                'success' => false,
-                'message' => "Sinh viên đã có đơn đang hoạt động ({$statusLabel}) tại vị trí này. Không thể tạo trùng lặp.",
-                'applicationId' => $existingApp['id'],
-                'status' => $st
-            ]);
-            if (!defined('TEST_MODE')) { exit; }
-            return;
-        }
+    $checkExisting = $pdo->prepare("
+        SELECT id, status FROM internship_applications
+        WHERE postId = ? AND studentId = ?
+        ORDER BY updatedAt DESC
+        LIMIT 1
+    ");
+    $checkExisting->execute([$postId, $resolvedStudentId]);
+    $existingApp = $checkExisting->fetch(PDO::FETCH_ASSOC);
 
-        $updApp = $pdo->prepare("
-            UPDATE internship_applications
-            SET status = 'invited',
-                message = ?,
-                updatedAt = NOW(6)
-            WHERE id = ?
-        ");
-        $updApp->execute([$finalMessage, $existingApp['id']]);
-        $appId = $existingApp['id'];
-    } else {
-        $appId = Uuid::v4();
-        $insApp = $pdo->prepare("
-            INSERT INTO internship_applications (id, postId, studentId, status, message, appliedAt, createdAt, updatedAt)
-            VALUES (?, ?, ?, 'invited', ?, NOW(6), NOW(6), NOW(6))
-        ");
-        $insApp->execute([$appId, $postId, $resolvedStudentId, $finalMessage]);
+    $st = $existingApp ? (string) $existingApp['status'] : null;
+    $appIdToUse = $existingApp ? $existingApp['id'] : $appId;
+
+    if ($st && in_array($st, ['accepted', 'hired', 'interview', 'interviewing', 'reviewing'], true)) {
+        $statusLabel = match($st) {
+            'accepted', 'hired' => 'Đã tiếp nhận thực tập',
+            'interview', 'interviewing' => 'Đang trong quá trình phỏng vấn',
+            'reviewing' => 'Đang được xét duyệt hồ sơ',
+            default => 'Đang xử lý'
+        };
+        http_response_code(409);
+        echo json_encode([
+            'success' => false,
+            'message' => "Sinh viên đã có đơn đang hoạt động ({$statusLabel}) tại vị trí này. Không thể tạo trùng lặp.",
+            'applicationId' => $appIdToUse,
+            'status' => $st
+        ]);
+        if (!defined('TEST_MODE')) { exit; }
+        return;
     }
+
+    $insApp = $pdo->prepare("
+        INSERT INTO internship_applications (id, postId, studentId, status, message, appliedAt, createdAt, updatedAt)
+        VALUES (?, ?, ?, 'invited', ?, NOW(6), NOW(6), NOW(6))
+        ON DUPLICATE KEY UPDATE
+            status = 'invited',
+            message = VALUES(message),
+            updatedAt = NOW(6)
+    ");
+    $insApp->execute([$appIdToUse, $postId, $resolvedStudentId, $finalMessage]);
+    $appId = $appIdToUse;
 
     // 4. Save into notifications table for the student (Support re-sending without uq_notifications_user_event duplicate collision)
     $notifId = Uuid::v4();

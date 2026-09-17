@@ -1849,7 +1849,10 @@ UNLOCK TABLES;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_learner_ai_roadmap_task_events_owner_insert` BEFORE INSERT ON `learner_ai_roadmap_task_events` FOR EACH ROW BEGIN
-  IF NOT EXISTS (SELECT 1 FROM learner_ai_roadmap_tasks AS tasks INNER JOIN learner_ai_roadmap_phases AS phases ON phases.id = tasks.phaseId INNER JOIN learner_ai_roadmaps AS roadmaps ON roadmaps.id = phases.roadmapId WHERE tasks.id = NEW.taskId AND roadmaps.studentId = NEW.studentId) THEN
+  IF NOT EXISTS (SELECT 1 FROM learner_ai_roadmap_tasks AS tasks
+  INNER JOIN learner_ai_roadmap_phases AS phases ON phases.id = tasks.phaseId
+  INNER JOIN learner_ai_roadmaps AS roadmaps ON roadmaps.id = phases.roadmapId
+  WHERE tasks.id = NEW.taskId AND roadmaps.studentId = NEW.studentId) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'roadmap task event learner ownership mismatch';
   END IF;
 END */;;
@@ -2864,7 +2867,8 @@ CREATE TABLE `learner_recommendation_input_snapshots` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_learner_recommendation_input_snapshots_student_hash` (`studentId`,`contentHash`),
   UNIQUE KEY `uq_learner_recommendation_input_snapshots_id_student` (`id`,`studentId`),
-  KEY `idx_learner_recommendation_input_snapshots_student_created` (`studentId`,`createdAt`),
+    KEY `idx_learner_recommendation_input_snapshots_student_created` (`studentId`,`createdAt`),
+  KEY `idx_learner_recommendation_input_snapshots_student_task` (`studentId`,`taskId`),
   CONSTRAINT `fk_learner_recommendation_input_snapshots_student` FOREIGN KEY (`studentId`) REFERENCES `student_profiles` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `chk_learner_recommendation_input_snapshots_consent_json` CHECK (json_valid(`consentScopesJson`)),
   CONSTRAINT `chk_learner_recommendation_input_snapshots_payload_json` CHECK (json_valid(`payloadJson`)),

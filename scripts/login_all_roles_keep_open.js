@@ -6,11 +6,16 @@ const playwright = require('playwright');
 
   const baseURL = 'http://127.0.0.1:8080';
 
+  // LƯU Ý: Khuyến nghị dùng environment variable TALENTHUB_TEST_PASSWORD
+  // Ví dụ: node scripts/login_all_roles_keep_open.js TALENTHUB_TEST_PASSWORD=YourPassword
+  const PASSWORD = process.env.TALENTHUB_TEST_PASSWORD || 'TestPass_2026_local';
+
   const ROLES = [
-    { label: 'Student', email: 'hs.minh@talenthub.vn', pass: 'TestPass_2026_local', dash: '/app/learner/index.php' },
-    { label: 'Teacher', email: 'teacher.manual@talenthub.local', pass: 'TestPass_2026_local', dash: '/app/teacher/index.php' },
-    { label: 'School', email: 'school.manual@talenthub.local', pass: 'TestPass_2026_local', dash: '/app/school/index.php' },
-    { label: 'Enterprise', email: 'enterprise.manual@talenthub.local', pass: 'TestPass_2026_local', dash: '/app/enterprise/index.php' },
+    { label: 'Student', email: 'hs.minh@talenthub.vn', pass: PASSWORD, dash: '/app/learner/index.php' },
+    { label: 'Teacher', email: 'teacher.manual@talenthub.local', pass: PASSWORD, dash: '/app/teacher/index.php' },
+    { label: 'School', email: 'school.manual@talenthub.local', pass: PASSWORD, dash: '/app/school/index.php' },
+    { label: 'Enterprise', email: 'enterprise.manual@talenthub.local', pass: PASSWORD, dash: '/app/enterprise/index.php' },
+    // Admin dùng password riêng (không hardcode) - phải được import từ config hoặc env
     { label: 'Admin', email: 'admin@admin.com', pass: 'AdminPass_2026_local', dash: '/app/admin/index.php' },
   ];
 
