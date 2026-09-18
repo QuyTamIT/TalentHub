@@ -43,11 +43,13 @@ if (!function_exists('getInitials')) {
 
 $companyInitials = getInitials($enterprise['name']);
 
+$selectedJobId = trim((string) ($_GET['jobId'] ?? $_GET['job_id'] ?? $_GET['postId'] ?? $_GET['post_id'] ?? ''));
+
 // Dynamic talents listing from database
 $talentsData = ['items' => [], 'total' => 0];
 if ($isVerified && $talentService !== null) {
     try {
-        $talentsData = $talentService->listTalents((string) $user['id']);
+        $talentsData = $talentService->listTalents((string) $user['id'], $selectedJobId !== '' ? ['jobId' => $selectedJobId] : []);
     } catch (\Throwable $e) {
         error_log('Enterprise talents listTalents error: ' . $e->getMessage());
         $talentsData = ['items' => [], 'total' => 0];
@@ -304,7 +306,7 @@ $sidebarNav = [
                                 <select id="enterprise-ai-job-select" class="ent-ai-matcher-card__select" data-enterprise-ai-job>
                                     <option value="">-- Chọn tin tuyển thực tập --</option>
                                     <?php foreach ($activeJobs as $job): ?>
-                                        <option value="<?= htmlspecialchars((string) $job['id']); ?>" data-slots="<?= htmlspecialchars((string) ($job['slots'] ?? '5')); ?>" data-field="<?= htmlspecialchars((string) ($job['field'] ?? '')); ?>"><?= htmlspecialchars((string) $job['title']); ?> (Hạn: <?= htmlspecialchars((string) substr($job['deadline'] ?? '', 0, 10)); ?><?= !empty($job['slots']) ? ' • Chỉ tiêu: ' . (int) $job['slots'] : '' ?>)</option>
+                                        <option value="<?= htmlspecialchars((string) $job['id']); ?>" data-slots="<?= htmlspecialchars((string) ($job['slots'] ?? '5')); ?>" data-field="<?= htmlspecialchars((string) ($job['field'] ?? '')); ?>" <?= ($selectedJobId === (string) $job['id']) ? 'selected' : ''; ?>><?= htmlspecialchars((string) $job['title']); ?> (Hạn: <?= htmlspecialchars((string) substr($job['deadline'] ?? '', 0, 10)); ?><?= !empty($job['slots']) ? ' • Chỉ tiêu: ' . (int) $job['slots'] : '' ?>)</option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
@@ -567,7 +569,7 @@ $sidebarNav = [
                                         $initials = mb_strtoupper(mb_substr($nameWords[0], 0, 1, 'UTF-8') . mb_substr($lastWord, 0, 1, 'UTF-8'));
                                     }
                                     $tId = htmlspecialchars((string) ($talent['studentId'] ?? ''));
-                                    $detailUrl = app_href('/app/enterprise/talents/detail.php?id=' . urlencode($tId));
+                                    $detailUrl = app_href('/app/enterprise/talents/detail.php?id=' . urlencode($tId) . ($selectedJobId !== '' ? ('&postId=' . urlencode($selectedJobId)) : ''));
                                     $school = htmlspecialchars((string) ($talent['schoolName'] ?? 'Nhà trường'));
                                     $classYear = htmlspecialchars((string) ($talent['className'] ?? ''));
                                     $major = htmlspecialchars((string) ($talent['headline'] ?? ''));
@@ -630,7 +632,20 @@ $sidebarNav = [
                                         <div class="ent-meta-item__divider"></div>
                                         <div class="ent-meta-item">
                                             <span class="ent-meta-item__label">Trạng thái:</span>
-                                            <span class="val-status badge-ready-now">Sẵn sàng thực tập</span>
+                                            <?php
+                                                $st = strtolower((string) ($talent['internship_status'] ?? $talent['internshipStatus'] ?? 'ready_now'));
+                                                $stLabel = $talent['internship_status_label'] ?? $talent['internshipStatusLabel'] ?? 'Sẵn sàng thực tập';
+                                                $badgeClass = match($st) {
+                                                    'accepted', 'approved', 'hired' => 'badge-accepted',
+                                                    'submitted', 'reviewing' => 'badge-pending',
+                                                    'interview', 'interviewing' => 'badge-interviewing',
+                                                    'invited' => 'badge-invited',
+                                                    'ready_later' => 'badge-ready-later',
+                                                    'not_ready' => 'badge-not-ready',
+                                                    default => 'badge-ready-now',
+                                                };
+                                            ?>
+                                            <span class="val-status <?= $badgeClass ?>"><?= htmlspecialchars($stLabel) ?></span>
                                         </div>
                                         <?php if ($inferredCount > 0): ?>
                                             <div class="ent-meta-item__divider"></div>
@@ -674,9 +689,15 @@ $sidebarNav = [
                                             <a href="<?= $detailUrl ?>" class="btn btn-secondary btn-sm">
                                                 Xem hồ sơ
                                             </a>
-                                            <a href="<?= $detailUrl ?>" class="btn btn-primary btn-sm">
-                                                <?= !empty($talent['hasPendingContactRequest']) ? 'Đã yêu cầu' : 'Mời ứng tuyển' ?>
-                                            </a>
+                                            <?php if ($talent['canInvite'] ?? $talent['can_invite'] ?? true): ?>
+                                                <a href="<?= $detailUrl ?>" class="btn btn-primary btn-sm">
+                                                    <?= !empty($talent['hasPendingContactRequest']) ? 'Đã yêu cầu' : 'Mời ứng tuyển' ?>
+                                                </a>
+                                            <?php else: ?>
+                                                <button type="button" class="btn btn-secondary btn-sm" disabled style="opacity: 0.7; cursor: not-allowed;">
+                                                    <?= htmlspecialchars($talent['actionLabel'] ?? $talent['action_label'] ?? 'Đã tiếp nhận') ?>
+                                                </button>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                 </article>
@@ -729,6 +750,7 @@ $sidebarNav = [
             'sectorType' => $sectorType,
             'isEconomicSector' => $isEconomicSector,
             'defaultMajorField' => $defaultMajorField,
+            'selectedJobId' => $selectedJobId,
         ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
     </script>
 
@@ -786,6 +808,6 @@ $sidebarNav = [
 
     <!-- JavaScript Assets -->
     <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
-    <script src="<?= app_href('/assets/js/talent-search.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/talent-search.js'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/talent-search.js'); ?>"></script>
 </body>
 </html>

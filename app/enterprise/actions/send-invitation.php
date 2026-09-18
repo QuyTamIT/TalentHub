@@ -97,11 +97,11 @@ try {
     // 3. Save into internship_applications (Status: 'invited')
     $appCheck = $pdo->prepare("
         SELECT id, status FROM internship_applications
-        WHERE postId = ? AND studentId = ?
+        WHERE postId = ? AND (studentId = ? OR studentId = ?)
         ORDER BY updatedAt DESC
         LIMIT 1
     ");
-    $appCheck->execute([$postId, $resolvedStudentId]);
+    $appCheck->execute([$postId, $resolvedStudentId, $studentUserId]);
     $existingApp = $appCheck->fetch(PDO::FETCH_ASSOC);
 
     $invitationPrefix = "[LỜI MỜI THỰC TẬP TỪ " . mb_strtoupper($enterpriseName) . "]\n";
@@ -111,18 +111,19 @@ try {
     }
 
     if ($existingApp) {
-        $st = (string) $existingApp['status'];
-        if (in_array($st, ['accepted', 'hired', 'interview', 'interviewing', 'reviewing'], true)) {
+        $st = strtolower(trim((string) $existingApp['status']));
+        if (in_array($st, ['accepted', 'approved', 'hired', 'interview', 'interviewing', 'reviewing', 'submitted', 'invited'], true)) {
             $statusLabel = match($st) {
-                'accepted', 'hired' => 'Đã tiếp nhận thực tập',
+                'accepted', 'approved', 'hired' => 'Đã tiếp nhận thực tập (Đã nhận)',
                 'interview', 'interviewing' => 'Đang trong quá trình phỏng vấn',
-                'reviewing' => 'Đang được xét duyệt hồ sơ',
+                'reviewing', 'submitted' => 'Đang được xét duyệt hồ sơ',
+                'invited' => 'Đã được gửi lời mời trước đó',
                 default => 'Đang xử lý'
             };
             http_response_code(409);
             echo json_encode([
                 'success' => false,
-                'message' => "Sinh viên đã có đơn đang hoạt động ({$statusLabel}) tại vị trí này. Không thể tạo trùng lặp.",
+                'message' => "Ứng viên đã có hồ sơ / đơn ứng tuyển ({$statusLabel}) tại vị trí này. Không thể tạo trùng lặp.",
                 'applicationId' => $existingApp['id'],
                 'status' => $st
             ]);

@@ -25,6 +25,7 @@ function initTalentSearchModule() {
         sectorType: 'tech',
         isEconomicSector: false,
         defaultMajorField: 'Công nghệ thông tin',
+        selectedJobId: '',
     };
 
     const bootElement = document.getElementById('enterprise-session-boot');
@@ -185,6 +186,27 @@ function initTalentSearchModule() {
     const aiFreshnessEl = document.querySelector('[data-enterprise-ai-freshness]');
     const aiProvenanceEl = document.querySelector('[data-enterprise-ai-provenance]');
 
+    // 2.5 Job Selection Sync & Restoration
+    const initialUrlParams = new URLSearchParams(window.location.search);
+    let currentJobId = String(sessionBoot.selectedJobId || initialUrlParams.get('jobId') || initialUrlParams.get('postId') || (aiJobSelect ? aiJobSelect.value : '') || sessionStorage.getItem('ent_selected_job_id') || '').trim();
+
+    if (aiJobSelect && currentJobId) {
+        aiJobSelect.value = currentJobId;
+        // Validate the option actually exists in the dropdown; if not, the job may have
+        // expired/been removed — clear the stale sessionStorage to avoid ghost state.
+        if (aiJobSelect.value !== currentJobId) {
+            currentJobId = '';
+            sessionStorage.removeItem('ent_selected_job_id');
+        } else {
+            sessionStorage.setItem('ent_selected_job_id', currentJobId);
+            if (!initialUrlParams.has('jobId') && !initialUrlParams.has('postId')) {
+                const u = new URL(window.location.href);
+                u.searchParams.set('jobId', currentJobId);
+                window.history.replaceState(null, '', u.toString());
+            }
+        }
+    }
+
     // 3. Normalization Helper
     function normalizeTalent(raw) {
         const id = String(raw.studentId || raw.student_id || raw.id || '');
@@ -211,6 +233,10 @@ function initTalentSearchModule() {
         const matchScore = (rawMatchScore !== null && rawMatchScore !== undefined && rawMatchScore !== '') ? Number(rawMatchScore) : null;
         const isAiMatched = Boolean(raw.is_ai_matched || (matchScore !== null));
 
+        const rawEvalScore = raw.evaluation_score !== undefined ? raw.evaluation_score : (raw.evaluationScore !== undefined ? raw.evaluationScore : null);
+        const parsedEvalScore = (rawEvalScore !== null && rawEvalScore !== undefined && rawEvalScore !== '') ? Number(rawEvalScore) : null;
+        const evalScore = (parsedEvalScore !== null && Number.isFinite(parsedEvalScore)) ? parsedEvalScore : null;
+
         return {
             id: id,
             studentId: id,
@@ -234,8 +260,14 @@ function initTalentSearchModule() {
             badges: Array.isArray(raw.badges) ? raw.badges : [],
             is_ai_matched: isAiMatched,
             ai_rank: raw.ai_rank || null,
-            internship_status: raw.internship_status || 'ready_now',
-            internship_status_label: raw.internship_status_label || 'Sẵn sàng thực tập',
+            internship_status: raw.internship_status || raw.internshipStatus || 'ready_now',
+            internship_status_label: raw.internship_status_label || raw.internshipStatusLabel || 'Sẵn sàng thực tập',
+            evaluation_score: evalScore,
+            evaluation_status: raw.evaluation_status || raw.evaluationStatus || 'unapplied',
+            evaluation_label: raw.evaluation_label || raw.evaluationLabel || 'Chưa chấm điểm',
+            has_applied: Boolean(raw.has_applied || raw.hasApplied),
+            canInvite: raw.canInvite !== false && raw.can_invite !== false,
+            actionLabel: raw.actionLabel || raw.action_label || 'Mời ứng tuyển',
             saved: Boolean(raw.saved),
             contactAllowed: Boolean(raw.contactAllowed),
             hasPendingContactRequest: Boolean(raw.hasPendingContactRequest),
@@ -280,6 +312,9 @@ function initTalentSearchModule() {
         if (selectedSkillsSet.size > 0) {
             params.append('skills', Array.from(selectedSkillsSet).join(','));
         }
+        const selectedJobId = (aiJobSelect ? aiJobSelect.value.trim() : '') || currentJobId || (new URLSearchParams(window.location.search).get('jobId') || new URLSearchParams(window.location.search).get('postId') || '');
+        if (selectedJobId) params.append('jobId', selectedJobId);
+
         if (currentSortOption === 'latest') params.append('sort', 'newest');
         else if (currentSortOption === 'score_desc' || currentSortOption === 'matching') params.append('sort', 'score_desc');
         else if (currentSortOption === 'exp_desc') params.append('sort', 'exp_desc');
@@ -292,7 +327,7 @@ function initTalentSearchModule() {
             if (res.ok) {
                 const data = await res.json();
                 const items = data.data?.items || data.items || [];
-                if (Array.isArray(items) && items.length > 0) {
+                if (Array.isArray(items)) {
                     allTalents = items.map(normalizeTalent);
                 }
             }
@@ -330,7 +365,14 @@ function initTalentSearchModule() {
     }
 
     function getFilteredTalents() {
+        const activeJobId = (aiJobSelect ? aiJobSelect.value.trim() : '') || currentJobId || (sessionBoot.selectedJobId || '') || (new URLSearchParams(window.location.search).get('jobId') || '');
         return allTalents.filter(talent => {
+            // Application eligibility rule: When a specific internship is selected,
+            // candidates who already have an application/accepted status for this internship must NOT appear in the candidate pool.
+            if (activeJobId && (talent.internship_status === 'accepted' || talent.has_applied)) {
+                return false;
+            }
+
             // Text Search Query
             if (currentSearchQuery) {
                 const q = currentSearchQuery.toLowerCase();
@@ -558,7 +600,9 @@ function initTalentSearchModule() {
 
     function resolveCandidateDetailUrl(id) {
         const basePrefix = window.location.pathname.includes('/TalentHub') ? '/TalentHub' : '';
-        return `${basePrefix}/app/enterprise/talents/detail.php?id=${encodeURIComponent(id)}`;
+        const selectedJobId = (aiJobSelect ? aiJobSelect.value.trim() : '') || (new URLSearchParams(window.location.search).get('jobId') || new URLSearchParams(window.location.search).get('postId') || '');
+        const jobParam = selectedJobId ? `&postId=${encodeURIComponent(selectedJobId)}` : '';
+        return `${basePrefix}/app/enterprise/talents/detail.php?id=${encodeURIComponent(id)}${jobParam}`;
     }
 
     function renderCards(talents) {
@@ -1286,20 +1330,51 @@ function initTalentSearchModule() {
         });
     }
 
-    // Reset AI Matching Mode
+    // Synchronize and filter when selecting a different internship post
+    if (aiJobSelect) {
+        aiJobSelect.addEventListener('change', () => {
+            const val = aiJobSelect.value.trim();
+            const url = new URL(window.location.href);
+            if (val) {
+                url.searchParams.set('jobId', val);
+                sessionStorage.setItem('ent_selected_job_id', val);
+            } else {
+                url.searchParams.delete('jobId');
+                url.searchParams.delete('postId');
+                sessionStorage.removeItem('ent_selected_job_id');
+            }
+            window.history.replaceState(null, '', url.toString());
+
+            // If AI mode was active, exit AI view since job selection changed
+            if (isAiModeActive) {
+                isAiModeActive = false;
+                activeAiJobTitle = '';
+                const bannerEl = document.getElementById('ent-ai-active-banner');
+                if (bannerEl) bannerEl.style.display = 'none';
+            }
+            currentPage = 1;
+            fetchFromApi();
+        });
+    }
+
+    // Reset AI Matching Mode — exit AI ranking view but KEEP the selected internship.
+    // The jobId must stay in dropdown/sessionStorage/URL so the backend's application
+    // eligibility filter (NOT EXISTS) continues to exclude candidates who already applied.
     const aiResetBtn = document.getElementById('ent-ai-reset-btn');
     if (aiResetBtn) {
         aiResetBtn.addEventListener('click', () => {
             isAiModeActive = false;
             activeAiJobTitle = '';
-            allTalents = [...originalTalents];
+
             const bannerEl = document.getElementById('ent-ai-active-banner');
             if (bannerEl) bannerEl.style.display = 'none';
-            if (aiJobSelect) aiJobSelect.value = '';
             currentPage = 1;
-            updateAndRender();
+            fetchFromApi();
             scrollToTopCards();
-            showToast('Đã chuyển về danh sách tất cả nhân tài.');
+            const keepJobId = aiJobSelect ? aiJobSelect.value.trim() : '';
+            showToast(keepJobId
+                ? 'Đã tắt xếp hạng AI. Đang hiển thị danh sách nhân tài cho vị trí đang chọn.'
+                : 'Đã chuyển về danh sách tất cả nhân tài.');
         });
     }
 
@@ -1313,6 +1388,13 @@ function initTalentSearchModule() {
         }
     }
 
-    // Initial render
-    updateAndRender();
+    // Initial render: If a job was restored from client storage/URL but initial server payload was unconstrained,
+    // immediately re-fetch to ensure identical eligibility rules.
+    // Clear stale server-rendered cards first to prevent flash of ineligible candidates.
+    if (currentJobId && !sessionBoot.selectedJobId) {
+        if (cardsContainer) cardsContainer.replaceChildren();
+        fetchFromApi();
+    } else {
+        updateAndRender();
+    }
 }

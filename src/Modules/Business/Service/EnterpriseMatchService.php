@@ -60,7 +60,7 @@ final class EnterpriseMatchService
             $reqSkillIds = $skillsStmt->fetchAll(\PDO::FETCH_COLUMN) ?: [];
         } catch (\Throwable) {}
 
-        $candidates = $this->repository->matchCandidates($enterpriseId, $reqSkillIds);
+        $candidates = $this->repository->matchCandidates($enterpriseId, $reqSkillIds, $postId);
         $results = [];
 
         foreach ($candidates as $cand) {
@@ -120,7 +120,15 @@ final class EnterpriseMatchService
         ?int $limit = null
     ): array {
         $normalized = $this->normalizeJobRequirements($job);
-        $candidates = $this->repository->matchCandidates($enterpriseId, $normalized['required_skills']);
+        $jobId = trim((string) ($normalized['id'] ?? $normalized['jobId'] ?? $normalized['postId'] ?? ''));
+        $candidates = $this->repository->matchCandidates($enterpriseId, $normalized['required_skills'], $jobId !== '' ? $jobId : null);
+        if ($jobId !== '') {
+            $candidates = array_values(array_filter($candidates, function (array $cand) use ($enterpriseId, $jobId): bool {
+                $studentId = (string) ($cand['student_id'] ?? $cand['id'] ?? '');
+                $userId = (string) ($cand['user_id'] ?? '');
+                return !$this->repository->hasApplicationForJob($enterpriseId, $jobId, $studentId, $userId);
+            }));
+        }
         $generatedAt = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('c');
 
         if ($candidates === []) {
@@ -1225,6 +1233,14 @@ final class EnterpriseMatchService
                 'skill_gaps' => $skillGaps,
                 'reason_codes' => array_values(array_unique($reasonCodes)),
                 'badges' => (array) ($candidate['badges'] ?? []),
+                'can_invite' => $candidate['can_invite'] ?? true,
+                'canInvite' => $candidate['canInvite'] ?? true,
+                'internship_status' => $candidate['internship_status'] ?? 'ready_now',
+                'internshipStatus' => $candidate['internshipStatus'] ?? 'ready_now',
+                'internship_status_label' => $candidate['internship_status_label'] ?? 'Sẵn sàng thực tập',
+                'internshipStatusLabel' => $candidate['internshipStatusLabel'] ?? 'Sẵn sàng thực tập',
+                'action_label' => $candidate['action_label'] ?? 'Mời ứng tuyển',
+                'actionLabel' => $candidate['actionLabel'] ?? 'Mời ứng tuyển',
                 'evidence' => $evidence,
             ];
         }
@@ -1340,6 +1356,15 @@ final class EnterpriseMatchService
                 if (empty($item['recommendation_reason'])) {
                     $item['recommendation_reason'] = 'Hồ sơ phù hợp dựa trên kỹ năng và điểm đánh giá năng lực.';
                 }
+
+                if (isset($cand['can_invite'])) $item['can_invite'] = $cand['can_invite'];
+                if (isset($cand['canInvite'])) $item['canInvite'] = $cand['canInvite'];
+                if (isset($cand['internship_status'])) $item['internship_status'] = $cand['internship_status'];
+                if (isset($cand['internshipStatus'])) $item['internshipStatus'] = $cand['internshipStatus'];
+                if (isset($cand['internship_status_label'])) $item['internship_status_label'] = $cand['internship_status_label'];
+                if (isset($cand['internshipStatusLabel'])) $item['internshipStatusLabel'] = $cand['internshipStatusLabel'];
+                if (isset($cand['action_label'])) $item['action_label'] = $cand['action_label'];
+                if (isset($cand['actionLabel'])) $item['actionLabel'] = $cand['actionLabel'];
             }
             $enriched[] = $item;
         }

@@ -2729,6 +2729,54 @@ body.ent-sidebar-open {
     background-color: var(--color-success);
 }
 
+.badge-accepted {
+    color: #059669;
+}
+
+.badge-accepted::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #059669;
+}
+
+.badge-pending {
+    color: #d97706;
+}
+
+.badge-pending::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #d97706;
+}
+
+.badge-interviewing {
+    color: #2563eb;
+}
+
+.badge-interviewing::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #2563eb;
+}
+
+.badge-invited {
+    color: #7c3aed;
+}
+
+.badge-invited::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #7c3aed;
+}
+
 .badge-ready-later {
     color: var(--color-warning);
 }

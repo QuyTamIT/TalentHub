@@ -36,12 +36,13 @@ final class EnterpriseTalentService
         string $userId,
         string $studentId,
         string $requestId = 'enterprise-talent-detail',
-        ?string $ipAddress = null
+        ?string $ipAddress = null,
+        ?string $jobId = null
     ): array
     {
         $studentId = $this->uuid($studentId, 'studentId');
         $enterprise = $this->repository->enterpriseForUser($userId);
-        $talent = $this->repository->getTalentDetail($enterprise['id'], $studentId);
+        $talent = $this->repository->getTalentDetail($enterprise['id'], $studentId, $jobId);
 
         if ($talent === null) {
             throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hồ sơ ứng viên hoặc ứng viên chưa cấp quyền truy cập.');

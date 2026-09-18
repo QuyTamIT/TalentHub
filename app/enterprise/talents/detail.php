@@ -67,6 +67,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (isset($_POST['postId']) ||
 }
 
 $talentId = isset($_GET['id']) ? trim((string)$_GET['id']) : '';
+$selectedPostId = isset($_GET['postId']) ? trim((string)$_GET['postId']) : (isset($_GET['jobId']) ? trim((string)$_GET['jobId']) : '');
 $rawTalent = null;
 $talent = null;
 
@@ -76,7 +77,8 @@ if ($talentId !== '' && $isVerified && $talentService !== null) {
             (string) $user['id'],
             $talentId,
             RequestId::generate(),
-            isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null
+            isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
+            $selectedPostId !== '' ? $selectedPostId : null
         );
     } catch (\Throwable $e) {
         error_log('Enterprise getTalent error: ' . $e->getMessage());
@@ -184,7 +186,10 @@ if ($rawTalent !== null) {
         'class_year' => !empty(trim((string)($rawTalent['className'] ?? ''))) ? trim((string)$rawTalent['className']) : 'Chưa cập nhật',
         'education_level' => !empty(trim((string)($rawTalent['studyStatus'] ?? ''))) ? trim((string)$rawTalent['studyStatus']) : 'Sinh viên',
         'major_field' => !empty(trim((string)($rawTalent['headline'] ?? ''))) ? trim((string)$rawTalent['headline']) : 'Chưa cập nhật',
-        'internship_status_label' => 'Sẵn sàng thực tập',
+        'internship_status_label' => $rawTalent['internship_status_label'] ?? $rawTalent['internshipStatusLabel'] ?? 'Sẵn sàng thực tập',
+        'internship_status' => $rawTalent['internship_status'] ?? $rawTalent['internshipStatus'] ?? 'ready_now',
+        'can_invite' => $rawTalent['can_invite'] ?? $rawTalent['canInvite'] ?? true,
+        'action_label' => $rawTalent['action_label'] ?? $rawTalent['actionLabel'] ?? 'Mời ứng tuyển',
         'bio' => trim((string)($rawTalent['bio'] ?? '')),
         'location' => !empty(trim((string)($rawTalent['location'] ?? ''))) ? trim((string)$rawTalent['location']) : 'Chưa cập nhật',
         'detailed_skills' => $skillsList,
@@ -209,23 +214,58 @@ if (!empty($enterprise['id'])) {
     $activePosts = $pStmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Check if this enterprise has already invited this candidate
+// Check if this enterprise has already invited or accepted this candidate
 $hasInvited = false;
 $invitedPostTitle = '';
 if (!empty($enterprise['id']) && !empty($talent['id'])) {
-    $invCheckStmt = $pdo->prepare("
-        SELECT ia.id, ia.postId, ia.status, ip.title as postTitle
-        FROM internship_applications ia
-        JOIN internship_posts ip ON ip.id = ia.postId
-        WHERE ip.enterpriseId = ? AND (ia.studentId = ? OR ia.studentId = ?) AND ia.status = 'invited'
-        ORDER BY ia.updatedAt DESC
-        LIMIT 1
-    ");
-    $invCheckStmt->execute([$enterprise['id'], $talent['id'], $talent['userId'] ?? '']);
-    $existingInvite = $invCheckStmt->fetch(PDO::FETCH_ASSOC);
-    if ($existingInvite) {
-        $hasInvited = true;
-        $invitedPostTitle = (string) $existingInvite['postTitle'];
+    if ($selectedPostId !== '') {
+        $invCheckStmt = $pdo->prepare("
+            SELECT ia.id, ia.postId, ia.status, ip.title as postTitle
+            FROM internship_applications ia
+            JOIN internship_posts ip ON ip.id = ia.postId
+            WHERE ip.enterpriseId = ? AND ia.postId = ? AND (ia.studentId = ? OR ia.studentId = ?)
+            ORDER BY ia.updatedAt DESC
+            LIMIT 1
+        ");
+        $invCheckStmt->execute([$enterprise['id'], $selectedPostId, $talent['id'], $talent['userId'] ?? '']);
+        $existingApp = $invCheckStmt->fetch(PDO::FETCH_ASSOC);
+        if ($existingApp) {
+            $st = strtolower((string)$existingApp['status']);
+            if (in_array($st, ['accepted', 'approved', 'hired'], true)) {
+                $talent['can_invite'] = false;
+                $talent['internship_status_label'] = 'Đã nhận';
+                $talent['action_label'] = 'Đã tiếp nhận';
+            } elseif (in_array($st, ['submitted', 'reviewing'], true)) {
+                $talent['can_invite'] = false;
+                $talent['internship_status_label'] = 'Đang xét duyệt';
+                $talent['action_label'] = 'Đang xét duyệt';
+            } elseif (in_array($st, ['interview', 'interviewing'], true)) {
+                $talent['can_invite'] = false;
+                $talent['internship_status_label'] = 'Đang phỏng vấn';
+                $talent['action_label'] = 'Đang phỏng vấn';
+            } elseif ($st === 'invited') {
+                $hasInvited = true;
+                $invitedPostTitle = (string) $existingApp['postTitle'];
+                $talent['can_invite'] = false;
+                $talent['internship_status_label'] = 'Đã mời ứng tuyển';
+                $talent['action_label'] = 'Đã gửi lời mời';
+            }
+        }
+    } else {
+        $invCheckStmt = $pdo->prepare("
+            SELECT ia.id, ia.postId, ia.status, ip.title as postTitle
+            FROM internship_applications ia
+            JOIN internship_posts ip ON ip.id = ia.postId
+            WHERE ip.enterpriseId = ? AND (ia.studentId = ? OR ia.studentId = ?) AND ia.status = 'invited'
+            ORDER BY ia.updatedAt DESC
+            LIMIT 1
+        ");
+        $invCheckStmt->execute([$enterprise['id'], $talent['id'], $talent['userId'] ?? '']);
+        $existingInvite = $invCheckStmt->fetch(PDO::FETCH_ASSOC);
+        if ($existingInvite) {
+            $hasInvited = true;
+            $invitedPostTitle = (string) $existingInvite['postTitle'];
+        }
     }
 }
 
@@ -412,19 +452,25 @@ $sidebarNav = [
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
                                     <span>Liên hệ</span>
                                 </button>
-                                <button type="button"
-                                        class="btn <?= $hasInvited ? 'btn-success' : 'btn-primary'; ?> ent-btn-hero"
-                                        id="detail-invite-btn"
-                                        onclick="openInviteModal()"
-                                        <?= $hasInvited ? 'style="background: #059669; border-color: #059669;"' : ''; ?>>
-                                    <?php if ($hasInvited): ?>
-                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                        <span>Đã gửi lời mời</span>
-                                    <?php else: ?>
-                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                                        <span>Mời thực tập</span>
-                                    <?php endif; ?>
-                                </button>
+                                <?php if ($talent['can_invite'] ?? true): ?>
+                                    <button type="button"
+                                            class="btn <?= $hasInvited ? 'btn-success' : 'btn-primary'; ?> ent-btn-hero"
+                                            id="detail-invite-btn"
+                                            onclick="openInviteModal()"
+                                            <?= $hasInvited ? 'style="background: #059669; border-color: #059669;"' : ''; ?>>
+                                        <?php if ($hasInvited): ?>
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                            <span>Đã gửi lời mời</span>
+                                        <?php else: ?>
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                            <span>Mời thực tập</span>
+                                        <?php endif; ?>
+                                    </button>
+                                <?php else: ?>
+                                    <button type="button" class="btn btn-secondary ent-btn-hero" disabled style="opacity: 0.7; cursor: not-allowed;">
+                                        <span><?= htmlspecialchars($talent['action_label'] ?? 'Đã tiếp nhận'); ?></span>
+                                    </button>
+                                <?php endif; ?>
                             </div>
                         </div>
 
