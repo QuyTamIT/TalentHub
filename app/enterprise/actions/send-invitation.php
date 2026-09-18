@@ -110,13 +110,12 @@ try {
         $finalMessage = mb_substr($finalMessage, 0, 497) . '...';
     }
 
-    if ($existingApp) {
+        if ($existingApp) {
         $st = (string) $existingApp['status'];
-        if (in_array($st, ['accepted', 'hired', 'interview', 'interviewing', 'reviewing'], true)) {
+        if (in_array($st, ['accepted', 'interview', 'reviewing'], true)) {
             $statusLabel = match($st) {
-                'accepted', 'hired' => 'Đã tiếp nhận thực tập',
-                'interview', 'interviewing' => 'Đang trong quá trình phỏng vấn',
-                'reviewing' => 'Đang được xét duyệt hồ sơ',
+                'accepted' => 'Đã tiếp nhận thực tập',
+                'interview', 'reviewing' => 'Đang trong quá trình phỏng vấn / xét duyệt hồ sơ',
                 default => 'Đang xử lý'
             };
             http_response_code(409);

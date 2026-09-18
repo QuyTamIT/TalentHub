@@ -239,6 +239,7 @@ function initTalentSearchModule() {
             saved: Boolean(raw.saved),
             contactAllowed: Boolean(raw.contactAllowed),
             hasPendingContactRequest: Boolean(raw.hasPendingContactRequest),
+            applicationStatus: (raw.applicationStatus || raw.applicant_status || 'not_applied'),
             updated_at: raw.grantedAt || raw.updated_at || new Date().toISOString(),
         };
     }
@@ -746,6 +747,44 @@ function initTalentSearchModule() {
                 metaStrip.appendChild(metaItemProj);
             }
 
+            // Add application status badge
+            const applicationStatus = talent.applicationStatus || 'not_applied';
+            if (applicationStatus !== 'not_applied' || talent.hasPendingContactRequest) {
+                const div3 = document.createElement('div');
+                div3.className = 'ent-meta-item__divider';
+
+                const metaItem4 = document.createElement('div');
+                metaItem4.className = 'ent-meta-item';
+
+                const mLabel4 = document.createElement('span');
+                mLabel4.className = 'ent-meta-item__label';
+
+                const mVal4 = document.createElement('span');
+
+                if (applicationStatus === 'accepted') {
+                    mLabel4.textContent = 'Trạng thái ứng tuyển:';
+                    mVal4.className = 'badge badge-success';
+                    mVal4.textContent = 'Đã tiếp nhận';
+                } else if (applicationStatus === 'rejected') {
+                    mLabel4.textContent = 'Trạng thái ứng tuyển:';
+                    mVal4.className = 'badge badge-danger';
+                    mVal4.textContent = 'Đã từ chối';
+                } else if (applicationStatus === 'reviewing') {
+                    mLabel4.textContent = 'Quá trình ứng tuyển:';
+                    mVal4.className = 'badge badge-warning';
+                    mVal4.textContent = 'Đang xét duyệt';
+                } else if (talent.hasPendingContactRequest) {
+                    mLabel4.textContent = 'Trạng thái:';
+                    mVal4.className = 'badge badge-info';
+                    mVal4.textContent = 'Đang xử lý';
+                }
+
+                metaItem4.appendChild(mLabel4);
+                metaItem4.appendChild(mVal4);
+                metaStrip.appendChild(div3);
+                metaStrip.appendChild(metaItem4);
+            }
+
             if (Array.isArray(talent.badges) && talent.badges.length > 0) {
                 const div2 = document.createElement('div');
                 div2.className = 'ent-meta-item__divider';
@@ -820,6 +859,35 @@ function initTalentSearchModule() {
             privSpan.textContent = talent.contactAllowed ? 'Đã có quyền liên hệ' : 'Hồ sơ có consent';
             privNote.appendChild(privSpan);
 
+            // Check application status and determine button state
+            const applicationStatus = talent.applicationStatus || 'not_applied';
+
+            let buttonText = 'Mời ứng tuyển';
+            let buttonClass = 'btn btn-primary btn-sm';
+            let buttonDisabled = false;
+
+            if (applicationStatus === 'accepted') {
+                buttonText = 'Đã tiếp nhận';
+                buttonClass = 'btn btn-secondary btn-sm';
+                buttonDisabled = true;
+            } else if (applicationStatus === 'rejected') {
+                buttonText = 'Đã từ chối';
+                buttonClass = 'btn btn-secondary btn-sm';
+                buttonDisabled = true;
+            } else if (applicationStatus === 'reviewing') {
+                buttonText = 'Đang xét duyệt';
+                buttonClass = 'btn btn-secondary btn-sm';
+                buttonDisabled = true;
+            } else if (applicationStatus === 'not_applied') {
+                buttonText = 'Mời ứng tuyển';
+                buttonClass = 'btn btn-primary btn-sm';
+                buttonDisabled = false;
+            } else if (talent.hasPendingContactRequest) {
+                buttonText = 'Đã yêu cầu';
+                buttonClass = 'btn btn-primary btn-sm';
+                buttonDisabled = true;
+            }
+
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'ent-talent-card-item__actions';
 
@@ -830,8 +898,9 @@ function initTalentSearchModule() {
 
             const contactLink = document.createElement('a');
             contactLink.href = resolveCandidateDetailUrl(talent.id);
-            contactLink.className = 'btn btn-primary btn-sm';
-            contactLink.textContent = talent.hasPendingContactRequest ? 'Đã yêu cầu' : 'Mời ứng tuyển';
+            contactLink.className = `${buttonClass} btn-sm`;
+            contactLink.textContent = buttonText;
+            contactLink.disabled = buttonDisabled;
 
             actionsDiv.appendChild(detailLink);
             actionsDiv.appendChild(contactLink);

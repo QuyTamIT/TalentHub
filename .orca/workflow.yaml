@@ -1,0 +1,50 @@
+version: "1.0"
+name: "Gemini-DualCode-Pipeline"
+description: "Workflow tự động hóa 3 agent: Gemini lập kế hoạch -> 2 Agent Code code song song -> Gemini review"
+
+# Cấu hình chung cho toàn bộ automation
+settings:
+  permission_mode: "acceptEdits" # Tự động duyệt chỉnh sửa để không bị kẹt agent
+  isolation: "worktree"          # Chạy trong các git worktree độc lập tránh xung đột file
+
+stages:
+  # BƯỚC 1: Gemini phân tích yêu cầu và lập kế hoạch kỹ thuật
+  - name: "architect-planning"
+    agent: "gemini-cli"
+    prompt: |
+      Bạn là Tech Lead. Hãy đọc toàn bộ cấu trúc dự án hiện tại và nhiệm vụ được giao. 
+      Hãy phân rã công việc thành 2 phần độc lập rõ ràng:
+      - Phần A: Dành cho Agent Code 1 (Ví dụ: Backend/API/Database).
+      - Phần B: Dành cho Agent Code 2 (Ví dụ: Frontend/UI/Component).
+      Lưu kế hoạch chi tiết này vào file `.orca/task-plan.json` để 2 agent đọc và thực hiện.
+
+  # BƯỚC 2: Chạy song song 2 Agent Code dựa trên bản kế hoạch
+  - name: "parallel-coding"
+    mode: "parallel" # Chạy đồng thời các agent trong danh sách dưới
+    tasks:
+      - id: "agent-code-1"
+        agent: "claude-code" # Hoặc open-claude CLI tương ứng
+        worktree_branch: "feature/backend-work"
+        prompt: |
+          Hãy đọc file `.orca/task-plan.json`. 
+          Tập trung thực hiện hoàn toàn phần nhiệm vụ (Phần A) đã được phân công cho bạn. 
+          Không chạm vào các file của phần B. Commit code khi hoàn tất.
+
+      - id: "agent-code-2"
+        agent: "claude-code"
+        worktree_branch: "feature/frontend-work"
+        prompt: |
+          Hãy đọc file `.orca/task-plan.json`. 
+          Tập trung thực hiện hoàn toàn phần nhiệm vụ (Phần B) đã được phân công cho bạn. 
+          Không chạm vào các file của phần A. Commit code khi hoàn tất.
+
+  # BƯỚC 3: Gemini kiểm tra, review toàn bộ code sau khi hợp nhất (Merge)
+  - name: "gemini-code-review"
+    agent: "gemini-cli"
+    depends_on: ["parallel-coding"]
+    prompt: |
+      Toàn bộ code từ 2 nhánh đã được hoàn thành. 
+      Hãy chạy lệnh kiểm tra git diff tổng hợp, review toàn bộ logic xem giữa Backend và Frontend có khớp nhau không, 
+      có lỗi logic hay lỗ hổng nào không. Đưa ra báo cáo và tự động sửa các lỗi nhỏ (nếu có).
+
+

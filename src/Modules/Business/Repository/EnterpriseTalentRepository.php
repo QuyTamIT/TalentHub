@@ -796,7 +796,7 @@ final class EnterpriseTalentRepository
         $publishedScoreSql = $this->publishedAssessmentScoreSql();
 
         $sql = <<<SQL
-            SELECT
+                        SELECT
                 student.id AS studentId,
                 u.id AS userId,
                 u.fullName AS displayName,
@@ -835,6 +835,10 @@ final class EnterpriseTalentRepository
             LEFT JOIN schools s ON s.id = c.schoolId
             LEFT JOIN student_profile_details spd ON spd.studentId = student.id
             LEFT JOIN student_skills studentSkill ON studentSkill.studentId = student.id
+            LEFT JOIN internship_posts ip ON ip.enterpriseId = :enterpriseId AND ip.status = 'active'
+            LEFT JOIN intern_applications ai 
+                ON ai.postId = ip.id AND ai.studentId = student.id 
+                    AND ai.status IN ('submitted', 'reviewing', 'accepted', 'interview', 'interviewing', 'invited', 'hired', 'declined', 'withdrawn')
             LEFT JOIN enterprise_talent_access_grants accessGrant
               ON accessGrant.studentId = student.id
              AND accessGrant.enterpriseId = :enterpriseIdGrant
@@ -846,11 +850,12 @@ final class EnterpriseTalentRepository
                      spd.location, spd.headline, spd.bio, spd.avatarUrl, accessGrant.grantedAt, accessGrant.expiresAt
         SQL;
 
-        $params['enterpriseIdContact'] = $enterpriseId;
+                $params['enterpriseIdContact'] = $enterpriseId;
         $params['nowContact'] = $now;
         $params['enterpriseIdCr'] = $enterpriseId;
         $params['enterpriseIdGrant'] = $enterpriseId;
         $params['nowGrant'] = $now;
+        $params['enterpriseId'] = $enterpriseId;
 
         // Sorting
         $sort = is_string($filters['sort'] ?? null) ? $filters['sort'] : 'score_desc';
@@ -1004,7 +1009,33 @@ final class EnterpriseTalentRepository
                 }
             }
 
-            $score = is_numeric($row['talentScore'] ?? null) ? (float) $row['talentScore'] : null;
+                        $score = is_numeric($row['talentScore'] ?? null) ? (float) $row['talentScore'] : null;
+            
+                        // Mapping application status to internship_status_label
+            // Schema values: submitted, reviewing, interview, accepted, declined, withdrawn
+            $applicationStatusRaw = $row['application_status'] ?? null;
+            $hasApplication = $applicationStatusRaw !== null;
+            
+            // Normalize status - treat pending review and interview as reviewing
+            $internshipStatus = match($applicationStatusRaw) {
+                'accepted', 'hired' => 'accepted',
+                'interview', 'interviewing', 'reviewing' => 'reviewing',
+                'submitted' => 'submitted',
+                'rejected', 'declined', 'withdrawn', 'cancelled' => 'rejected',
+                default => 'ready_now',
+            };
+            
+            $internshipStatusLabel = match($internshipStatus) {
+                'accepted' => 'Đã tiếp nhận thực tập',
+                'reviewing' => 'Đang được xét duyệt hồ sơ',
+                'submitted' => 'Đã nộp đơn',
+                'interview' => 'Đang trong quá trình phỏng vấn',
+                'ready_now' => 'Sẵn sàng thực tập',
+                default => 'Sẵn sàng thực tập',
+            };
+            
+            $applicationId = $hasApplication ? (string) $applicationStatusRaw : null;
+            
             $items[] = [
                 'studentId' => $studentId,
                 'userId' => $userId,
@@ -1025,6 +1056,9 @@ final class EnterpriseTalentRepository
                 'projects' => $studentProjects,
                 'contactAllowed' => (bool) ((int) ($row['contactAllowed'] ?? 0) === 1),
                 'hasPendingContactRequest' => (bool) ((int) ($row['hasPendingContactRequest'] ?? 0) === 1),
+                'internship_status' => $internshipStatus,
+                'internship_status_label' => $internshipStatusLabel,
+                'applicationId' => $applicationId,
             ];
         }
 
