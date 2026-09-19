@@ -240,60 +240,6 @@ if (($_GET['action'] ?? '') === 'queue_feed') {
                         </footer>
                     </div>
                 </div>
-
-                <div class="topbar__account-wrapper" id="admin-account-wrapper">
-                    <button
-                        type="button"
-                        class="topbar__account"
-                        id="admin-account-trigger"
-                        aria-haspopup="menu"
-                        aria-expanded="false"
-                        aria-controls="admin-account-menu"
-                        aria-label="Tài khoản quản trị: <?= htmlspecialchars($adminName); ?>"
-                    >
-                        <span class="topbar__avatar" aria-hidden="true"><?= htmlspecialchars($adminInitials) ?></span>
-                        <span class="topbar__user-info">
-                            <span class="topbar__user-name" title="<?= htmlspecialchars($adminName); ?>"><?= htmlspecialchars($adminName); ?></span>
-                            <span class="topbar__user-role">Quản trị hệ thống</span>
-                        </span>
-                        <span class="topbar__chevron" aria-hidden="true">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="6 9 12 15 18 9"></polyline>
-                            </svg>
-                        </span>
-                    </button>
-
-                    <div
-                        class="topbar-account-menu"
-                        id="admin-account-menu"
-                        role="menu"
-                        aria-labelledby="admin-account-trigger"
-                        hidden
-                    >
-                        <div class="topbar-account-menu__identity" role="none">
-                            <span class="topbar-account-menu__avatar" aria-hidden="true"><?= htmlspecialchars($adminInitials) ?></span>
-                            <span class="topbar-account-menu__details">
-                                <span class="topbar-account-menu__name" title="<?= htmlspecialchars($adminName); ?>"><?= htmlspecialchars($adminName); ?></span>
-                                <span class="topbar-account-menu__badge">Quản trị hệ thống</span>
-                            </span>
-                        </div>
-
-                        <div class="topbar-account-menu__divider" role="separator"></div>
-
-                        <ul class="topbar-account-menu__list" role="none">
-                            <li role="none">
-                                <button type="button" class="topbar-account-menu__item topbar-account-menu__item--logout" role="menuitem" tabindex="-1" data-admin-logout>
-                                    <svg class="topbar-account-menu__item-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                                        <polyline points="16 17 21 12 16 7"></polyline>
-                                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                                    </svg>
-                                    <span>Đăng xuất</span>
-                                </button>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
             </div>
         </header>
 
