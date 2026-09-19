@@ -3598,6 +3598,310 @@ body.ent-sidebar-open {
 }
 
 /* ==========================================================================
+   12b. INTERNSHIP INVITATION MODAL (Centered, Self-Contained, Sticky Footer)
+   ========================================================================== */
+.ent-invite-modal {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    box-sizing: border-box;
+}
+
+.ent-invite-modal.is-open {
+    display: flex !important;
+}
+
+.ent-invite-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    cursor: pointer;
+    z-index: 1;
+}
+
+.ent-invite-modal__dialog {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 560px;
+    max-height: calc(100vh - 2.5rem);
+    background-color: #FFFFFF;
+    border: 1px solid #F0E6DD;
+    border-radius: 16px;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+    margin: auto;
+    animation: entModalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes entModalScaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.ent-invite-modal__header {
+    flex-shrink: 0;
+    background: #FFFDFB;
+    border-bottom: 1px solid #F0E6DD;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.ent-invite-modal__title-group {
+    flex: 1;
+    min-width: 0;
+}
+
+.ent-invite-modal__title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #322014;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    line-height: 1.3;
+}
+
+.ent-invite-modal__title svg {
+    flex-shrink: 0;
+    color: var(--primary, #FF6B45);
+}
+
+.ent-invite-modal__subtitle {
+    margin: 0.35rem 0 0;
+    font-size: 0.85rem;
+    color: #6B5548;
+    line-height: 1.4;
+}
+
+.ent-invite-modal__subtitle strong {
+    color: #322014;
+}
+
+.ent-invite-modal__close {
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+    color: #9E897D;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.ent-invite-modal__close:hover {
+    color: #322014;
+    background: #F5EFEB;
+}
+
+.ent-invite-modal__body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 1.25rem 1.5rem;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.ent-invite-modal__body::-webkit-scrollbar {
+    width: 6px;
+}
+.ent-invite-modal__body::-webkit-scrollbar-track {
+    background: transparent;
+}
+.ent-invite-modal__body::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 999px;
+}
+.ent-invite-modal__body::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8;
+}
+
+/* Candidate banner inside modal */
+.ent-invite-candidate-card {
+    background: #FFF7F2;
+    border: 1px solid #F0E6DD;
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.ent-invite-candidate-card__info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.ent-invite-candidate-card__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #FFF0EB;
+    color: #FF6B45;
+    border: 1px solid #FFDACB;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.ent-invite-candidate-card__meta {
+    min-width: 0;
+}
+
+.ent-invite-candidate-card__name {
+    font-weight: 700;
+    color: #322014;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ent-invite-candidate-card__sub {
+    font-size: 0.75rem;
+    color: #6B5548;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ent-invite-candidate-card__score {
+    flex-shrink: 0;
+    background: #DCFCE7;
+    color: #15803D;
+    font-weight: 800;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    border: 1px solid #BBF7D0;
+}
+
+.ent-invite-candidate-card__score--empty {
+    background: #F3F4F6;
+    color: #6B7280;
+    font-weight: 600;
+    border-color: #E5E7EB;
+}
+
+.ent-invite-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.ent-invite-label {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #322014;
+    margin: 0;
+}
+
+.ent-invite-label .required {
+    color: #EF4444;
+}
+
+.ent-invite-textarea {
+    width: 100%;
+    padding: 0.75rem 0.875rem;
+    border: 1.5px solid #F0E6DD;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    color: #322014;
+    line-height: 1.5;
+    background: #FFFFFF;
+    resize: vertical;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ent-invite-textarea:focus {
+    outline: none;
+    border-color: var(--primary, #FF6B45);
+    box-shadow: 0 0 0 3px rgba(255, 107, 69, 0.12);
+}
+
+.ent-invite-tip-box {
+    background: #FFF9F5;
+    border: 1px solid #FFE0D3;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    color: #6B5548;
+    line-height: 1.45;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+}
+
+.ent-invite-tip-box svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--primary, #FF6B45);
+}
+
+.ent-invite-modal__footer {
+    flex-shrink: 0;
+    background: #FFFDFB;
+    border-top: 1px solid #F0E6DD;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+    .ent-invite-modal {
+        padding: 0.75rem;
+    }
+    .ent-invite-modal__dialog {
+        max-height: calc(100vh - 1.5rem);
+        border-radius: 12px;
+    }
+    .ent-invite-modal__header {
+        padding: 1rem 1.25rem;
+    }
+    .ent-invite-modal__body {
+        padding: 1rem 1.25rem;
+    }
+    .ent-invite-modal__footer {
+        padding: 0.875rem 1.25rem;
+    }
+}
+
+/* ==========================================================================
    13. TALENT PASSPORT / DETAIL PAGE STYLES
    ========================================================================== */
 

@@ -213,6 +213,8 @@ $sidebarNav = [
     <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/enterprise.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/enterprise.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/typeui-selects.css">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="enterprise-dashboard">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
@@ -710,9 +712,16 @@ $sidebarNav = [
                                                 Xem hồ sơ
                                             </a>
                                             <?php if ($talent['canInvite'] ?? $talent['can_invite'] ?? true): ?>
-                                                <a href="<?= $detailUrl ?>" class="btn btn-primary btn-sm">
+                                                <button type="button"
+                                                        class="btn btn-primary btn-sm ent-talent-invite-btn"
+                                                        data-talent-id="<?= htmlspecialchars($talent['id']); ?>"
+                                                        data-talent-name="<?= htmlspecialchars($talent['name']); ?>"
+                                                        data-talent-score="<?= $talent['talent_score'] !== null ? htmlspecialchars((string) $talent['talent_score']) : ''; ?>"
+                                                        data-talent-major="<?= htmlspecialchars($talent['major_field'] ?? ''); ?>"
+                                                        data-talent-school="<?= htmlspecialchars($talent['school'] ?? ''); ?>"
+                                                        data-talent-initials="<?= htmlspecialchars($talent['avatar_initials'] ?? ''); ?>">
                                                     <?= !empty($talent['hasPendingContactRequest']) ? 'Đã yêu cầu' : 'Mời ứng tuyển' ?>
-                                                </a>
+                                                </button>
                                             <?php else: ?>
                                                 <button type="button" class="btn btn-secondary btn-sm" disabled style="opacity: 0.7; cursor: not-allowed;">
                                                     <?= htmlspecialchars($talent['actionLabel'] ?? $talent['action_label'] ?? 'Đã tiếp nhận') ?>
@@ -802,6 +811,90 @@ $sidebarNav = [
             <div class="ent-skills-modal__footer">
                 <span class="ent-skills-modal__count">Đã chọn: <strong id="modal-selected-count">0</strong> kỹ năng</span>
                 <button type="button" class="btn btn-primary" id="confirm-skills-btn">Áp dụng kỹ năng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Internship Invitation Modal (Centered, Scrollable Body, Fixed Footer) -->
+    <div class="ent-invite-modal" id="inviteModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="inviteModalTitle">
+        <div class="ent-invite-modal__backdrop" onclick="closeInviteModal()" aria-hidden="true"></div>
+        <div class="ent-invite-modal__dialog">
+
+            <div class="ent-invite-modal__header">
+                <div class="ent-invite-modal__title-group">
+                    <h3 class="ent-invite-modal__title" id="inviteModalTitle">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                        </svg>
+                        <span>Gửi Lời Mời Thực Tập</span>
+                    </h3>
+                    <p class="ent-invite-modal__subtitle" id="inviteModalSubtitle">
+                        Mời ứng viên <strong id="inviteCandidateName">Ứng viên</strong> vào đội ngũ <?= htmlspecialchars($enterprise['name']); ?>
+                    </p>
+                </div>
+                <button type="button" class="ent-invite-modal__close" onclick="closeInviteModal()" aria-label="Đóng">&times;</button>
+            </div>
+
+            <div class="ent-invite-modal__body">
+                <!-- Candidate Highlight Banner -->
+                <div class="ent-invite-candidate-card">
+                    <div class="ent-invite-candidate-card__info">
+                        <div class="ent-invite-candidate-card__avatar" id="inviteCandidateAvatar">
+                            UV
+                        </div>
+                        <div class="ent-invite-candidate-card__meta">
+                            <div class="ent-invite-candidate-card__name" id="inviteCandidateCardName">Ứng viên</div>
+                            <div class="ent-invite-candidate-card__sub" id="inviteCandidateCardSub">Chuyên ngành • Trường</div>
+                        </div>
+                    </div>
+                    <div class="ent-invite-candidate-card__score" id="inviteCandidateScore">
+                        -- điểm
+                    </div>
+                </div>
+
+                <!-- Job Post Selector -->
+                <div class="ent-invite-form-group">
+                    <label for="invitePostSelect" class="ent-invite-label">
+                        Chọn vị trí thực tập đang mở <span class="required">*</span>
+                    </label>
+                    <?php if (empty($activeJobs)): ?>
+                        <div style="background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem;">
+                            Doanh nghiệp hiện chưa có tin tuyển thực tập nào đang mở. Vui lòng tạo tin tuyển dụng trước khi gửi lời mời.
+                        </div>
+                    <?php else: ?>
+                        <select id="invitePostSelect" class="typeui-select" style="border: 1.5px solid #F0E6DD; width: 100%;">
+                            <?php foreach ($activeJobs as $post): ?>
+                                <option value="<?= htmlspecialchars($post['id']); ?>" <?= $selectedJobId === $post['id'] ? 'selected' : ''; ?>>
+                                    <?= htmlspecialchars($post['title']); ?> (<?= htmlspecialchars($post['field'] ?? 'Thực tập'); ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Short Message -->
+                <div class="ent-invite-form-group">
+                    <label for="inviteMessageInput" class="ent-invite-label">
+                        Lời nhắn gửi tới ứng viên:
+                    </label>
+                    <textarea id="inviteMessageInput"
+                              class="ent-invite-textarea"
+                              rows="3"
+                              placeholder="Ví dụ: Chào bạn, <?= htmlspecialchars($enterprise['name']); ?> rất ấn tượng với hồ sơ năng lực của bạn. Trân trọng mời bạn tham gia thực tập..."></textarea>
+                </div>
+
+                <!-- Privacy / Notification Tip -->
+                <div class="ent-invite-tip-box">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <span>Hệ thống sẽ lưu lời mời vào danh sách ứng tuyển thực tập và gửi thông báo trực tiếp đến tài khoản sinh viên trên FTalentHub.</span>
+                </div>
+            </div>
+
+            <div class="ent-invite-modal__footer">
+                <button type="button" class="btn btn-secondary" onclick="closeInviteModal()" style="font-weight: 600; min-width: 80px;">Hủy</button>
+                <button type="button" class="btn btn-primary" id="confirmSendInviteBtn" onclick="submitInternshipInvitation()" <?= empty($activeJobs) ? 'disabled style="opacity:0.6; cursor:not-allowed; font-weight:700; padding:0.5rem 1.25rem;"' : 'style="font-weight: 700; padding: 0.5rem 1.25rem;"'; ?>>
+                    Mời ứng tuyển
+                </button>
             </div>
         </div>
     </div>

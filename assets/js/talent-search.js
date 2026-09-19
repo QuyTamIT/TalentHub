@@ -900,11 +900,17 @@ function initTalentSearchModule() {
             actionsDiv.appendChild(detailLink);
 
             if (talent.canInvite) {
-                const contactLink = document.createElement('a');
-                contactLink.href = resolveCandidateDetailUrl(talent.id);
-                contactLink.className = 'btn btn-primary btn-sm';
-                contactLink.textContent = talent.hasPendingContactRequest ? 'Đã yêu cầu' : 'Mời ứng tuyển';
-                actionsDiv.appendChild(contactLink);
+                const contactBtn = document.createElement('button');
+                contactBtn.type = 'button';
+                contactBtn.className = 'btn btn-primary btn-sm ent-talent-invite-btn';
+                contactBtn.setAttribute('data-talent-id', talent.id);
+                contactBtn.setAttribute('data-talent-name', talent.name);
+                contactBtn.setAttribute('data-talent-score', talent.talent_score !== null && talent.talent_score !== undefined ? String(talent.talent_score) : '');
+                contactBtn.setAttribute('data-talent-major', talent.major_field || '');
+                contactBtn.setAttribute('data-talent-school', talent.school || '');
+                contactBtn.setAttribute('data-talent-initials', talent.avatar_initials || '');
+                contactBtn.textContent = talent.hasPendingContactRequest ? 'Đã yêu cầu' : 'Mời ứng tuyển';
+                actionsDiv.appendChild(contactBtn);
             } else {
                 const disabledBtn = document.createElement('button');
                 disabledBtn.type = 'button';
@@ -1724,6 +1730,188 @@ function initTalentSearchModule() {
     if (initialMajorField) {
         setIndustryFilter(initialMajorField, false);
     }
+
+    /* ==========================================================================
+       Internship Invitation Modal Controller (Centered, Internal Scroll, Sticky Footer)
+       ========================================================================== */
+    let currentInviteStudentId = '';
+    let currentInviteTriggerBtn = null;
+    const inviteModal = document.getElementById('inviteModal');
+
+    function openInviteModalForTalent(data) {
+        if (!inviteModal) return;
+        currentInviteStudentId = data.id || '';
+        currentInviteTriggerBtn = data.triggerBtn || null;
+
+        const nameEl = document.getElementById('inviteCandidateName');
+        const cardNameEl = document.getElementById('inviteCandidateCardName');
+        const cardSubEl = document.getElementById('inviteCandidateCardSub');
+        const avatarEl = document.getElementById('inviteCandidateAvatar');
+        const scoreEl = document.getElementById('inviteCandidateScore');
+        const msgInput = document.getElementById('inviteMessageInput');
+
+        if (nameEl) nameEl.textContent = data.name || 'Ứng viên';
+        if (cardNameEl) cardNameEl.textContent = data.name || 'Ứng viên';
+        if (cardSubEl) {
+            const parts = [data.major, data.school].filter(Boolean);
+            cardSubEl.textContent = parts.join(' • ') || 'Ứng viên tiềm năng';
+        }
+        if (avatarEl) avatarEl.textContent = data.initials || 'UV';
+        if (scoreEl) {
+            if (data.score) {
+                scoreEl.textContent = `${data.score} điểm`;
+                scoreEl.className = 'ent-invite-candidate-card__score';
+            } else {
+                scoreEl.textContent = 'Chưa có điểm';
+                scoreEl.className = 'ent-invite-candidate-card__score ent-invite-candidate-card__score--empty';
+            }
+        }
+        if (msgInput) {
+            msgInput.value = '';
+        }
+
+        inviteModal.classList.add('is-open');
+        inviteModal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+
+        if (msgInput) {
+            setTimeout(() => msgInput.focus(), 150);
+        }
+    }
+
+    function closeInviteModal() {
+        if (inviteModal) {
+            inviteModal.classList.remove('is-open');
+            inviteModal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+        }
+    }
+
+    window.closeInviteModal = closeInviteModal;
+    window.openInviteModalForTalent = openInviteModalForTalent;
+
+    // ESC key closes invite modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            if (inviteModal && inviteModal.classList.contains('is-open')) {
+                closeInviteModal();
+            }
+        }
+    });
+
+    // Delegate click for candidate card invite buttons
+    document.addEventListener('click', (e) => {
+        const inviteBtn = e.target.closest('.ent-talent-invite-btn');
+        if (!inviteBtn) return;
+        e.preventDefault();
+        openInviteModalForTalent({
+            id: inviteBtn.getAttribute('data-talent-id'),
+            name: inviteBtn.getAttribute('data-talent-name'),
+            score: inviteBtn.getAttribute('data-talent-score'),
+            major: inviteBtn.getAttribute('data-talent-major'),
+            school: inviteBtn.getAttribute('data-talent-school'),
+            initials: inviteBtn.getAttribute('data-talent-initials'),
+            triggerBtn: inviteBtn
+        });
+    });
+
+    // Handle submit inside invite modal
+    window.submitInternshipInvitation = async function() {
+        const postSelect = document.getElementById('invitePostSelect');
+        const msgInput = document.getElementById('inviteMessageInput');
+        const btn = document.getElementById('confirmSendInviteBtn');
+
+        if (!postSelect || !postSelect.value) {
+            if (window.Swal) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Cảnh báo',
+                    text: 'Vui lòng chọn một vị trí thực tập.',
+                    confirmButtonColor: '#059669',
+                    confirmButtonText: 'Đóng'
+                });
+            } else {
+                alert('Vui lòng chọn một vị trí thực tập.');
+            }
+            return;
+        }
+
+        if (!currentInviteStudentId) {
+            alert('Không xác định được ứng viên.');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Đang gửi lời mời...';
+
+        const formData = new FormData();
+        formData.append('studentId', currentInviteStudentId);
+        formData.append('postId', postSelect.value);
+        formData.append('message', msgInput ? msgInput.value.trim() : '');
+        formData.append('csrfToken', sessionBoot.csrfToken || '');
+
+        try {
+            const basePrefix = window.location.pathname.includes('/TalentHub') ? '/TalentHub' : '';
+            const sendUrl = `${basePrefix}/app/enterprise/actions/send-invitation.php`;
+            const res = await fetch(sendUrl, {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (res.ok && data.success) {
+                closeInviteModal();
+                if (window.Swal) {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Thành công!',
+                        text: data.message || 'Đã gửi lời mời thực tập thành công!',
+                        confirmButtonColor: '#059669',
+                        confirmButtonText: 'Đóng'
+                    });
+                } else {
+                    alert(data.message || 'Đã gửi lời mời thực tập thành công!');
+                }
+                if (currentInviteTriggerBtn) {
+                    currentInviteTriggerBtn.disabled = true;
+                    currentInviteTriggerBtn.className = 'btn btn-secondary btn-sm';
+                    currentInviteTriggerBtn.style.opacity = '0.7';
+                    currentInviteTriggerBtn.style.cursor = 'not-allowed';
+                    currentInviteTriggerBtn.textContent = 'Đã gửi lời mời';
+                }
+            } else {
+                const errText = data.message || 'Không thể gửi lời mời lúc này.';
+                if (window.Swal) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Thông báo',
+                        text: errText,
+                        confirmButtonColor: '#059669',
+                        confirmButtonText: 'Đóng'
+                    });
+                } else {
+                    alert(errText);
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            if (window.Swal) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Lỗi',
+                    text: 'Lỗi kết nối tới máy chủ khi gửi lời mời.',
+                    confirmButtonColor: '#059669',
+                    confirmButtonText: 'Đóng'
+                });
+            } else {
+                alert('Lỗi kết nối tới máy chủ khi gửi lời mời.');
+            }
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Mời ứng tuyển';
+        }
+    };
 
     // Initial render: If a job was restored from client storage/URL but initial server payload was unconstrained,
     // immediately re-fetch to ensure identical eligibility rules.

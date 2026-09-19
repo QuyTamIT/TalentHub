@@ -830,53 +830,53 @@ $sidebarNav = [
             </div>
         </div>
 
-        <!-- Section 9: Internship Invitation Modal -->
-        <div class="ent-skills-modal" id="inviteModal" aria-hidden="true" style="display: none; position: fixed; inset: 0; z-index: 9999; align-items: center; justify-content: center;">
-            <div class="ent-skills-modal__backdrop" onclick="closeInviteModal()" style="position: absolute; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);"></div>
-            <div class="ent-skills-modal__dialog" style="position: relative; z-index: 10000; width: 92%; max-width: 560px; background: #FFFFFF; border-radius: 14px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden; animation: modalFadeIn 0.2s ease-out;">
+        <!-- Section 9: Internship Invitation Modal (Centered, Scrollable Body, Fixed Footer) -->
+        <div class="ent-invite-modal" id="inviteModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="inviteModalTitle">
+            <div class="ent-invite-modal__backdrop" onclick="closeInviteModal()" aria-hidden="true"></div>
+            <div class="ent-invite-modal__dialog">
 
-                <div class="ent-skills-modal__header" style="background: #FFFDFB; border-bottom: 1px solid #F0E6DD; padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h3 class="ent-skills-modal__title" style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #322014; display: flex; align-items: center; gap: 0.5rem;">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-coral)" stroke-width="2.5">
+                <div class="ent-invite-modal__header">
+                    <div class="ent-invite-modal__title-group">
+                        <h3 class="ent-invite-modal__title" id="inviteModalTitle">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                             </svg>
                             <span>Gửi Lời Mời Thực Tập</span>
                         </h3>
-                        <p class="ent-skills-modal__subtitle" style="margin: 0.25rem 0 0; font-size: 0.85rem; color: #6B5548;">
+                        <p class="ent-invite-modal__subtitle">
                             Mời ứng viên <strong><?= htmlspecialchars($talent['name']); ?></strong> (<?= $talent['talent_score'] !== null ? htmlspecialchars((string) $talent['talent_score']) . ' điểm' : 'chưa có điểm'; ?>) vào đội ngũ <?= htmlspecialchars($enterpriseInfo['company_name']); ?>
                         </p>
                     </div>
-                    <button type="button" class="ent-skills-modal__close" onclick="closeInviteModal()" style="border: none; background: transparent; font-size: 1.6rem; line-height: 1; cursor: pointer; color: #9E897D; padding: 0.2rem 0.5rem;">&times;</button>
+                    <button type="button" class="ent-invite-modal__close" onclick="closeInviteModal()" aria-label="Đóng">&times;</button>
                 </div>
 
-                <div style="padding: 1.5rem;">
+                <div class="ent-invite-modal__body">
                     <!-- Candidate Highlight Banner -->
-                    <div style="background: #FFF7F2; border: 1px solid #F0E6DD; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between;">
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div style="width: 38px; height: 38px; border-radius: 8px; background: #FFF0EB; color: #FF6B45; border: 1px solid #FFDACB; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 0.875rem;">
+                    <div class="ent-invite-candidate-card">
+                        <div class="ent-invite-candidate-card__info">
+                            <div class="ent-invite-candidate-card__avatar">
                                 <?= htmlspecialchars($talent['avatar_initials']); ?>
                             </div>
-                            <div>
-                                <div style="font-weight: 700; color: #322014; font-size: 0.95rem;"><?= htmlspecialchars($talent['name']); ?></div>
-                                <div style="font-size: 0.75rem; color: #6B5548;"><?= htmlspecialchars($talent['major_field']); ?> • <?= htmlspecialchars($talent['school']); ?></div>
+                            <div class="ent-invite-candidate-card__meta">
+                                <div class="ent-invite-candidate-card__name"><?= htmlspecialchars($talent['name']); ?></div>
+                                <div class="ent-invite-candidate-card__sub"><?= htmlspecialchars($talent['major_field']); ?> • <?= htmlspecialchars($talent['school']); ?></div>
                             </div>
                         </div>
                         <?php if ($talent['talent_score'] !== null): ?>
-                        <div style="background: #DCFCE7; color: #15803D; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.85rem; border: 1px solid #BBF7D0;">
+                        <div class="ent-invite-candidate-card__score">
                             <?= htmlspecialchars((string) $talent['talent_score']); ?> điểm
                         </div>
                         <?php else: ?>
-                        <div style="background: #F3F4F6; color: #6B7280; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.85rem; border: 1px solid #E5E7EB;">
+                        <div class="ent-invite-candidate-card__score ent-invite-candidate-card__score--empty">
                             Chưa có điểm
                         </div>
                         <?php endif; ?>
                     </div>
 
                     <!-- Job Post Selector -->
-                    <div style="margin-bottom: 1.25rem;">
-                        <label for="invitePostSelect" style="display: block; font-size: 0.875rem; font-weight: 700; color: #322014; margin-bottom: 0.4rem;">
-                            Chọn vị trí thực tập đang mở <span style="color: #EF4444;">*</span>
+                    <div class="ent-invite-form-group">
+                        <label for="invitePostSelect" class="ent-invite-label">
+                            Chọn vị trí thực tập đang mở <span class="required">*</span>
                         </label>
                         <?php if (empty($activePosts)): ?>
                             <div style="background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem;">
@@ -897,27 +897,27 @@ $sidebarNav = [
                     </div>
 
                     <!-- Short Message -->
-                    <div style="margin-bottom: 1.25rem;">
-                        <label for="inviteMessageInput" style="display: block; font-size: 0.875rem; font-weight: 700; color: #322014; margin-bottom: 0.4rem;">
+                    <div class="ent-invite-form-group">
+                        <label for="inviteMessageInput" class="ent-invite-label">
                             Lời nhắn gửi tới ứng viên:
                         </label>
                         <textarea id="inviteMessageInput"
+                                  class="ent-invite-textarea"
                                   rows="3"
-                                  style="width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid #F0E6DD; border-radius: 8px; font-size: 0.875rem; color: #322014; resize: vertical;"
                                   placeholder="Ví dụ: Chào bạn <?= htmlspecialchars($talent['name']); ?>, <?= htmlspecialchars($enterpriseInfo['company_name']); ?> rất ấn tượng với hồ sơ năng lực của bạn. Trân trọng mời bạn tham gia thực tập..."></textarea>
                     </div>
 
                     <!-- Privacy / Notification Tip -->
-                    <div style="background: #FFF9F5; border: 1px solid #FFE0D3; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.8125rem; color: #6B5548; display: flex; align-items: flex-start; gap: 0.5rem;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" style="flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <div class="ent-invite-tip-box">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                         <span>Hệ thống sẽ lưu lời mời vào danh sách ứng tuyển thực tập và gửi thông báo trực tiếp đến tài khoản sinh viên trên FTalentHub.</span>
                     </div>
                 </div>
 
-                <div style="background: #FFFDFB; border-top: 1px solid #F0E6DD; padding: 1rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
-                    <button type="button" class="btn btn-secondary" onclick="closeInviteModal()" style="font-weight: 600;">Hủy</button>
+                <div class="ent-invite-modal__footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeInviteModal()" style="font-weight: 600; min-width: 80px;">Hủy</button>
                     <button type="button" class="btn btn-primary" id="confirmSendInviteBtn" onclick="submitInternshipInvitation()" <?= empty($activePosts) ? 'disabled style="opacity:0.6; cursor:not-allowed; font-weight:700; padding:0.5rem 1.25rem;"' : 'style="font-weight: 700; padding: 0.5rem 1.25rem;"'; ?>>
-                        Xác nhận gửi lời mời
+                        Mời ứng tuyển
                     </button>
                 </div>
             </div>
@@ -954,13 +954,47 @@ $sidebarNav = [
     <script>
         function openInviteModal() {
             const modal = document.getElementById('inviteModal');
-            if (modal) modal.style.display = 'flex';
+            if (modal) {
+                modal.classList.add('is-open');
+                modal.setAttribute('aria-hidden', 'false');
+                document.body.style.overflow = 'hidden';
+                const msgInput = document.getElementById('inviteMessageInput');
+                if (msgInput) {
+                    setTimeout(() => msgInput.focus(), 150);
+                }
+            }
         }
 
         function closeInviteModal() {
             const modal = document.getElementById('inviteModal');
-            if (modal) modal.style.display = 'none';
+            if (modal) {
+                modal.classList.remove('is-open');
+                modal.setAttribute('aria-hidden', 'true');
+                document.body.style.overflow = '';
+            }
         }
+
+        // Close on ESC key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                const modal = document.getElementById('inviteModal');
+                if (modal && modal.classList.contains('is-open')) {
+                    closeInviteModal();
+                }
+            }
+        });
+
+        // Auto-open modal if requested via URL param action=invite
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('action') === 'invite' || urlParams.get('openInvite') === '1') {
+                    openInviteModal();
+                }
+            } catch (e) {
+                // Ignore URLSearchParams error
+            }
+        });
 
         function showDetailToast(msg) {
             let toast = document.getElementById('ent-toast');
@@ -1069,7 +1103,7 @@ $sidebarNav = [
                 }
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Xác nhận gửi lời mời';
+                btn.textContent = 'Mời ứng tuyển';
             }
         }
     </script>
