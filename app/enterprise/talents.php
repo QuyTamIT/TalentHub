@@ -102,13 +102,12 @@ $isEconomicSector = stripos($enterpriseIndustry, 'FMCG') !== false
 
 if ($isEconomicSector) {
     $sectorType = 'economic';
-    $quickFilters = [
-        ['id' => 'marketing_pr', 'label' => 'Marketing & PR'],
-        ['id' => 'biz_mgmt', 'label' => 'Quản trị Kinh doanh'],
-        ['id' => 'data_bi', 'label' => 'Phân tích Dữ liệu / BI'],
-        ['id' => 'logistics_sc', 'label' => 'Logistics & Chuỗi cung ứng'],
-        ['id' => 'finance_acc', 'label' => 'Tài chính - Kế toán'],
-        ['id' => 'ready_now', 'label' => 'Sẵn sàng thực tập'],
+    $industryTaxonomy = [
+        ['id' => 'marketing_pr',   'label' => 'Marketing & PR',              'popular' => true],
+        ['id' => 'biz_mgmt',       'label' => 'Quản trị Kinh doanh',         'popular' => true],
+        ['id' => 'data_bi',        'label' => 'Phân tích Dữ liệu / BI',      'popular' => true],
+        ['id' => 'logistics_sc',   'label' => 'Logistics & Chuỗi cung ứng',   'popular' => false],
+        ['id' => 'finance_acc',    'label' => 'Tài chính - Kế toán',         'popular' => false],
     ];
     $popularSkills = [
         'Digital Marketing',
@@ -120,50 +119,35 @@ if ($isEconomicSector) {
         'Tiếng Anh giao tiếp',
         'Kỹ năng thuyết trình',
     ];
-    $majorFieldsList = [
-        'Kinh doanh & Marketing',
-        'Quản trị Kinh doanh',
-        'Digital Marketing & PR',
-        'Logistics & Chuỗi cung ứng',
-        'Tài chính - Ngân hàng & Kế toán',
-        'Kinh tế đối ngoại & TMĐT',
-        'Khoa học dữ liệu & BI',
-        'Công nghệ thông tin',
-    ];
     $defaultMajorField = 'Kinh doanh & Marketing';
     $searchPlaceholder = 'Nhập tên ứng viên, kỹ năng (Marketing, PowerBI, Excel...), trường học hoặc chuyên ngành...';
 } else {
     $sectorType = 'tech';
-    $quickFilters = [
-        ['id' => 'ai_ml', 'label' => 'AI / Machine Learning'],
-        ['id' => 'frontend', 'label' => 'Lập trình Frontend'],
-        ['id' => 'backend', 'label' => 'Lập trình Backend'],
-        ['id' => 'security', 'label' => 'An toàn thông tin'],
-        ['id' => 'biz_mgmt', 'label' => 'Kinh doanh & Quản trị'],
-        ['id' => 'marketing_media', 'label' => 'Marketing & Truyền thông'],
-        ['id' => 'finance_acc', 'label' => 'Tài chính & Kế toán'],
-        ['id' => 'logistics_sc', 'label' => 'Logistics & Chuỗi cung ứng'],
-        ['id' => 'electronics_automation', 'label' => 'Điện tử & Tự động hóa'],
-        ['id' => 'mechanical_engineering', 'label' => 'Cơ khí & Kỹ thuật'],
-        ['id' => 'design_multimedia', 'label' => 'Thiết kế & Đa phương tiện'],
-        ['id' => 'tourism_hospitality', 'label' => 'Du lịch & Khách sạn'],
-        ['id' => 'ready_now', 'label' => 'Sẵn sàng thực tập'],
+    $industryTaxonomy = [
+        ['id' => 'ai_ml',                  'label' => 'AI / Machine Learning',       'popular' => true],
+        ['id' => 'frontend',               'label' => 'Lập trình Frontend',          'popular' => true],
+        ['id' => 'backend',                'label' => 'Lập trình Backend',           'popular' => true],
+        ['id' => 'security',               'label' => 'An toàn thông tin',           'popular' => true],
+        ['id' => 'biz_mgmt',               'label' => 'Kinh doanh & Quản trị',       'popular' => true],
+        ['id' => 'marketing_media',        'label' => 'Marketing & Truyền thông',     'popular' => false],
+        ['id' => 'finance_acc',            'label' => 'Tài chính & Kế toán',         'popular' => false],
+        ['id' => 'logistics_sc',           'label' => 'Logistics & Chuỗi cung ứng',   'popular' => false],
+        ['id' => 'electronics_automation', 'label' => 'Điện tử & Tự động hóa',      'popular' => false],
+        ['id' => 'mechanical_engineering', 'label' => 'Cơ khí & Kỹ thuật',           'popular' => false],
+        ['id' => 'design_multimedia',      'label' => 'Thiết kế & Đa phương tiện',   'popular' => false],
+        ['id' => 'tourism_hospitality',    'label' => 'Du lịch & Khách sạn',         'popular' => false],
     ];
     $popularSkills = [
         'React', 'Node.js', 'Python', 'TypeScript', 'Java',
         'Spring Boot', 'Vue.js', 'SQL', 'Docker',
         'AI / Machine Learning', 'An toàn thông tin'
     ];
-    $majorFieldsList = [
-        'Công nghệ thông tin',
-        'Khoa học dữ liệu & AI',
-        'An toàn thông tin',
-        'Lập trình Web & Mobile',
-        'Kinh doanh & Marketing',
-    ];
     $defaultMajorField = 'Công nghệ thông tin';
     $searchPlaceholder = 'Nhập tên ứng viên, kỹ năng (React, Python...), trường học hoặc lĩnh vực...';
 }
+
+$popularIndustries = array_values(array_filter($industryTaxonomy, fn($i) => !empty($i['popular'])));
+$moreIndustries = array_values(array_filter($industryTaxonomy, fn($i) => empty($i['popular'])));
 
 $enterpriseInfo = [
     'id'                => $enterprise['id'],
@@ -345,13 +329,45 @@ $sidebarNav = [
                         </div>
 
                         <!-- Quick Filters Row -->
-                        <div class="ent-quick-filters">
+                        <div class="ent-quick-filters" id="ent-quick-filters">
                             <span class="ent-quick-filters__label">Lọc nhanh:</span>
-                            <?php foreach ($quickFilters as $qf): ?>
-                                <button type="button" class="ent-quick-pill" data-quick-filter="<?= htmlspecialchars($qf['id']); ?>">
+                            <?php foreach ($popularIndustries as $qf): ?>
+                                <button type="button" class="ent-quick-pill" data-quick-filter="<?= htmlspecialchars($qf['id']); ?>" data-industry-label="<?= htmlspecialchars($qf['label']); ?>">
                                     <?= htmlspecialchars($qf['label']); ?>
                                 </button>
                             <?php endforeach; ?>
+
+                            <!-- Slot for added industries from "+ Thêm ngành" -->
+                            <span id="ent-quick-added-slot" class="ent-quick-added-slot"></span>
+
+                            <button type="button" class="ent-quick-pill ent-quick-pill--status" data-quick-filter="ready_now">
+                                Sẵn sàng thực tập
+                            </button>
+
+                            <?php if (!empty($moreIndustries)): ?>
+                                <div class="ent-quick-more-wrapper" id="ent-quick-more-wrapper">
+                                    <button type="button" class="ent-quick-pill ent-quick-pill--more" id="ent-quick-more-btn" aria-expanded="false" aria-haspopup="true" title="Thêm ngành khác vào danh sách lọc nhanh">
+                                        <span id="ent-quick-more-btn-text">+ Thêm ngành</span>
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="ent-quick-more-chevron" aria-hidden="true">
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                    </button>
+                                    <div class="ent-quick-more-dropdown" id="ent-quick-more-dropdown" style="display: none;">
+                                        <div class="ent-quick-more-dropdown__header">
+                                            <span class="ent-quick-more-dropdown__title">Các ngành khác</span>
+                                            <button type="button" class="ent-quick-more-dropdown__close" id="ent-quick-more-close" aria-label="Đóng">&times;</button>
+                                        </div>
+                                        <div class="ent-quick-more-dropdown__list">
+                                            <?php foreach ($moreIndustries as $qf): ?>
+                                                <button type="button" class="ent-quick-more-item" data-quick-filter="<?= htmlspecialchars($qf['id']); ?>" data-industry-label="<?= htmlspecialchars($qf['label']); ?>">
+                                                    <span class="ent-quick-more-item__check" aria-hidden="true">✓</span>
+                                                    <span class="ent-quick-more-item__text"><?= htmlspecialchars($qf['label']); ?></span>
+                                                </button>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -401,8 +417,8 @@ $sidebarNav = [
                                     <label for="filter-major-field" class="ent-filter-label">Lĩnh vực năng lực</label>
                                     <select id="filter-major-field" class="ent-filter-select typeui-select typeui-select--compact">
                                         <option value="">Tất cả lĩnh vực</option>
-                                        <?php foreach ($majorFieldsList as $mf): ?>
-                                            <option value="<?= htmlspecialchars($mf); ?>"><?= htmlspecialchars($mf); ?></option>
+                                        <?php foreach ($industryTaxonomy as $ind): ?>
+                                            <option value="<?= htmlspecialchars($ind['id']); ?>"><?= htmlspecialchars($ind['label']); ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
@@ -754,6 +770,7 @@ $sidebarNav = [
             'sectorType' => $sectorType,
             'isEconomicSector' => $isEconomicSector,
             'defaultMajorField' => $defaultMajorField,
+            'industryTaxonomy' => $industryTaxonomy,
             'selectedJobId' => $selectedJobId,
         ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
     </script>

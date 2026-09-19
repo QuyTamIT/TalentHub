@@ -139,6 +139,14 @@ function initTalentSearchModule() {
     const searchClearBtn = document.getElementById('talent-search-clear');
     const quickFilterBtns = document.querySelectorAll('.ent-quick-pill');
     
+    const quickMoreBtn = document.getElementById('ent-quick-more-btn');
+    const quickMoreDropdown = document.getElementById('ent-quick-more-dropdown');
+    const quickMoreClose = document.getElementById('ent-quick-more-close');
+    const quickAddedSlot = document.getElementById('ent-quick-added-slot') || document.getElementById('ent-quick-extra-active-slot');
+    const quickMoreItems = document.querySelectorAll('.ent-quick-more-item');
+    const STORAGE_KEY_ADDED_INDUSTRIES = 'ent_talent_added_industries';
+    const addedIndustriesMap = new Map();
+
     const filterEduLevel = document.getElementById('filter-edu-level');
     const filterSchool = document.getElementById('filter-school');
     const filterClassYear = document.getElementById('filter-class-year');
@@ -146,6 +154,19 @@ function initTalentSearchModule() {
     const filterMatchScore = document.getElementById('filter-match-score');
     const filterExpHours = document.getElementById('filter-exp-hours');
     const filterReadiness = document.getElementById('filter-readiness');
+
+    // Industry ID -> Label mapping
+    const industryLabelMap = {};
+    if (Array.isArray(sessionBoot.industryTaxonomy)) {
+        sessionBoot.industryTaxonomy.forEach(item => {
+            if (item && item.id) industryLabelMap[item.id] = item.label;
+        });
+    }
+    if (filterMajorField) {
+        Array.from(filterMajorField.options).forEach(opt => {
+            if (opt.value) industryLabelMap[opt.value] = opt.textContent.trim();
+        });
+    }
     
     const applyFiltersBtn = document.getElementById('apply-filters-btn');
     const clearFiltersBtn = document.getElementById('clear-filters-btn');
@@ -364,6 +385,106 @@ function initTalentSearchModule() {
         });
     }
 
+    function candidateMatchesIndustry(talent, targetKey) {
+        if (!targetKey || targetKey === 'all') return true;
+        const key = targetKey.toLowerCase().trim();
+
+        if (key === 'marketing_pr' || key === 'marketing_media' || /marketing|truyền thông|pr/i.test(key)) {
+            const mktSet = new Set(['digital marketing', 'marketing', 'pr', 'sáng tạo nội dung', 'content creator', 'content marketing', 'quản trị thương hiệu', 'social ads', 'seo', 'quảng bá', 'truyền thông', 'copywriting', 'media']);
+            return talent.skills.some(s => mktSet.has(s.toLowerCase().trim())) 
+                || /marketing|pr|truyền thông|brand|quảng cáo|media/i.test(talent.headline || talent.major_field || '')
+                || (Array.isArray(talent.projects) && talent.projects.some(p => /marketing|pr|truyền thông|quảng cáo|media|brand/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
+        }
+
+        if (key === 'biz_mgmt' || /quản trị kinh doanh|kinh doanh/i.test(key)) {
+            const bizSet = new Set(['quản trị kinh doanh', 'quản trị thương hiệu', 'phân tích thị trường', 'nghiên cứu thị trường', 'kinh doanh quốc tế', 'quản lý dự án', 'kỹ năng thuyết trình', 'khởi nghiệp & quản trị', 'kinh doanh & quản trị', 'quản trị', 'bán hàng', 'sales']);
+            return talent.skills.some(s => bizSet.has(s.toLowerCase().trim())) 
+                || /kinh doanh|quản trị|business|qtkd|thương mại|khởi nghiệp/i.test(talent.headline || talent.major_field || '')
+                || (Array.isArray(talent.projects) && talent.projects.some(p => /kinh doanh|quản trị|business|khởi nghiệp/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
+        }
+
+        if (key === 'data_bi' || /bi|phân tích dữ liệu/i.test(key)) {
+            const biSet = new Set(['powerbi', 'power bi', 'phân tích dữ liệu', 'data analysis', 'data analytics', 'excel nâng cao', 'sql', 'tableau', 'thống kê']);
+            return talent.skills.some(s => biSet.has(s.toLowerCase().trim())) 
+                || /bi|phân tích|data|dữ liệu|analytics/i.test(talent.headline || talent.major_field || '')
+                || (Array.isArray(talent.projects) && talent.projects.some(p => /bi|phân tích|data|dữ liệu|analytics|powerbi/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
+        }
+
+        if (key === 'logistics_sc' || /logistics|chuỗi cung ứng|kho vận/i.test(key)) {
+            const logSet = new Set(['logistics', 'quản trị kho vận', 'quản lý kho vận', 'chuỗi cung ứng', 'supply chain', 'tối ưu hóa đơn hàng', 'phân tích dữ liệu vận hành', 'vận hành', 'kho vận', 'xuất nhập khẩu', 'vận tải']);
+            return talent.skills.some(s => logSet.has(s.toLowerCase().trim())) 
+                || /logistics|chuỗi cung ứng|kho vận|supply chain|vận tải|xuất nhập khẩu/i.test(talent.headline || talent.major_field || '')
+                || (Array.isArray(talent.projects) && talent.projects.some(p => /logistics|chuỗi cung ứng|kho vận|supply chain/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
+        }
+
+        if (key === 'finance_acc' || /tài chính|kế toán|ngân hàng/i.test(key)) {
+            const finSet = new Set(['tài chính', 'kế toán', 'lập báo cáo tài chính', 'kế toán chi phí', 'cost accounting', 'finance', 'excel nâng cao', 'ifrs', 'kế toán quản trị', 'kiểm toán', 'tài chính - ngân hàng', 'ngân hàng']);
+            return talent.skills.some(s => finSet.has(s.toLowerCase().trim())) 
+                || /tài chính|kế toán|finance|accounting|ngân hàng|kiểm toán/i.test(talent.headline || talent.major_field || '')
+                || (Array.isArray(talent.projects) && talent.projects.some(p => /tài chính|kế toán|finance|accounting/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
+        }
+
+        if (key === 'ai_ml' || /ai|machine learning|trí tuệ nhân tạo/i.test(key)) {
+            const aiSkillsSet = new Set(['ai/ml', 'machine learning', 'deep learning', 'pytorch', 'tensorflow', 'trí tuệ nhân tạo', 'ai / machine learning', 'computer vision', 'opencv', 'python', 'ai']);
+            return talent.skills.some(s => aiSkillsSet.has(s.toLowerCase().trim())) 
+                || /ai|machine learning|computer vision|data|trí tuệ nhân tạo|deep learning/i.test(talent.headline || talent.major_field || '')
+                || (Array.isArray(talent.projects) && talent.projects.some(p => /ai|machine learning|deep learning|trí tuệ nhân tạo|computer vision|opencv|pytorch|tensorflow/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
+        }
+
+        if (key === 'frontend' || /frontend|front-end/i.test(key)) {
+            const feSkillsSet = new Set(['react', 'reactjs', 'react.js', 'vue.js', 'vuejs', 'vue', 'angular', 'html', 'html5', 'html/css', 'css', 'css3', 'javascript', 'typescript', 'frontend', 'frontend development', 'ui/ux', 'tailwind', 'tailwind css', 'bootstrap', 'next.js', 'nextjs', 'web development']);
+            return talent.skills.some(s => feSkillsSet.has(s.toLowerCase().trim())) 
+                || /frontend|react|vue|angular|web|ui\/ux|giao diện/i.test(talent.headline || talent.major_field || '')
+                || (Array.isArray(talent.projects) && talent.projects.some(p => /frontend|react|vue|angular|html|css|giao diện/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
+        }
+
+        if (key === 'backend' || /backend|back-end/i.test(key)) {
+            const beSkillsSet = new Set(['node.js', 'nodejs', 'java', 'spring boot', 'springboot', 'docker', 'mysql', 'sql', 'rest api', 'backend', 'backend development', 'microservices', 'postgresql', 'python', 'php', 'laravel', 'c#', '.net', 'asp.net', 'golang', 'go', 'django', 'fastapi', 'express', 'database', 'cơ sở dữ liệu']);
+            return talent.skills.some(s => beSkillsSet.has(s.toLowerCase().trim())) 
+                || /backend|java|spring|node|php|mysql|c#|\.net|python|sql|database|hệ thống/i.test(talent.headline || talent.major_field || '')
+                || (Array.isArray(talent.projects) && talent.projects.some(p => /backend|php|mysql|sql|java|spring|node|api|quản lý sinh viên|máy chủ|cơ sở dữ liệu/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
+        }
+
+        if (key === 'security' || /an toàn thông tin|security|bảo mật|an ninh mạng/i.test(key)) {
+            const secSkillsSet = new Set(['an toàn thông tin', 'cyber_security', 'cyber security', 'security', 'bảo mật', 'an ninh mạng']);
+            return talent.skills.some(s => secSkillsSet.has(s.toLowerCase().trim())) 
+                || /security|an toàn thông tin|an ninh|bảo mật/i.test(talent.headline || talent.major_field || '')
+                || (Array.isArray(talent.projects) && talent.projects.some(p => /security|an toàn thông tin|bảo mật|an ninh/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
+        }
+
+        if (key === 'electronics_automation' || /điện tử|tự động hóa|automation|iot|robotics/i.test(key)) {
+            const elecSet = new Set(['điện tử', 'tự động hóa', 'automation', 'electronics', 'robotics', 'plc', 'scada', 'vi điều khiển', 'nhúng', 'embedded', 'iot', 'cơ điện tử', 'mạch điện tử', 'pcb', 'arduino', 'kỹ thuật điện tử']);
+            return talent.skills.some(s => elecSet.has(s.toLowerCase().trim())) 
+                || /điện tử|tự động hóa|automation|electronics|robotics|plc|vi điều khiển|nhúng|embedded|iot|cơ điện tử/i.test(talent.headline || talent.major_field || '')
+                || (Array.isArray(talent.projects) && talent.projects.some(p => /điện tử|tự động hóa|iot|robotics|embedded/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
+        }
+
+        if (key === 'mechanical_engineering' || /cơ khí|kỹ thuật cơ khí|chế tạo/i.test(key)) {
+            const mechSet = new Set(['cơ khí', 'kỹ thuật cơ khí', 'mechanical', 'chế tạo máy', 'cad', 'cam', 'cnc', 'solidworks', 'autocad', 'kỹ thuật chế tạo', 'bảo trì cơ khí', 'cơ điện tử']);
+            return talent.skills.some(s => mechSet.has(s.toLowerCase().trim())) 
+                || /cơ khí|chế tạo|mechanical|cad|cam|cnc|solidworks|autocad|kỹ thuật cơ khí/i.test(talent.headline || talent.major_field || '')
+                || (Array.isArray(talent.projects) && talent.projects.some(p => /cơ khí|chế tạo|mechanical|cad|cam|cnc/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
+        }
+
+        if (key === 'design_multimedia' || /thiết kế|đa phương tiện|multimedia|ui\/ux|graphic/i.test(key)) {
+            const designSet = new Set(['thiết kế sáng tạo & ui/ux', 'thiết kế đồ họa', 'graphic design', 'ui/ux', 'ui/ux design', 'photoshop', 'illustrator', 'figma', 'video editing', 'dựng video', 'animation', '3d', 'sáng tạo nội dung', 'multimedia', 'đa phương tiện', 'thiết kế', 'design']);
+            return talent.skills.some(s => designSet.has(s.toLowerCase().trim())) 
+                || /thiết kế|đa phương tiện|multimedia|graphic|đồ họa|ui\/ux|design|figma|photoshop|video|animation/i.test(talent.headline || talent.major_field || '')
+                || (Array.isArray(talent.projects) && talent.projects.some(p => /thiết kế|đồ họa|ui\/ux|design|figma|photoshop/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
+        }
+
+        if (key === 'tourism_hospitality' || /du lịch|khách sạn|tourism|hospitality/i.test(key)) {
+            const tourSet = new Set(['du lịch', 'khách sạn', 'tourism', 'hospitality', 'quản trị khách sạn', 'nhà hàng', 'lữ hành', 'hướng dẫn viên', 'lễ tân', 'f&b', 'quản trị dịch vụ du lịch', 'tour guide', 'nghiệp vụ nhà hàng', 'nghiệp vụ khách sạn']);
+            return talent.skills.some(s => tourSet.has(s.toLowerCase().trim())) 
+                || /du lịch|khách sạn|tourism|hospitality|nhà hàng|lữ hành|hướng dẫn viên|lễ tân|f&b|tour/i.test(talent.headline || talent.major_field || '')
+                || (Array.isArray(talent.projects) && talent.projects.some(p => /du lịch|khách sạn|tourism|nhà hàng|lữ hành/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
+        }
+
+        const candMajor = (talent.major_field || '').toLowerCase();
+        const candHead = (talent.headline || '').toLowerCase();
+        return candMajor.includes(key) || candHead.includes(key) || key.includes(candMajor);
+    }
+
     function getFilteredTalents() {
         const activeJobId = (aiJobSelect ? aiJobSelect.value.trim() : '') || currentJobId || (sessionBoot.selectedJobId || '') || (new URLSearchParams(window.location.search).get('jobId') || '');
         return allTalents.filter(talent => {
@@ -386,113 +507,13 @@ function initTalentSearchModule() {
                 }
             }
 
-            // Quick Filters (Economic / FMCG / General Business)
-            if (activeQuickFilters.has('marketing_pr') || activeQuickFilters.has('marketing_media')) {
-                const mktSet = new Set(['digital marketing', 'marketing', 'pr', 'sáng tạo nội dung', 'content creator', 'content marketing', 'quản trị thương hiệu', 'social ads', 'seo', 'quảng bá', 'truyền thông', 'copywriting', 'media']);
-                const hasMkt = talent.skills.some(s => mktSet.has(s.toLowerCase().trim())) 
-                    || /marketing|pr|truyền thông|brand|quảng cáo|media/i.test(talent.headline || talent.major_field || '')
-                    || (Array.isArray(talent.projects) && talent.projects.some(p => /marketing|pr|truyền thông|quảng cáo|media|brand/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
-                if (!hasMkt) return false;
+            // Unified Industry Filter (from Quick Filter or Competency Domain dropdown)
+            const activeIndustry = activeFilters.majorField || Array.from(activeQuickFilters).find(k => k !== 'ready_now') || '';
+            if (activeIndustry && !candidateMatchesIndustry(talent, activeIndustry)) {
+                return false;
             }
 
-            if (activeQuickFilters.has('biz_mgmt')) {
-                const bizSet = new Set(['quản trị kinh doanh', 'quản trị thương hiệu', 'phân tích thị trường', 'nghiên cứu thị trường', 'kinh doanh quốc tế', 'quản lý dự án', 'kỹ năng thuyết trình', 'khởi nghiệp & quản trị', 'kinh doanh & quản trị', 'quản trị', 'bán hàng', 'sales']);
-                const hasBiz = talent.skills.some(s => bizSet.has(s.toLowerCase().trim())) 
-                    || /kinh doanh|quản trị|business|qtkd|thương mại|khởi nghiệp/i.test(talent.headline || talent.major_field || '')
-                    || (Array.isArray(talent.projects) && talent.projects.some(p => /kinh doanh|quản trị|business|khởi nghiệp/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
-                if (!hasBiz) return false;
-            }
-
-            if (activeQuickFilters.has('data_bi')) {
-                const biSet = new Set(['powerbi', 'power bi', 'phân tích dữ liệu', 'data analysis', 'data analytics', 'excel nâng cao', 'sql', 'tableau', 'thống kê']);
-                const hasBI = talent.skills.some(s => biSet.has(s.toLowerCase().trim())) 
-                    || /bi|phân tích|data|dữ liệu|analytics/i.test(talent.headline || talent.major_field || '')
-                    || (Array.isArray(talent.projects) && talent.projects.some(p => /bi|phân tích|data|dữ liệu|analytics|powerbi/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
-                if (!hasBI) return false;
-            }
-
-            if (activeQuickFilters.has('logistics_sc')) {
-                const logSet = new Set(['logistics', 'quản trị kho vận', 'quản lý kho vận', 'chuỗi cung ứng', 'supply chain', 'tối ưu hóa đơn hàng', 'phân tích dữ liệu vận hành', 'vận hành', 'kho vận', 'xuất nhập khẩu', 'vận tải']);
-                const hasLog = talent.skills.some(s => logSet.has(s.toLowerCase().trim())) 
-                    || /logistics|chuỗi cung ứng|kho vận|supply chain|vận tải|xuất nhập khẩu/i.test(talent.headline || talent.major_field || '')
-                    || (Array.isArray(talent.projects) && talent.projects.some(p => /logistics|chuỗi cung ứng|kho vận|supply chain/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
-                if (!hasLog) return false;
-            }
-
-            if (activeQuickFilters.has('finance_acc')) {
-                const finSet = new Set(['tài chính', 'kế toán', 'lập báo cáo tài chính', 'kế toán chi phí', 'cost accounting', 'finance', 'excel nâng cao', 'ifrs', 'kế toán quản trị', 'kiểm toán', 'tài chính - ngân hàng', 'ngân hàng']);
-                const hasFin = talent.skills.some(s => finSet.has(s.toLowerCase().trim())) 
-                    || /tài chính|kế toán|finance|accounting|ngân hàng|kiểm toán/i.test(talent.headline || talent.major_field || '')
-                    || (Array.isArray(talent.projects) && talent.projects.some(p => /tài chính|kế toán|finance|accounting/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
-                if (!hasFin) return false;
-            }
-
-            // Quick Filters (Tech / IT)
-            if (activeQuickFilters.has('ai_ml')) {
-                const aiSkillsSet = new Set(['ai/ml', 'machine learning', 'deep learning', 'pytorch', 'tensorflow', 'trí tuệ nhân tạo', 'ai / machine learning', 'computer vision', 'opencv', 'python', 'ai']);
-                const hasAIML = talent.skills.some(s => aiSkillsSet.has(s.toLowerCase().trim())) 
-                    || /ai|machine learning|computer vision|data|trí tuệ nhân tạo|deep learning/i.test(talent.headline || talent.major_field || '')
-                    || (Array.isArray(talent.projects) && talent.projects.some(p => /ai|machine learning|deep learning|trí tuệ nhân tạo|computer vision|opencv|pytorch|tensorflow/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
-                if (!hasAIML) return false;
-            }
-
-            if (activeQuickFilters.has('frontend')) {
-                const feSkillsSet = new Set(['react', 'reactjs', 'react.js', 'vue.js', 'vuejs', 'vue', 'angular', 'html', 'html5', 'html/css', 'css', 'css3', 'javascript', 'typescript', 'frontend', 'frontend development', 'ui/ux', 'tailwind', 'tailwind css', 'bootstrap', 'next.js', 'nextjs', 'web development']);
-                const hasFE = talent.skills.some(s => feSkillsSet.has(s.toLowerCase().trim())) 
-                    || /frontend|react|vue|angular|web|ui\/ux|giao diện/i.test(talent.headline || talent.major_field || '')
-                    || (Array.isArray(talent.projects) && talent.projects.some(p => /frontend|react|vue|angular|html|css|giao diện/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
-                if (!hasFE) return false;
-            }
-
-            if (activeQuickFilters.has('backend')) {
-                const beSkillsSet = new Set(['node.js', 'nodejs', 'java', 'spring boot', 'springboot', 'docker', 'mysql', 'sql', 'rest api', 'backend', 'backend development', 'microservices', 'postgresql', 'python', 'php', 'laravel', 'c#', '.net', 'asp.net', 'golang', 'go', 'django', 'fastapi', 'express', 'database', 'cơ sở dữ liệu']);
-                const hasBE = talent.skills.some(s => beSkillsSet.has(s.toLowerCase().trim())) 
-                    || /backend|java|spring|node|php|mysql|c#|\.net|python|sql|database|hệ thống/i.test(talent.headline || talent.major_field || '')
-                    || (Array.isArray(talent.projects) && talent.projects.some(p => /backend|php|mysql|sql|java|spring|node|api|quản lý sinh viên|máy chủ|cơ sở dữ liệu/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
-                if (!hasBE) return false;
-            }
-
-            if (activeQuickFilters.has('security')) {
-                const secSkillsSet = new Set(['an toàn thông tin', 'cyber_security', 'cyber security', 'security', 'bảo mật', 'an ninh mạng']);
-                const hasSec = talent.skills.some(s => secSkillsSet.has(s.toLowerCase().trim())) 
-                    || /security|an toàn thông tin|an ninh|bảo mật/i.test(talent.headline || talent.major_field || '')
-                    || (Array.isArray(talent.projects) && talent.projects.some(p => /security|an toàn thông tin|bảo mật|an ninh/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
-                if (!hasSec) return false;
-            }
-
-            // Quick Filters (Engineering, Creative & Service)
-            if (activeQuickFilters.has('electronics_automation')) {
-                const elecSet = new Set(['điện tử', 'tự động hóa', 'automation', 'electronics', 'robotics', 'plc', 'scada', 'vi điều khiển', 'nhúng', 'embedded', 'iot', 'cơ điện tử', 'mạch điện tử', 'pcb', 'arduino', 'kỹ thuật điện tử']);
-                const hasElec = talent.skills.some(s => elecSet.has(s.toLowerCase().trim())) 
-                    || /điện tử|tự động hóa|automation|electronics|robotics|plc|vi điều khiển|nhúng|embedded|iot|cơ điện tử/i.test(talent.headline || talent.major_field || '')
-                    || (Array.isArray(talent.projects) && talent.projects.some(p => /điện tử|tự động hóa|iot|robotics|embedded/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
-                if (!hasElec) return false;
-            }
-
-            if (activeQuickFilters.has('mechanical_engineering')) {
-                const mechSet = new Set(['cơ khí', 'kỹ thuật cơ khí', 'mechanical', 'chế tạo máy', 'cad', 'cam', 'cnc', 'solidworks', 'autocad', 'kỹ thuật chế tạo', 'bảo trì cơ khí', 'cơ điện tử']);
-                const hasMech = talent.skills.some(s => mechSet.has(s.toLowerCase().trim())) 
-                    || /cơ khí|chế tạo|mechanical|cad|cam|cnc|solidworks|autocad|kỹ thuật cơ khí/i.test(talent.headline || talent.major_field || '')
-                    || (Array.isArray(talent.projects) && talent.projects.some(p => /cơ khí|chế tạo|mechanical|cad|cam|cnc/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
-                if (!hasMech) return false;
-            }
-
-            if (activeQuickFilters.has('design_multimedia')) {
-                const designSet = new Set(['thiết kế sáng tạo & ui/ux', 'thiết kế đồ họa', 'graphic design', 'ui/ux', 'ui/ux design', 'photoshop', 'illustrator', 'figma', 'video editing', 'dựng video', 'animation', '3d', 'sáng tạo nội dung', 'multimedia', 'đa phương tiện', 'thiết kế', 'design']);
-                const hasDesign = talent.skills.some(s => designSet.has(s.toLowerCase().trim())) 
-                    || /thiết kế|đa phương tiện|multimedia|graphic|đồ họa|ui\/ux|design|figma|photoshop|video|animation/i.test(talent.headline || talent.major_field || '')
-                    || (Array.isArray(talent.projects) && talent.projects.some(p => /thiết kế|đồ họa|ui\/ux|design|figma|photoshop/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
-                if (!hasDesign) return false;
-            }
-
-            if (activeQuickFilters.has('tourism_hospitality')) {
-                const tourSet = new Set(['du lịch', 'khách sạn', 'tourism', 'hospitality', 'quản trị khách sạn', 'nhà hàng', 'lữ hành', 'hướng dẫn viên', 'lễ tân', 'f&b', 'quản trị dịch vụ du lịch', 'tour guide', 'nghiệp vụ nhà hàng', 'nghiệp vụ khách sạn']);
-                const hasTour = talent.skills.some(s => tourSet.has(s.toLowerCase().trim())) 
-                    || /du lịch|khách sạn|tourism|hospitality|nhà hàng|lữ hành|hướng dẫn viên|lễ tân|f&b|tour/i.test(talent.headline || talent.major_field || '')
-                    || (Array.isArray(talent.projects) && talent.projects.some(p => /du lịch|khách sạn|tourism|nhà hàng|lữ hành/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
-                if (!hasTour) return false;
-            }
-
+            // Quick Filter: Sẵn sàng thực tập (Readiness)
             if (activeQuickFilters.has('ready_now')) {
                 const isReady = (talent.internship_status === 'ready_now' || (talent.internship_status_label && talent.internship_status_label.includes('Sẵn sàng')));
                 if (!isReady) return false;
@@ -509,16 +530,6 @@ function initTalentSearchModule() {
 
             if (activeFilters.eduLevel && talent.education_level !== activeFilters.eduLevel) return false;
             if (activeFilters.school && talent.school !== activeFilters.school) return false;
-
-            if (activeFilters.majorField) {
-                const reqMajor = activeFilters.majorField.toLowerCase();
-                const candMajor = talent.major_field.toLowerCase();
-                const candHead = (talent.headline || '').toLowerCase();
-                if (!candMajor.includes(reqMajor) && !candHead.includes(reqMajor) && !reqMajor.includes(candMajor)) {
-                    return false;
-                }
-            }
-
             if (activeFilters.matchScore > 0 && (!Number.isFinite(talent.talent_score) || talent.talent_score < activeFilters.matchScore)) return false;
             if (activeFilters.expHours > 0 && talent.experience_hours < activeFilters.expHours) return false;
             if (activeFilters.readiness && talent.internship_status !== activeFilters.readiness) return false;
@@ -1013,20 +1024,300 @@ function initTalentSearchModule() {
         });
     }
 
+    function loadPersistedAddedIndustries() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY_ADDED_INDUSTRIES);
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                return parsed.filter(item => item && (typeof item === 'string' || (item.id && typeof item.id === 'string')));
+            }
+        } catch (e) {
+            console.warn('Could not read added industries from localStorage:', e);
+        }
+        return [];
+    }
+
+    function savePersistedAddedIndustries() {
+        try {
+            const items = [];
+            addedIndustriesMap.forEach((label, id) => {
+                items.push({ id, label });
+            });
+            localStorage.setItem(STORAGE_KEY_ADDED_INDUSTRIES, JSON.stringify(items));
+        } catch (e) {
+            console.warn('Could not save added industries to localStorage:', e);
+        }
+    }
+
+    function ensureIndustryPill(industryKey, customLabel, shouldSave = true) {
+        const key = (industryKey || '').trim();
+        if (!key || key === 'all' || key === 'ready_now') return null;
+
+        const selector = CSS && CSS.escape 
+            ? `#ent-quick-filters .ent-quick-pill[data-quick-filter="${CSS.escape(key)}"]`
+            : `#ent-quick-filters .ent-quick-pill[data-quick-filter="${key}"]`;
+        const existingPill = document.querySelector(selector);
+        if (existingPill) {
+            if (existingPill.classList.contains('ent-quick-pill--added') && !addedIndustriesMap.has(key)) {
+                const lbl = customLabel || existingPill.getAttribute('data-industry-label') || industryLabelMap[key] || key;
+                addedIndustriesMap.set(key, lbl);
+                if (shouldSave) savePersistedAddedIndustries();
+            }
+            return existingPill;
+        }
+
+        if (!quickAddedSlot) return null;
+
+        const resolvedLabel = customLabel || industryLabelMap[key] || key;
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'ent-quick-pill ent-quick-pill--added';
+        pill.setAttribute('data-quick-filter', key);
+        pill.setAttribute('data-industry-label', resolvedLabel);
+
+        // Text label
+        const textSpan = document.createElement('span');
+        textSpan.className = 'ent-quick-pill__text';
+        textSpan.textContent = resolvedLabel;
+        pill.appendChild(textSpan);
+
+        // "×" remove button on right edge of chip
+        const removeSpan = document.createElement('span');
+        removeSpan.className = 'ent-quick-pill__remove';
+        removeSpan.setAttribute('role', 'button');
+        removeSpan.setAttribute('tabindex', '0');
+        removeSpan.setAttribute('title', `Xóa ngành ${resolvedLabel}`);
+        removeSpan.setAttribute('aria-label', `Xóa ngành ${resolvedLabel}`);
+        removeSpan.innerHTML = '&times;';
+
+        removeSpan.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            removeAddedIndustry(key);
+        });
+
+        removeSpan.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.stopPropagation();
+                e.preventDefault();
+                removeAddedIndustry(key);
+            }
+        });
+
+        pill.appendChild(removeSpan);
+
+        pill.addEventListener('click', () => {
+            if (activeFilters.majorField === key) {
+                setIndustryFilter('');
+            } else {
+                setIndustryFilter(key);
+            }
+        });
+
+        quickAddedSlot.appendChild(pill);
+        addedIndustriesMap.set(key, resolvedLabel);
+        if (shouldSave) {
+            savePersistedAddedIndustries();
+        }
+        return pill;
+    }
+
+    function removeAddedIndustry(industryKey) {
+        const key = (industryKey || '').trim();
+        if (!key) return;
+
+        addedIndustriesMap.delete(key);
+        savePersistedAddedIndustries();
+
+        if (activeFilters.majorField === key) {
+            setIndustryFilter('');
+        }
+
+        const selector = CSS && CSS.escape 
+            ? `#ent-quick-added-slot .ent-quick-pill[data-quick-filter="${CSS.escape(key)}"]`
+            : `#ent-quick-added-slot .ent-quick-pill[data-quick-filter="${key}"]`;
+        const pill = document.querySelector(selector);
+        if (pill) {
+            pill.remove();
+        }
+    }
+
+    function setIndustryFilter(industryKey, shouldFetch = true) {
+        const key = (industryKey || '').trim();
+        activeFilters.majorField = key;
+
+        // Clear previous industry key from activeQuickFilters (keep ready_now)
+        for (const qf of Array.from(activeQuickFilters)) {
+            if (qf !== 'ready_now') {
+                activeQuickFilters.delete(qf);
+            }
+        }
+
+        if (key && key !== 'all') {
+            activeQuickFilters.add(key);
+            // Ensure pill exists in quick filter row
+            ensureIndustryPill(key);
+        }
+
+        // 1. Sync dropdown in sidebar
+        if (filterMajorField && filterMajorField.value !== key) {
+            filterMajorField.value = key;
+        }
+
+        // 2. Sync all quick pills (both popular and added)
+        document.querySelectorAll('#ent-quick-filters .ent-quick-pill').forEach(btn => {
+            const btnKey = btn.getAttribute('data-quick-filter');
+            if (!btnKey || btnKey === 'ready_now' || btn.id === 'ent-quick-more-btn') return;
+            if (btnKey === key) {
+                btn.classList.add('is-active');
+            } else {
+                btn.classList.remove('is-active');
+            }
+        });
+
+        // 3. Sync items in "+ Thêm ngành" dropdown
+        quickMoreItems.forEach(item => {
+            const itemKey = item.getAttribute('data-quick-filter');
+            if (itemKey === key) {
+                item.classList.add('is-active');
+            } else {
+                item.classList.remove('is-active');
+            }
+        });
+
+        // Close dropdown
+        if (quickMoreDropdown) {
+            quickMoreDropdown.style.display = 'none';
+        }
+        if (quickMoreBtn) {
+            quickMoreBtn.setAttribute('aria-expanded', 'false');
+        }
+
+        currentPage = 1;
+        if (shouldFetch) {
+            fetchFromApi();
+        }
+    }
+
+    function positionMoreDropdown() {
+        if (!quickMoreDropdown || !quickMoreBtn) return;
+
+        // Reset to initial left-aligned position
+        quickMoreDropdown.style.left = '0';
+        quickMoreDropdown.style.right = 'auto';
+
+        const dropRect = quickMoreDropdown.getBoundingClientRect();
+        const contentContainer = document.querySelector('.ent-talent-container') 
+            || document.querySelector('.ent-main-wrapper') 
+            || document.getElementById('ent-quick-filters')
+            || document.body;
+        
+        const contRect = contentContainer.getBoundingClientRect();
+
+        // 1. If extending to the right causes it to overflow the content area's right edge:
+        if (dropRect.right > contRect.right - 10) {
+            // Align right edge with the button's right edge
+            quickMoreDropdown.style.left = 'auto';
+            quickMoreDropdown.style.right = '0';
+
+            // 2. But ensure right-alignment doesn't cause it to spill into the sidebar on the left!
+            const newRect = quickMoreDropdown.getBoundingClientRect();
+            if (newRect.left < contRect.left + 10) {
+                // Pin directly to container's left safe boundary
+                quickMoreDropdown.style.right = 'auto';
+                const btnRect = quickMoreBtn.getBoundingClientRect();
+                const safeOffsetLeft = Math.max(0, contRect.left + 10 - btnRect.left);
+                quickMoreDropdown.style.left = `${safeOffsetLeft}px`;
+            }
+        }
+    }
+
     quickFilterBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const filterKey = btn.getAttribute('data-quick-filter');
-            if (activeQuickFilters.has(filterKey)) {
-                activeQuickFilters.delete(filterKey);
-                btn.classList.remove('is-active');
-            } else {
-                activeQuickFilters.add(filterKey);
-                btn.classList.add('is-active');
+            if (!filterKey || btn.id === 'ent-quick-more-btn') return;
+
+            if (filterKey === 'ready_now') {
+                if (activeQuickFilters.has('ready_now')) {
+                    activeQuickFilters.delete('ready_now');
+                    btn.classList.remove('is-active');
+                } else {
+                    activeQuickFilters.add('ready_now');
+                    btn.classList.add('is-active');
+                }
+                currentPage = 1;
+                updateAndRender();
+                return;
             }
-            currentPage = 1;
-            updateAndRender();
+
+            // Industry pill clicked: toggle if already active, else activate
+            if (activeFilters.majorField === filterKey) {
+                setIndustryFilter('');
+            } else {
+                setIndustryFilter(filterKey);
+            }
         });
     });
+
+    // "+ Thêm ngành" dropdown items
+    quickMoreItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const filterKey = item.getAttribute('data-quick-filter');
+            if (!filterKey) return;
+            const label = item.getAttribute('data-industry-label')
+                || (item.querySelector('.ent-quick-more-item__text') ? item.querySelector('.ent-quick-more-item__text').textContent.trim() : filterKey);
+            // Ensure pill is appended to quick filter row and persisted
+            ensureIndustryPill(filterKey, label, true);
+
+            if (activeFilters.majorField === filterKey) {
+                setIndustryFilter('');
+            } else {
+                setIndustryFilter(filterKey);
+            }
+        });
+    });
+
+    // Toggle "+ Thêm ngành" dropdown
+    if (quickMoreBtn && quickMoreDropdown) {
+        quickMoreBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = quickMoreDropdown.style.display === 'block';
+            quickMoreDropdown.style.display = isOpen ? 'none' : 'block';
+            quickMoreBtn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+            if (!isOpen) {
+                positionMoreDropdown();
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            if (quickMoreDropdown.style.display === 'block') {
+                positionMoreDropdown();
+            }
+        });
+
+        if (quickMoreClose) {
+            quickMoreClose.addEventListener('click', (e) => {
+                e.stopPropagation();
+                quickMoreDropdown.style.display = 'none';
+                quickMoreBtn.setAttribute('aria-expanded', 'false');
+            });
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!quickMoreDropdown.contains(e.target) && !quickMoreBtn.contains(e.target)) {
+                quickMoreDropdown.style.display = 'none';
+                quickMoreBtn.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && quickMoreDropdown.style.display === 'block') {
+                quickMoreDropdown.style.display = 'none';
+                quickMoreBtn.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
 
     // Sidebar Skill Checkboxes Handler
     skillCheckboxes.forEach(cb => {
@@ -1046,7 +1337,7 @@ function initTalentSearchModule() {
     if (filterEduLevel) filterEduLevel.addEventListener('change', (e) => { activeFilters.eduLevel = e.target.value; currentPage = 1; fetchFromApi(); });
     if (filterSchool) filterSchool.addEventListener('change', (e) => { activeFilters.school = e.target.value; currentPage = 1; fetchFromApi(); });
     if (filterClassYear) filterClassYear.addEventListener('change', (e) => { activeFilters.classYear = e.target.value; currentPage = 1; updateAndRender(); });
-    if (filterMajorField) filterMajorField.addEventListener('change', (e) => { activeFilters.majorField = e.target.value; currentPage = 1; fetchFromApi(); });
+    if (filterMajorField) filterMajorField.addEventListener('change', (e) => { setIndustryFilter(e.target.value); });
     if (filterMatchScore) filterMatchScore.addEventListener('change', (e) => { activeFilters.matchScore = parseInt(e.target.value, 10) || 0; currentPage = 1; updateAndRender(); });
     if (filterExpHours) filterExpHours.addEventListener('change', (e) => { activeFilters.expHours = parseInt(e.target.value, 10) || 0; currentPage = 1; updateAndRender(); });
     if (filterReadiness) filterReadiness.addEventListener('change', (e) => { activeFilters.readiness = e.target.value; currentPage = 1; updateAndRender(); });
@@ -1064,8 +1355,12 @@ function initTalentSearchModule() {
         currentSearchQuery = '';
         if (searchClearBtn) searchClearBtn.style.display = 'none';
 
+        setIndustryFilter('', false);
+
         activeQuickFilters.clear();
-        quickFilterBtns.forEach(b => b.classList.remove('is-active'));
+        document.querySelectorAll('#ent-quick-filters .ent-quick-pill').forEach(b => {
+            if (b.id !== 'ent-quick-more-btn') b.classList.remove('is-active');
+        });
 
         selectedSkillsSet.clear();
         skillCheckboxes.forEach(cb => { cb.checked = false; });
@@ -1411,6 +1706,23 @@ function initTalentSearchModule() {
         } else {
             console.log(msg);
         }
+    }
+
+    // Restore persisted added industries from localStorage
+    const savedIndustries = loadPersistedAddedIndustries();
+    savedIndustries.forEach(item => {
+        const key = typeof item === 'string' ? item : (item && item.id ? item.id : '');
+        const label = (typeof item === 'object' && item && item.label) ? item.label : (industryLabelMap[key] || key);
+        if (key) {
+            ensureIndustryPill(key, label, false);
+        }
+    });
+
+    // Sync initial industry filter if present in URL or sidebar
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialMajorField = urlParams.get('majorField') || urlParams.get('major_field') || (filterMajorField ? filterMajorField.value : '');
+    if (initialMajorField) {
+        setIndustryFilter(initialMajorField, false);
     }
 
     // Initial render: If a job was restored from client storage/URL but initial server payload was unconstrained,

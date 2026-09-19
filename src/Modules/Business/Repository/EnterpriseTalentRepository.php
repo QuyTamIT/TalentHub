@@ -1002,7 +1002,7 @@ final class EnterpriseTalentRepository
         // Filter: Major / Domain / Lĩnh vực năng lực
         $majorField = trim((string) ($filters['major_field'] ?? $filters['field'] ?? $filters['major'] ?? $filters['domain'] ?? ''));
         if (!$hasCurrentScores && $majorField !== '' && $majorField !== 'all') {
-            if (stripos($majorField, 'AI') !== false || stripos($majorField, 'dữ liệu') !== false || stripos($majorField, 'Data') !== false || stripos($majorField, 'Trí tuệ Nhân tạo') !== false) {
+            if ($majorField === 'ai_ml' || stripos($majorField, 'AI') !== false || stripos($majorField, 'dữ liệu') !== false || stripos($majorField, 'Data') !== false || stripos($majorField, 'Trí tuệ Nhân tạo') !== false) {
                 $where[] = "(
                     spd.headline LIKE '%AI%'
                     OR spd.headline LIKE '%Trí tuệ Nhân tạo%'
@@ -1018,47 +1018,39 @@ final class EnterpriseTalentRepository
                           AND skills.name IN ('Python', 'Machine Learning', 'AI / Machine Learning', 'PyTorch', 'Computer Vision', 'Phân tích dữ liệu', 'LangChain', 'Prompt Engineering')
                     )
                 )";
-            } elseif (stripos($majorField, 'Marketing') !== false || stripos($majorField, 'Kinh doanh') !== false || stripos($majorField, 'QTKD') !== false || stripos($majorField, 'TMĐT') !== false) {
+            } elseif ($majorField === 'frontend' || stripos($majorField, 'Frontend') !== false || stripos($majorField, 'Front-end') !== false) {
                 $where[] = "(
-                    spd.headline LIKE '%Marketing%'
-                    OR spd.headline LIKE '%Kinh doanh%'
-                    OR spd.headline LIKE '%Quản trị%'
-                    OR spd.bio LIKE '%Marketing%'
-                    OR spd.bio LIKE '%Kinh doanh%'
+                    spd.headline LIKE '%Frontend%'
+                    OR spd.headline LIKE '%Front-end%'
+                    OR spd.headline LIKE '%React%'
+                    OR spd.headline LIKE '%Vue%'
+                    OR spd.headline LIKE '%Web%'
+                    OR spd.headline LIKE '%UI/UX%'
+                    OR spd.bio LIKE '%Frontend%'
                     OR EXISTS (
                         SELECT 1 FROM student_skills ss
                         JOIN skills ON ss.skillId = skills.id
                         WHERE ss.studentId = student.id
-                          AND skills.name IN ('Digital Marketing', 'Sáng tạo nội dung', 'Nghiên cứu thị trường', 'SEO', 'Google Analytics', 'Khởi nghiệp & Quản trị', 'Quản trị Kinh doanh')
+                          AND skills.name IN ('React', 'Vue.js', 'HTML', 'CSS', 'JavaScript', 'TypeScript', 'Frontend', 'Tailwind', 'Next.js', 'UI/UX')
                     )
                 )";
-            } elseif (stripos($majorField, 'Logistics') !== false || stripos($majorField, 'kho vận') !== false || stripos($majorField, 'cung ứng') !== false) {
+            } elseif ($majorField === 'backend' || stripos($majorField, 'Backend') !== false || stripos($majorField, 'Back-end') !== false) {
                 $where[] = "(
-                    spd.headline LIKE '%Logistics%'
-                    OR spd.headline LIKE '%Kho vận%'
-                    OR spd.headline LIKE '%Chuỗi cung ứng%'
-                    OR spd.bio LIKE '%Logistics%'
+                    spd.headline LIKE '%Backend%'
+                    OR spd.headline LIKE '%Back-end%'
+                    OR spd.headline LIKE '%Java%'
+                    OR spd.headline LIKE '%Node%'
+                    OR spd.headline LIKE '%PHP%'
+                    OR spd.headline LIKE '%Spring%'
+                    OR spd.bio LIKE '%Backend%'
                     OR EXISTS (
                         SELECT 1 FROM student_skills ss
                         JOIN skills ON ss.skillId = skills.id
                         WHERE ss.studentId = student.id
-                          AND skills.name IN ('Quản trị kho vận', 'Logistics', 'Tối ưu hóa đơn hàng', 'Phân tích dữ liệu vận hành')
+                          AND skills.name IN ('Node.js', 'Java', 'Spring Boot', 'Docker', 'MySQL', 'SQL', 'PHP', 'Laravel', 'Python', 'C#', '.NET', 'REST API', 'Backend')
                     )
                 )";
-            } elseif (stripos($majorField, 'Tài chính') !== false || stripos($majorField, 'Kế toán') !== false || stripos($majorField, 'Ngân hàng') !== false) {
-                $where[] = "(
-                    spd.headline LIKE '%Tài chính%'
-                    OR spd.headline LIKE '%Kế toán%'
-                    OR spd.headline LIKE '%Ngân hàng%'
-                    OR spd.bio LIKE '%Tài chính%'
-                    OR EXISTS (
-                        SELECT 1 FROM student_skills ss
-                        JOIN skills ON ss.skillId = skills.id
-                        WHERE ss.studentId = student.id
-                          AND skills.name IN ('Tài chính', 'Kế toán', 'PowerBI', 'Excel nâng cao')
-                    )
-                )";
-            } elseif (stripos($majorField, 'An toàn') !== false || stripos($majorField, 'Security') !== false || stripos($majorField, 'Bảo mật') !== false) {
+            } elseif ($majorField === 'security' || stripos($majorField, 'An toàn') !== false || stripos($majorField, 'Security') !== false || stripos($majorField, 'Bảo mật') !== false) {
                 $where[] = "(
                     spd.headline LIKE '%An toàn%'
                     OR spd.headline LIKE '%Security%'
@@ -1069,6 +1061,130 @@ final class EnterpriseTalentRepository
                         JOIN skills ON ss.skillId = skills.id
                         WHERE ss.studentId = student.id
                           AND skills.name IN ('An toàn thông tin', 'Cyber Security', 'Network Security')
+                    )
+                )";
+            } elseif ($majorField === 'biz_mgmt' || (stripos($majorField, 'Kinh doanh') !== false && stripos($majorField, 'Marketing') === false) || stripos($majorField, 'QTKD') !== false || stripos($majorField, 'Quản trị') !== false) {
+                $where[] = "(
+                    spd.headline LIKE '%Kinh doanh%'
+                    OR spd.headline LIKE '%Quản trị%'
+                    OR spd.bio LIKE '%Kinh doanh%'
+                    OR spd.bio LIKE '%Quản trị%'
+                    OR EXISTS (
+                        SELECT 1 FROM student_skills ss
+                        JOIN skills ON ss.skillId = skills.id
+                        WHERE ss.studentId = student.id
+                          AND skills.name IN ('Quản trị Kinh doanh', 'Quản lý dự án', 'Nghiên cứu thị trường', 'Bán hàng', 'Sales', 'Khởi nghiệp & Quản trị')
+                    )
+                )";
+            } elseif ($majorField === 'marketing_media' || $majorField === 'marketing_pr' || stripos($majorField, 'Marketing') !== false || stripos($majorField, 'Truyền thông') !== false || stripos($majorField, 'PR') !== false) {
+                $where[] = "(
+                    spd.headline LIKE '%Marketing%'
+                    OR spd.headline LIKE '%Truyền thông%'
+                    OR spd.headline LIKE '%PR%'
+                    OR spd.bio LIKE '%Marketing%'
+                    OR spd.bio LIKE '%Truyền thông%'
+                    OR EXISTS (
+                        SELECT 1 FROM student_skills ss
+                        JOIN skills ON ss.skillId = skills.id
+                        WHERE ss.studentId = student.id
+                          AND skills.name IN ('Digital Marketing', 'Sáng tạo nội dung', 'Nghiên cứu thị trường', 'SEO', 'Google Analytics', 'Social Ads', 'Copywriting')
+                    )
+                )";
+            } elseif ($majorField === 'finance_acc' || stripos($majorField, 'Tài chính') !== false || stripos($majorField, 'Kế toán') !== false || stripos($majorField, 'Ngân hàng') !== false) {
+                $where[] = "(
+                    spd.headline LIKE '%Tài chính%'
+                    OR spd.headline LIKE '%Kế toán%'
+                    OR spd.headline LIKE '%Ngân hàng%'
+                    OR spd.bio LIKE '%Tài chính%'
+                    OR EXISTS (
+                        SELECT 1 FROM student_skills ss
+                        JOIN skills ON ss.skillId = skills.id
+                        WHERE ss.studentId = student.id
+                          AND skills.name IN ('Tài chính', 'Kế toán', 'PowerBI', 'Excel nâng cao', 'Lập báo cáo tài chính', 'Kế toán chi phí')
+                    )
+                )";
+            } elseif ($majorField === 'logistics_sc' || stripos($majorField, 'Logistics') !== false || stripos($majorField, 'kho vận') !== false || stripos($majorField, 'cung ứng') !== false) {
+                $where[] = "(
+                    spd.headline LIKE '%Logistics%'
+                    OR spd.headline LIKE '%Kho vận%'
+                    OR spd.headline LIKE '%Chuỗi cung ứng%'
+                    OR spd.bio LIKE '%Logistics%'
+                    OR EXISTS (
+                        SELECT 1 FROM student_skills ss
+                        JOIN skills ON ss.skillId = skills.id
+                        WHERE ss.studentId = student.id
+                          AND skills.name IN ('Quản trị kho vận', 'Logistics', 'Tối ưu hóa đơn hàng', 'Phân tích dữ liệu vận hành', 'Supply Chain')
+                    )
+                )";
+            } elseif ($majorField === 'data_bi' || stripos($majorField, 'BI') !== false) {
+                $where[] = "(
+                    spd.headline LIKE '%BI%'
+                    OR spd.headline LIKE '%Phân tích dữ liệu%'
+                    OR spd.headline LIKE '%Data%'
+                    OR spd.bio LIKE '%BI%'
+                    OR EXISTS (
+                        SELECT 1 FROM student_skills ss
+                        JOIN skills ON ss.skillId = skills.id
+                        WHERE ss.studentId = student.id
+                          AND skills.name IN ('PowerBI', 'Phân tích dữ liệu', 'Data Analytics', 'Excel nâng cao', 'SQL', 'Tableau')
+                    )
+                )";
+            } elseif ($majorField === 'electronics_automation' || stripos($majorField, 'Điện tử') !== false || stripos($majorField, 'Tự động hóa') !== false || stripos($majorField, 'Automation') !== false) {
+                $where[] = "(
+                    spd.headline LIKE '%Điện tử%'
+                    OR spd.headline LIKE '%Tự động hóa%'
+                    OR spd.headline LIKE '%Automation%'
+                    OR spd.headline LIKE '%Robotics%'
+                    OR spd.headline LIKE '%IoT%'
+                    OR spd.bio LIKE '%Điện tử%'
+                    OR spd.bio LIKE '%Tự động hóa%'
+                    OR EXISTS (
+                        SELECT 1 FROM student_skills ss
+                        JOIN skills ON ss.skillId = skills.id
+                        WHERE ss.studentId = student.id
+                          AND skills.name IN ('Điện tử', 'Tự động hóa', 'Automation', 'Robotics', 'PLC', 'Vi điều khiển', 'Nhúng', 'Embedded', 'IoT', 'Cơ điện tử')
+                    )
+                )";
+            } elseif ($majorField === 'mechanical_engineering' || stripos($majorField, 'Cơ khí') !== false || stripos($majorField, 'Mechanical') !== false || stripos($majorField, 'Chế tạo') !== false) {
+                $where[] = "(
+                    spd.headline LIKE '%Cơ khí%'
+                    OR spd.headline LIKE '%Chế tạo%'
+                    OR spd.headline LIKE '%Mechanical%'
+                    OR spd.bio LIKE '%Cơ khí%'
+                    OR EXISTS (
+                        SELECT 1 FROM student_skills ss
+                        JOIN skills ON ss.skillId = skills.id
+                        WHERE ss.studentId = student.id
+                          AND skills.name IN ('Cơ khí', 'Kỹ thuật cơ khí', 'Mechanical', 'Chế tạo máy', 'CAD', 'CAM', 'CNC', 'SolidWorks', 'AutoCAD')
+                    )
+                )";
+            } elseif ($majorField === 'design_multimedia' || stripos($majorField, 'Thiết kế') !== false || stripos($majorField, 'Đa phương tiện') !== false || stripos($majorField, 'Multimedia') !== false || stripos($majorField, 'UI/UX') !== false) {
+                $where[] = "(
+                    spd.headline LIKE '%Thiết kế%'
+                    OR spd.headline LIKE '%Đa phương tiện%'
+                    OR spd.headline LIKE '%Multimedia%'
+                    OR spd.headline LIKE '%UI/UX%'
+                    OR spd.headline LIKE '%Graphic%'
+                    OR spd.bio LIKE '%Thiết kế%'
+                    OR EXISTS (
+                        SELECT 1 FROM student_skills ss
+                        JOIN skills ON ss.skillId = skills.id
+                        WHERE ss.studentId = student.id
+                          AND skills.name IN ('Thiết kế đồ họa', 'Graphic Design', 'UI/UX', 'Photoshop', 'Illustrator', 'Figma', 'Video editing', 'Animation', 'Multimedia', 'Đa phương tiện')
+                    )
+                )";
+            } elseif ($majorField === 'tourism_hospitality' || stripos($majorField, 'Du lịch') !== false || stripos($majorField, 'Khách sạn') !== false || stripos($majorField, 'Tourism') !== false || stripos($majorField, 'Hospitality') !== false) {
+                $where[] = "(
+                    spd.headline LIKE '%Du lịch%'
+                    OR spd.headline LIKE '%Khách sạn%'
+                    OR spd.headline LIKE '%Tourism%'
+                    OR spd.headline LIKE '%Hospitality%'
+                    OR spd.bio LIKE '%Du lịch%'
+                    OR EXISTS (
+                        SELECT 1 FROM student_skills ss
+                        JOIN skills ON ss.skillId = skills.id
+                        WHERE ss.studentId = student.id
+                          AND skills.name IN ('Du lịch', 'Khách sạn', 'Tourism', 'Hospitality', 'Quản trị khách sạn', 'Nhà hàng', 'Lữ hành', 'F&B', 'Tour guide')
                     )
                 )";
             } elseif (stripos($majorField, 'Công nghệ') !== false || stripos($majorField, 'Phần mềm') !== false || stripos($majorField, 'Web') !== false || stripos($majorField, 'Lập trình') !== false) {
