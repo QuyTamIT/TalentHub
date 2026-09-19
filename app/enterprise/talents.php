@@ -43,22 +43,7 @@ if (!function_exists('getInitials')) {
 
 $companyInitials = getInitials($enterprise['name']);
 
-$selectedJobId = trim((string) ($_GET['jobId'] ?? $_GET['job_id'] ?? $_GET['postId'] ?? $_GET['post_id'] ?? ''));
-
-// Dynamic talents listing from database
-$talentsData = ['items' => [], 'total' => 0];
-if ($isVerified && $talentService !== null) {
-    try {
-        $talentsData = $talentService->listTalents((string) $user['id'], $selectedJobId !== '' ? ['jobId' => $selectedJobId] : []);
-    } catch (\Throwable $e) {
-        error_log('Enterprise talents listTalents error: ' . $e->getMessage());
-        $talentsData = ['items' => [], 'total' => 0];
-    }
-}
-
-$total_talents = (int) ($talentsData['total'] ?? count($talentsData['items'] ?? []));
-
-// Dynamic schools list from database
+// Dynamic schools list and active jobs from database
 $schoolsList = [];
 $activeJobs = [];
 $pdo = $context['pdo'] ?? null;
@@ -80,6 +65,25 @@ if ($pdo !== null) {
         }
     }
 }
+
+$selectedJobId = trim((string) ($_GET['jobId'] ?? $_GET['job_id'] ?? $_GET['postId'] ?? $_GET['post_id'] ?? ''));
+if ($selectedJobId === '' && !empty($activeJobs)) {
+    $selectedJobId = (string) $activeJobs[0]['id'];
+}
+
+// Dynamic talents listing from database
+$talentsData = ['items' => [], 'total' => 0];
+if ($isVerified && $talentService !== null) {
+    try {
+        $talentsData = $talentService->listTalents((string) $user['id'], $selectedJobId !== '' ? ['jobId' => $selectedJobId] : []);
+    } catch (\Throwable $e) {
+        error_log('Enterprise talents listTalents error: ' . $e->getMessage());
+        $talentsData = ['items' => [], 'total' => 0];
+    }
+}
+
+$total_talents = (int) ($talentsData['total'] ?? count($talentsData['items'] ?? []));
+
 if (empty($schoolsList)) {
     $schoolsList = array_values(array_filter(array_unique(array_column($talentsData['items'] ?? [], 'schoolName'))));
 }

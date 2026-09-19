@@ -523,6 +523,41 @@ final class EnterpriseTalentRepository
     }
 
     /**
+     * Find if a candidate has an accepted application for any internship post at an enterprise.
+     */
+    public function findAcceptedApplicationForEnterprise(string $enterpriseId, string $studentId, ?string $userId = null): ?array
+    {
+        if (!$this->tableExists('internship_applications') || !$this->tableExists('internship_posts')) {
+            return null;
+        }
+        $targetEnterpriseId = trim($enterpriseId);
+        $targetStudentId = trim($studentId);
+        if ($targetEnterpriseId === '' || $targetStudentId === '') {
+            return null;
+        }
+
+        $sql = "SELECT ia.*, ip.title AS postTitle FROM internship_applications ia
+                INNER JOIN internship_posts ip ON ip.id = ia.postId
+                WHERE (ia.studentId = :studentId OR ia.studentId = :userId)
+                  AND ip.enterpriseId = :enterpriseId
+                  AND ia.status IN ('accepted', 'approved', 'hired')
+                ORDER BY ia.updatedAt DESC
+                LIMIT 1";
+        try {
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([
+                'studentId' => $targetStudentId,
+                'userId' => !empty($userId) ? trim($userId) : $targetStudentId,
+                'enterpriseId' => $targetEnterpriseId,
+            ]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return is_array($row) ? $row : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
      * Find the evaluation score and status for a candidate's application to a specific internship post.
      * 
      * Enforces strict relationship: candidate + internship/job posting + enterprise (+ application/evaluation).
@@ -1069,22 +1104,30 @@ final class EnterpriseTalentRepository
 
         $selectedJobId = trim((string) ($filters['jobId'] ?? $filters['job_id'] ?? $filters['postId'] ?? $filters['post_id'] ?? ''));
         $appStatusSubquery = 'NULL AS current_post_app_status';
-        if ($selectedJobId !== '' && $this->tableExists('internship_applications') && $this->tableExists('internship_posts')) {
-            $appStatusSubquery = '(SELECT ia.status FROM internship_applications ia INNER JOIN internship_posts ip_chk ON ip_chk.id = ia.postId WHERE (ia.studentId = student.id OR ia.studentId = u.id) AND ia.postId = :selectedJobIdApp AND ip_chk.enterpriseId = :selectedJobEnterpriseIdApp ORDER BY ia.updatedAt DESC LIMIT 1) AS current_post_app_status';
-            $params['selectedJobIdApp'] = $selectedJobId;
-            $params['selectedJobEnterpriseIdApp'] = $enterpriseId;
+        if ($this->tableExists('internship_applications') && $this->tableExists('internship_posts')) {
+            if ($selectedJobId !== '') {
+                $appStatusSubquery = '(SELECT ia.status FROM internship_applications ia INNER JOIN internship_posts ip_chk ON ip_chk.id = ia.postId WHERE (ia.studentId = student.id OR ia.studentId = u.id) AND ia.postId = :selectedJobIdApp AND ip_chk.enterpriseId = :selectedJobEnterpriseIdApp ORDER BY ia.updatedAt DESC LIMIT 1) AS current_post_app_status';
+                $params['selectedJobIdApp'] = $selectedJobId;
+                $params['selectedJobEnterpriseIdApp'] = $enterpriseId;
 
-            // When a specific internship is selected, candidates who already have an application
-            // for this exact internship post at this enterprise are ineligible for invitation and excluded from the pool.
-            $where[] = "NOT EXISTS (
-                SELECT 1 FROM internship_applications ia_filter
-                INNER JOIN internship_posts ip_filter ON ip_filter.id = ia_filter.postId
-                WHERE (ia_filter.studentId = student.id OR ia_filter.studentId = u.id)
-                  AND ia_filter.postId = :selectedJobIdFilter
-                  AND ip_filter.enterpriseId = :selectedJobEntFilter
-            )";
-            $params['selectedJobIdFilter'] = $selectedJobId;
-            $params['selectedJobEntFilter'] = $enterpriseId;
+                // When a specific internship is selected, candidates who already have an application
+                // (especially accepted/approved) for this exact internship post at this enterprise are ineligible for invitation and excluded from the pool.
+                $where[] = "NOT EXISTS (
+                    SELECT 1 FROM internship_applications ia_filter
+                    INNER JOIN internship_posts ip_filter ON ip_filter.id = ia_filter.postId
+                    WHERE (ia_filter.studentId = student.id OR ia_filter.studentId = u.id)
+                      AND ia_filter.postId = :selectedJobIdFilter
+                      AND ip_filter.enterpriseId = :selectedJobEntFilter
+                      AND ia_filter.status IN ('accepted', 'approved', 'hired', 'submitted', 'reviewing', 'interview', 'invited')
+                )";
+                $params['selectedJobIdFilter'] = $selectedJobId;
+                $params['selectedJobEntFilter'] = $enterpriseId;
+            } else {
+                // When no specific internship is selected (all talents view for this enterprise),
+                // query candidate's latest application status for this enterprise
+                $appStatusSubquery = '(SELECT ia.status FROM internship_applications ia INNER JOIN internship_posts ip_chk ON ip_chk.id = ia.postId WHERE (ia.studentId = student.id OR ia.studentId = u.id) AND ip_chk.enterpriseId = :allJobsEnterpriseIdApp ORDER BY CASE WHEN ia.status IN (\'accepted\', \'approved\', \'hired\') THEN 1 WHEN ia.status IN (\'submitted\', \'reviewing\', \'interview\') THEN 2 WHEN ia.status = \'invited\' THEN 3 ELSE 4 END ASC, ia.updatedAt DESC LIMIT 1) AS current_post_app_status';
+                $params['allJobsEnterpriseIdApp'] = $enterpriseId;
+            }
         }
 
         $whereClause = implode(' AND ', $where);
@@ -1312,6 +1355,12 @@ final class EnterpriseTalentRepository
             }
 
             $stRaw = strtolower(trim((string) ($row['current_post_app_status'] ?? '')));
+            if ($stRaw === '' && $selectedJobId === '') {
+                $acceptedCheck = $this->findAcceptedApplicationForEnterprise($enterpriseId, $studentId, $userId);
+                if ($acceptedCheck !== null) {
+                    $stRaw = strtolower(trim((string) ($acceptedCheck['status'] ?? 'accepted')));
+                }
+            }
             $canInvite = true;
             $internshipStatus = 'ready_now';
             $internshipStatusLabel = 'Sẵn sàng thực tập';
@@ -1591,6 +1640,55 @@ final class EnterpriseTalentRepository
                 }
             } catch (\Throwable $e) {
                 error_log('getTalentDetail app check error: ' . $e->getMessage());
+            }
+        } else {
+            try {
+                $appStmt = $this->pdo->prepare("
+                    SELECT ia.status, ip.title as postTitle
+                    FROM internship_applications ia
+                    INNER JOIN internship_posts ip ON ip.id = ia.postId
+                    WHERE (ia.studentId = ? OR ia.studentId = ?)
+                      AND ip.enterpriseId = ?
+                    ORDER BY CASE WHEN ia.status IN ('accepted', 'approved', 'hired') THEN 1
+                                  WHEN ia.status IN ('submitted', 'reviewing', 'interview') THEN 2
+                                  WHEN ia.status = 'invited' THEN 3
+                                  ELSE 4 END ASC,
+                             ia.updatedAt DESC
+                    LIMIT 1
+                ");
+                $appStmt->execute([$realStudentId, (string) ($row['userId'] ?? ''), $enterpriseId]);
+                $appRow = $appStmt->fetch(PDO::FETCH_ASSOC);
+                if ($appRow) {
+                    $st = strtolower(trim((string) $appRow['status']));
+                    if (in_array($st, ['accepted', 'approved', 'hired'], true)) {
+                        $canInvite = false;
+                        $internshipStatus = 'accepted';
+                        $internshipStatusLabel = 'Đã nhận';
+                        $actionLabel = 'Đã tiếp nhận';
+                    } elseif (in_array($st, ['submitted'], true)) {
+                        $canInvite = false;
+                        $internshipStatus = 'submitted';
+                        $internshipStatusLabel = 'Đang xét duyệt';
+                        $actionLabel = 'Đã ứng tuyển';
+                    } elseif (in_array($st, ['reviewing'], true)) {
+                        $canInvite = false;
+                        $internshipStatus = 'reviewing';
+                        $internshipStatusLabel = 'Đang xét duyệt';
+                        $actionLabel = 'Đang xét duyệt';
+                    } elseif (in_array($st, ['interview', 'interviewing'], true)) {
+                        $canInvite = false;
+                        $internshipStatus = 'interviewing';
+                        $internshipStatusLabel = 'Đang phỏng vấn';
+                        $actionLabel = 'Đang phỏng vấn';
+                    } elseif (in_array($st, ['invited'], true)) {
+                        $canInvite = false;
+                        $internshipStatus = 'invited';
+                        $internshipStatusLabel = 'Đã mời ứng tuyển';
+                        $actionLabel = 'Đã gửi lời mời';
+                    }
+                }
+            } catch (\Throwable $e) {
+                error_log('getTalentDetail all-jobs app check error: ' . $e->getMessage());
             }
         }
 

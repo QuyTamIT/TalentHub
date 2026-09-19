@@ -369,7 +369,7 @@ function initTalentSearchModule() {
         return allTalents.filter(talent => {
             // Application eligibility rule: When a specific internship is selected,
             // candidates who already have an application/accepted status for this internship must NOT appear in the candidate pool.
-            if (activeJobId && (talent.internship_status === 'accepted' || talent.has_applied)) {
+            if (activeJobId && (talent.internship_status === 'accepted' || talent.has_applied || !talent.canInvite)) {
                 return false;
             }
 
@@ -763,8 +763,23 @@ function initTalentSearchModule() {
             const mLabel2 = document.createElement('span');
             mLabel2.className = 'ent-meta-item__label';
             mLabel2.textContent = 'Trạng thái:';
+            const st = String(talent.internship_status || 'ready_now').toLowerCase();
+            let badgeClass = 'badge-ready-now';
+            if (st === 'accepted' || st === 'approved' || st === 'hired') {
+                badgeClass = 'badge-accepted';
+            } else if (st === 'submitted' || st === 'reviewing') {
+                badgeClass = 'badge-pending';
+            } else if (st === 'interview' || st === 'interviewing') {
+                badgeClass = 'badge-interviewing';
+            } else if (st === 'invited') {
+                badgeClass = 'badge-invited';
+            } else if (st === 'ready_later') {
+                badgeClass = 'badge-ready-later';
+            } else if (st === 'not_ready') {
+                badgeClass = 'badge-not-ready';
+            }
             const mVal2 = document.createElement('span');
-            mVal2.className = 'val-status badge-ready-now';
+            mVal2.className = `val-status ${badgeClass}`;
             mVal2.textContent = ` ${talent.internship_status_label}`;
             metaItem2.appendChild(mLabel2);
             metaItem2.appendChild(mVal2);
@@ -871,14 +886,24 @@ function initTalentSearchModule() {
             detailLink.href = resolveCandidateDetailUrl(talent.id);
             detailLink.className = 'btn btn-secondary btn-sm';
             detailLink.textContent = 'Xem hồ sơ';
-
-            const contactLink = document.createElement('a');
-            contactLink.href = resolveCandidateDetailUrl(talent.id);
-            contactLink.className = 'btn btn-primary btn-sm';
-            contactLink.textContent = talent.hasPendingContactRequest ? 'Đã yêu cầu' : 'Mời ứng tuyển';
-
             actionsDiv.appendChild(detailLink);
-            actionsDiv.appendChild(contactLink);
+
+            if (talent.canInvite) {
+                const contactLink = document.createElement('a');
+                contactLink.href = resolveCandidateDetailUrl(talent.id);
+                contactLink.className = 'btn btn-primary btn-sm';
+                contactLink.textContent = talent.hasPendingContactRequest ? 'Đã yêu cầu' : 'Mời ứng tuyển';
+                actionsDiv.appendChild(contactLink);
+            } else {
+                const disabledBtn = document.createElement('button');
+                disabledBtn.type = 'button';
+                disabledBtn.className = 'btn btn-secondary btn-sm';
+                disabledBtn.disabled = true;
+                disabledBtn.style.opacity = '0.7';
+                disabledBtn.style.cursor = 'not-allowed';
+                disabledBtn.textContent = talent.actionLabel || 'Đã tiếp nhận';
+                actionsDiv.appendChild(disabledBtn);
+            }
 
             footer.appendChild(privNote);
             footer.appendChild(actionsDiv);

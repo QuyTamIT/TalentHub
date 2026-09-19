@@ -256,15 +256,37 @@ if (!empty($enterprise['id']) && !empty($talent['id'])) {
             SELECT ia.id, ia.postId, ia.status, ip.title as postTitle
             FROM internship_applications ia
             JOIN internship_posts ip ON ip.id = ia.postId
-            WHERE ip.enterpriseId = ? AND (ia.studentId = ? OR ia.studentId = ?) AND ia.status = 'invited'
-            ORDER BY ia.updatedAt DESC
+            WHERE ip.enterpriseId = ? AND (ia.studentId = ? OR ia.studentId = ?)
+            ORDER BY CASE WHEN ia.status IN ('accepted', 'approved', 'hired') THEN 1
+                          WHEN ia.status IN ('submitted', 'reviewing', 'interview') THEN 2
+                          WHEN ia.status = 'invited' THEN 3
+                          ELSE 4 END ASC,
+                     ia.updatedAt DESC
             LIMIT 1
         ");
         $invCheckStmt->execute([$enterprise['id'], $talent['id'], $talent['userId'] ?? '']);
-        $existingInvite = $invCheckStmt->fetch(PDO::FETCH_ASSOC);
-        if ($existingInvite) {
-            $hasInvited = true;
-            $invitedPostTitle = (string) $existingInvite['postTitle'];
+        $existingApp = $invCheckStmt->fetch(PDO::FETCH_ASSOC);
+        if ($existingApp) {
+            $st = strtolower((string)$existingApp['status']);
+            if (in_array($st, ['accepted', 'approved', 'hired'], true)) {
+                $talent['can_invite'] = false;
+                $talent['internship_status_label'] = 'Đã nhận';
+                $talent['action_label'] = 'Đã tiếp nhận';
+            } elseif (in_array($st, ['submitted', 'reviewing'], true)) {
+                $talent['can_invite'] = false;
+                $talent['internship_status_label'] = 'Đang xét duyệt';
+                $talent['action_label'] = 'Đang xét duyệt';
+            } elseif (in_array($st, ['interview', 'interviewing'], true)) {
+                $talent['can_invite'] = false;
+                $talent['internship_status_label'] = 'Đang phỏng vấn';
+                $talent['action_label'] = 'Đang phỏng vấn';
+            } elseif ($st === 'invited') {
+                $hasInvited = true;
+                $invitedPostTitle = (string) $existingApp['postTitle'];
+                $talent['can_invite'] = false;
+                $talent['internship_status_label'] = 'Đã mời ứng tuyển';
+                $talent['action_label'] = 'Đã gửi lời mời';
+            }
         }
     }
 }
