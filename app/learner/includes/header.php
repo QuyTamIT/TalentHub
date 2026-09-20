@@ -43,10 +43,20 @@ $accountType = 'Tài khoản Sinh viên';
         </form>
 
         <?php if (!$learnerOnboardingRestricted): ?>
-        <a class="learner-icon-button" id="learner-notification-button" href="notifications.php" aria-label="Xem thông báo">
+        <button
+            type="button"
+            data-notif-trigger
+            data-portal="learner"
+            data-endpoint="<?= function_exists('app_href') ? app_href('/app/learner/api/v1/notifications.php') : ($basePrefix . '/app/learner/api/v1/notifications.php'); ?>"
+            data-detail-url="<?= function_exists('app_href') ? app_href('/app/learner/notifications.php') : ($basePrefix . '/app/learner/notifications.php'); ?>"
+            class="learner-icon-button"
+            id="learner-notification-button"
+            aria-label="Xem thông báo"
+            aria-haspopup="dialog"
+        >
             <?= learner_icon('bell', 21); ?>
             <span class="learner-notification-dot" id="learner-unread-badge" aria-hidden="true" style="display: none;"></span>
-        </a>
+        </button>
         <?php endif; ?>
 
         <!-- Learner Account Area with Dropdown -->
@@ -159,7 +169,28 @@ $accountType = 'Tài khoản Sinh viên';
             </div>
         </div>
     </div>
+
+    <?php if (!$learnerOnboardingRestricted): ?>
+    <!-- Notification popup (shared notif-popup CSS/JS for all portals) -->
+    <dialog class="notif-popup" data-notif-dialog aria-labelledby="learner-notif-title">
+        <div class="notif-popup__header">
+            <h2 class="notif-popup__title" id="learner-notif-title">Thông báo</h2>
+            <button type="button" class="notif-popup__close" data-notif-close aria-label="Đóng thông báo">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="notif-popup__list" data-notif-list aria-live="polite"></div>
+        <div class="notif-popup__footer">
+            <a class="notif-popup__detail-link" href="<?= learner_escape(function_exists('app_href') ? app_href('/app/learner/notifications.php') : ($basePrefix . '/app/learner/notifications.php')); ?>">Xem chi tiết</a>
+            <button type="button" class="notif-popup__mark-all" data-notif-mark-all>Đánh dấu đã đọc</button>
+        </div>
+    </dialog>
+    <?php endif; ?>
 </header>
+
 
 <div class="learner-toast" id="learner-toast" role="status" aria-live="polite" aria-atomic="true">
     <span class="learner-toast__icon"><?= learner_icon('check', 18); ?></span>
@@ -174,3 +205,4 @@ $accountType = 'Tài khoản Sinh viên';
 ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
 <?php endif; ?>
 <script src="../../assets/js/learner-notifications.js?v=<?= time(); ?>" defer></script>
+<script src="../../assets/js/notifications-popup.js" defer></script>

@@ -130,3 +130,6 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 .cursor/
+
+# Local AI orchestrator notes (machine-specific, never commit)
+AGENTS.md
