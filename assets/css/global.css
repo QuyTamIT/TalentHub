@@ -2833,6 +2833,79 @@ dialog.notif-popup[open] {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    animation: notif-pop-in 180ms ease-out;
+    transform-origin: top right;
+}
+
+/* Hiệu ứng mở/đóng popup + item vào so le + badge pulse.
+   (Đóng dialog là tức thì theo native behavior; entrance mới cần animation.) */
+@keyframes notif-pop-in {
+    from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+}
+
+dialog.notif-popup::backdrop {
+    animation: notif-backdrop-in 180ms ease-out;
+}
+
+@keyframes notif-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Item trượt vào so le (tối đa 8 item như JS render) */
+.notif-popup__list > .notif-popup__item {
+    animation: notif-item-in 260ms ease-out both;
+}
+
+.notif-popup__list > .notif-popup__item:nth-child(2) { animation-delay: 35ms; }
+.notif-popup__list > .notif-popup__item:nth-child(3) { animation-delay: 70ms; }
+.notif-popup__list > .notif-popup__item:nth-child(4) { animation-delay: 105ms; }
+.notif-popup__list > .notif-popup__item:nth-child(5) { animation-delay: 140ms; }
+.notif-popup__list > .notif-popup__item:nth-child(6) { animation-delay: 175ms; }
+.notif-popup__list > .notif-popup__item:nth-child(7) { animation-delay: 210ms; }
+.notif-popup__list > .notif-popup__item:nth-child(8) { animation-delay: 245ms; }
+
+@keyframes notif-item-in {
+    from { opacity: 0; transform: translateX(12px); }
+    to { opacity: 1; transform: none; }
+}
+
+/* Trạng thái đang tải: chữ nhấp nháy nhẹ */
+.notif-popup__list.is-loading .notif-popup__empty {
+    animation: notif-loading-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes notif-loading-pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+}
+
+/* Badge chuông pulse khi có thông báo (phần tử display:none không paint nên an toàn) */
+#enterprise-unread-badge,
+#school-unread-badge,
+#teacher-unread-badge,
+#learner-unread-badge {
+    animation: notif-badge-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes notif-badge-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
+    50% { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+}
+
+/* Tôn trọng người dùng giảm chuyển động */
+@media (prefers-reduced-motion: reduce) {
+    dialog.notif-popup[open],
+    dialog.notif-popup::backdrop,
+    .notif-popup__list > .notif-popup__item,
+    .notif-popup__list.is-loading .notif-popup__empty,
+    #enterprise-unread-badge,
+    #school-unread-badge,
+    #teacher-unread-badge,
+    #learner-unread-badge {
+        animation: none !important;
+    }
 }
 
 /* Header popup: tiêu đề + nút đóng */

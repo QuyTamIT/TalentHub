@@ -143,6 +143,7 @@
 
         function load() {
             if (!list || !endpoint) return;
+            list.classList.add('is-loading');
             list.innerHTML = '<p class="notif-popup__empty">Đang tải thông báo...</p>';
             fetch(appUrl(endpoint) + '?filter=all&limit=8&offset=0', {
                 credentials: 'same-origin',
@@ -154,10 +155,12 @@
                     // Portal: data.items | Learner: data.notifications.
                     var items = Array.isArray(data.items) ? data.items
                         : (Array.isArray(data.notifications) ? data.notifications : []);
+                    list.classList.remove('is-loading');
                     renderItems(items);
                     loaded = true;
                 })
                 .catch(function () {
+                    list.classList.remove('is-loading');
                     list.innerHTML = '<p class="notif-popup__empty">Không thể tải thông báo.</p>';
                 });
         }
