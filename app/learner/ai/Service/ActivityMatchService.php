@@ -81,18 +81,25 @@ final class ActivityMatchService
         $items = array_slice($items, 0, 3);
         $emptyAnalysis = [];
         if ($items !== []) {
-            if ($this->engine === null) throw new \RuntimeException('activity_provider_not_configured');
-            $items = $this->engine->generate($input, $items);
-        } else {
-            if ($this->engine === null) throw new \RuntimeException('activity_provider_not_configured');
-            $emptyAnalysis = $this->engine->explainNoMatches($input, $candidates);
+            if ($this->engine !== null) {
+                try {
+                    $items = $this->engine->generate($input, $items);
+                } catch (\Throwable $e) {
+                    error_log('Activity AI Explain error: ' . $e->getMessage());
+                }
+            }
+        } elseif ($this->engine !== null) {
+            try {
+                $emptyAnalysis = $this->engine->explainNoMatches($input, $candidates);
+            } catch (\Throwable $e) {
+                error_log('Activity AI empty Explain error: ' . $e->getMessage());
+            }
         }
-        // Re-read after the provider call. Never persist a result built on a superseded snapshot.
         if (array_diff(['skills','assessment','activity','evaluation'], ($this->scopes)($studentId)) !== []) return ['state'=>'consent_required','items'=>[]];
         $currentInput = ($this->snapshot)($studentId);
         $currentCandidates = (new DatabaseActivityCandidateSource($this->pdo))->candidates($studentId);
         if (!hash_equals($hash, $this->hash($currentInput, $currentCandidates))) return ['state'=>'stale_model','items'=>[]];
-        $result = ['state'=>$items === [] ? 'no_matches' : 'completed','engine'=>'model','score_version'=>self::VERSION,'input_hash'=>$hash,'generated_at'=>gmdate('c'),'items'=>$items] + $emptyAnalysis;
+        $result = ['state'=>$items === [] ? 'no_matches' : 'completed','engine'=>'model','analysis_origin'=>'model','score_version'=>self::VERSION,'input_hash'=>$hash,'generated_at'=>gmdate('c'),'items'=>$items] + $emptyAnalysis;
         $insert = $this->pdo->prepare('INSERT INTO learner_activity_match_runs (id,studentId,inputHash,payloadJson,createdAt) VALUES (?,?,?,?,?)');
         $runId = sprintf('%016x', (int)(microtime(true) * 1000000)) . bin2hex(random_bytes(8));
         $insert->execute([$runId, $studentId, $hash, json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE), gmdate('Y-m-d H:i:s')]);

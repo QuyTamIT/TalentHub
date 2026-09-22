@@ -44,11 +44,11 @@
         const panel = root.querySelector('[data-panel]');
         const triggerLabel = root.querySelector('[data-trigger-label]');
         const messages = {
-            not_generated: 'Chưa phân tích. Hãy yêu cầu gợi ý dựa trên kỹ năng của bạn.',
+            not_generated: 'Chưa có gợi ý. Hãy yêu cầu gợi ý dựa trên kỹ năng của bạn.',
             insufficient_data: 'Hồ sơ chưa có điểm kỹ năng. Hãy bổ sung hồ sơ hoặc hoàn thành đánh giá.',
             consent_required: 'Cần đồng ý sử dụng dữ liệu kỹ năng, đánh giá, nhận xét và hoạt động trong cài đặt AI.',
             no_matches: 'Chưa có hoạt động sát nhu cầu phát triển hiện tại. Bạn vẫn có thể khám phá danh sách hoạt động theo sở thích.',
-            completed: 'AI phân tích dựa trên dữ liệu hiện tại. Điểm đối chiếu kỹ năng 0–100, không phải xác suất thành công.',
+            completed: 'Đã đối chiếu kỹ năng với hoạt động đang mở. Điểm gợi ý 0–100 dựa trên kỹ năng cần phát triển; AI giải thích vì sao phù hợp.',
             stale_model: 'Dữ liệu đã thay đổi hoặc chưa thể xác minh lại. Hãy làm mới trước khi quyết định.',
             error: 'Dịch vụ gợi ý tạm thời không khả dụng. Đây là lỗi xử lý, không có nghĩa là không có hoạt động phù hợp. Vui lòng thử lại sau.',
         };
@@ -56,7 +56,7 @@
             const loading = payload.state === 'loading';
             root.setAttribute('aria-busy', String(loading));
             button.disabled = loading;
-            if (triggerLabel) triggerLabel.textContent = loading ? 'Đang phân tích...' : 'Phân tích lại hoạt động phù hợp';
+            if (triggerLabel) triggerLabel.textContent = loading ? 'Đang tìm hoạt động phù hợp...' : 'Gợi ý hoạt động phù hợp';
             progress.hidden = !loading;
             progress.value = payload.progress || 0;
             const steps = ['Quét hồ sơ', 'Lọc hoạt động', 'Đối chiếu kỹ năng', 'Xếp hạng'];
@@ -64,7 +64,7 @@
             const hasEmptyAnalysis = payload.state === 'no_matches' && typeof payload.analysis === 'string' && payload.analysis.trim() !== '';
             if (hasEmptyAnalysis) status.textContent = 'Đã đối chiếu kỹ năng của bạn với các hoạt động đang mở tại trường.';
             if (payload.state === 'no_matches' && payload.no_match_reason === 'no_activities') status.textContent = 'Hiện chưa có hoạt động đang mở, còn hạn và còn chỗ tại trường để đối chiếu với kỹ năng của bạn. Hãy quay lại khi có hoạt động mới.';
-            if (payload.errorCode === 'AUTH_REQUIRED' || payload.errorCode === 'AUTHENTICATION_REQUIRED') status.textContent = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để phân tích.';
+            if (payload.errorCode === 'AUTH_REQUIRED' || payload.errorCode === 'AUTHENTICATION_REQUIRED') status.textContent = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để nhận gợi ý.';
             if (payload.errorCode === 'ACTIVITY_MATCH_STORAGE_UNAVAILABLE') status.textContent = 'Gợi ý hoạt động chưa sẵn sàng vì hệ thống lưu kết quả chưa được thiết lập. Vui lòng liên hệ quản trị viên. Đây không phải kết luận không có hoạt động phù hợp.';
             if (payload.error && payload.state === 'stale_model') status.textContent += ' Chưa thể làm mới; các thẻ dưới đây là kết quả cũ.';
             cards.replaceChildren();
@@ -77,7 +77,9 @@
                     : 'Chưa sát nhu cầu hiện tại, vẫn có thể khám phá';
                 const analysis = doc.createElement('p');
                 analysis.className = 'learner-activity-matches__analysis';
-                analysis.textContent = payload.analysis;
+                const analysisLabel = doc.createElement('strong');
+                analysisLabel.textContent = 'AI giải thích: ';
+                analysis.append(analysisLabel, doc.createTextNode(payload.analysis));
                 const invitation = doc.createElement('p');
                 invitation.className = 'learner-activity-matches__invitation';
                 invitation.textContent = 'Bạn vẫn có thể cân nhắc tham gia theo sở thích để mở rộng trải nghiệm và kết nối. Hãy xem nội dung cùng điều kiện tham gia trước khi đăng ký.';
@@ -87,12 +89,19 @@
                 card.append(title, analysis, invitation, browse);
                 cards.append(card);
             }
+            const aiExplained = (payload.analysis_origin || 'model') === 'model';
             for (const item of payload.items) {
                 const card = doc.createElement('article');
                 const title = doc.createElement('h3'); title.textContent = String(item.title || 'Hoạt động');
                 const score = doc.createElement('p'); score.textContent = `Điểm gợi ý: ${Math.max(0, Math.min(100, Number(item.score) || 0))}/100`;
                 score.className = 'learner-activity-matches__score';
-                const reason = doc.createElement('p'); reason.textContent = String(item.why_fit || '');
+                const reason = doc.createElement('p');
+                const whyFit = String(item.why_fit || item.analysis || '');
+                if (whyFit !== '') {
+                    const reasonLabel = doc.createElement('strong');
+                    reasonLabel.textContent = aiExplained ? 'AI giải thích: ' : 'Lý do phù hợp: ';
+                    reason.append(reasonLabel, doc.createTextNode(whyFit));
+                }
                 const skills = doc.createElement('p'); skills.textContent = `Kỹ năng có thể rèn luyện: ${(Array.isArray(item.skills_to_develop) ? item.skills_to_develop : []).join(', ') || 'Củng cố kỹ năng hiện có'}`;
                 const link = doc.createElement('a'); link.textContent = 'Xem chi tiết / Đăng ký';
                 link.href = `activity-detail.php?id=${encodeURIComponent(String(item.activity_id))}`;

@@ -152,7 +152,7 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
 
                     <section class="learner-activity-matches" data-activity-matches aria-label="Gợi ý hoạt động để phát triển kỹ năng">
                         <div class="learner-activity-matches__actions">
-                            <button type="button" class="learner-btn learner-btn--primary" data-generate aria-expanded="false" aria-controls="activity-matches-panel"><span data-trigger-label>AI gợi ý hoạt động phù hợp</span></button>
+                            <button type="button" class="learner-btn learner-btn--primary" data-generate aria-expanded="false" aria-controls="activity-matches-panel"><span data-trigger-label>Gợi ý hoạt động phù hợp</span></button>
                         </div>
                         <div id="activity-matches-panel" class="learner-activity-matches__panel" data-panel hidden>
                             <div class="learner-activity-matches__header">
