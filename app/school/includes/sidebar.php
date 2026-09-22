@@ -50,7 +50,7 @@ $sidebarNav = [
     ],
     [
         'title' => 'Dự án',
-        'route' => '/app/school/projects.php',
+        'route' => '/app/school/projects/',
         'icon' => 'book',
     ],
     [
@@ -107,11 +107,14 @@ $sidebarNav = [
         <ul>
             <?php
             $currentPage = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+            $scriptPath = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
             foreach ($sidebarNav as $navItem):
                 $routePath = parse_url($navItem['route'], PHP_URL_PATH) ?: $navItem['route'];
-                $routeBase = basename($routePath);
+                $routeBase = basename(rtrim($routePath, '/'));
+                $routeDir = rtrim($routePath, '/') . '/';
                 $isActive  = ($routeBase !== '' && $routeBase === $currentPage)
-                    || (isset($currentRoute) && $navItem['route'] === $currentRoute);
+                    || (isset($currentRoute) && $navItem['route'] === $currentRoute)
+                    || ($routeBase !== '' && $routeBase !== 'school' && str_contains($scriptPath, $routeDir));
             ?>
                 <li>
                     <a href="<?= htmlspecialchars(app_href($navItem['route'])); ?>"

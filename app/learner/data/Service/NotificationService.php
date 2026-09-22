@@ -60,7 +60,7 @@ final class NotificationService
         '/app/school/activities.php',
         '/app/enterprise/applications.php',
         '/app/teacher/students/index.php',
-        '/app/school/projects.php',
+        '/app/school/projects/',
         '/app/school/internships.php',
     ];
 

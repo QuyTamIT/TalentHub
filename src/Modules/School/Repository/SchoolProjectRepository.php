@@ -130,18 +130,15 @@ SQL);
                 'status' => $status,
             ]);
 
-            // Insert authorIds
             $recipients = [];
-            if (!empty($authorIds)) {
+            $validAuthorIds = $this->assertStudentsBelongToSchool($authorIds, $schoolId);
+            if ($validAuthorIds !== []) {
                 $memberStmt = $this->pdo->prepare('INSERT INTO project_members (id, projectId, studentId, role, status, joinedAt, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-                foreach ($authorIds as $studentId) {
-                    if (is_string($studentId) && trim($studentId) !== '') {
-                        $trimmed = trim($studentId);
-                        $memberStmt->execute([
-                            Uuid::v4(), $id, $trimmed, 'member', 'active', $now, $now, $now
-                        ]);
-                        $recipients[] = $trimmed;
-                    }
+                foreach ($validAuthorIds as $trimmed) {
+                    $memberStmt->execute([
+                        Uuid::v4(), $id, $trimmed, 'member', 'active', $now, $now, $now
+                    ]);
+                    $recipients[] = $trimmed;
                 }
             }
             $this->replaceProjectSkillTags($id, $skillTags, $now);
@@ -158,7 +155,19 @@ SQL);
 
     public function getProject(string $schoolId, string $projectId): array
     {
-        $stmt = $this->pdo->prepare('SELECT * FROM projects WHERE id = :id AND schoolId = :schoolId LIMIT 1');
+        $stmt = $this->pdo->prepare(
+            "SELECT p.*,
+                    tu.fullName AS mentorName,
+                    COALESCE((SELECT SUM(ps.amount) FROM project_sponsorships ps WHERE ps.projectId = p.id AND ps.status = 'paid'), 0) AS raisedAmount,
+                    COALESCE((SELECT COUNT(DISTINCT ps.enterpriseId) FROM project_sponsorships ps WHERE ps.projectId = p.id AND ps.status = 'paid'), 0) AS sponsorsCount,
+                    COALESCE((SELECT COUNT(*) FROM project_members pm WHERE pm.projectId = p.id AND pm.status = 'active'), 0) AS membersCount,
+                    COALESCE((SELECT COUNT(*) FROM project_members pm WHERE pm.projectId = p.id AND pm.status = 'pending'), 0) AS pendingMembersCount
+             FROM projects p
+             LEFT JOIN teacher_profiles tp ON tp.id = p.mentorTeacherId
+             LEFT JOIN users tu ON tu.id = tp.userId
+             WHERE p.id = :id AND p.schoolId = :schoolId
+             LIMIT 1"
+        );
         $stmt->execute(['id' => $projectId, 'schoolId' => $schoolId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -166,17 +175,11 @@ SQL);
             throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy dự án trong trường học.');
         }
 
-        // Calculate raised amount and sponsors count
-        $stmtStats = $this->pdo->prepare(
-            "SELECT COALESCE(SUM(amount), 0) AS raisedAmount, COUNT(DISTINCT enterpriseId) AS sponsorsCount
-             FROM project_sponsorships
-             WHERE projectId = ? AND status = 'paid'"
-        );
-        $stmtStats->execute([$projectId]);
-        $stats = $stmtStats->fetch(PDO::FETCH_ASSOC) ?: ['raisedAmount' => '0.00', 'sponsorsCount' => 0];
-
-        $row['raisedAmount'] = (string) $stats['raisedAmount'];
-        $row['sponsorsCount'] = (int) $stats['sponsorsCount'];
+        $row['raisedAmount'] = (string) $row['raisedAmount'];
+        $row['sponsorsCount'] = (int) $row['sponsorsCount'];
+        $row['membersCount'] = (int) $row['membersCount'];
+        $row['pendingMembersCount'] = (int) $row['pendingMembersCount'];
+        $row['mentorName'] = isset($row['mentorName']) && is_string($row['mentorName']) ? $row['mentorName'] : null;
 
         return $row;
     }
@@ -402,6 +405,49 @@ SQL);
                 throw new ApiException(422, 'VALIDATION_FAILED', 'Giáo viên hướng dẫn không thuộc trường học này.');
             }
         }
+    }
+
+    /**
+     * @param mixed $authorIds
+     * @return list<string>
+     */
+    private function assertStudentsBelongToSchool(mixed $authorIds, string $schoolId): array
+    {
+        if (!is_array($authorIds) || $authorIds === []) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($authorIds as $studentId) {
+            if (!is_string($studentId)) {
+                continue;
+            }
+            $trimmed = trim($studentId);
+            if ($trimmed === '' || !Uuid::isValid($trimmed)) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Danh sách sinh viên chứa ID không hợp lệ.');
+            }
+            $ids[$trimmed] = $trimmed;
+        }
+
+        $ids = array_values($ids);
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->pdo->prepare(
+            "SELECT sp.id
+             FROM student_profiles sp
+             INNER JOIN classes c ON c.id = sp.classId
+             WHERE c.schoolId = ? AND sp.id IN ({$placeholders})"
+        );
+        $stmt->execute([$schoolId, ...$ids]);
+        $found = array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN) ?: []);
+        if (count($found) !== count($ids)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Một hoặc nhiều sinh viên không thuộc trường học này.');
+        }
+
+        return $ids;
     }
 
     /** @return list<string> */

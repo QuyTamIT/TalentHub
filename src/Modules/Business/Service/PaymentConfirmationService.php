@@ -218,7 +218,7 @@ final class PaymentConfirmationService
                             'project_sponsored',
                             'Dự án nhà trường nhận tài trợ mới',
                             "{$entName} đã tài trợ {$formattedAmount} cho dự án \"{$projectTitle}\".",
-                            '/app/school/projects.php',
+                            '/app/school/projects/',
                             "project_sponsored:school:{$projectId}:{$orderId}"
                         );
                     }
