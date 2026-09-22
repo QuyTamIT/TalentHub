@@ -81,11 +81,11 @@ function badgeMilestoneLabel(array $criteria, array $factLabels): string
     <title>Huy hiệu và cấp độ | TalentHub</title>
     <meta name="description" content="Theo dõi cấp độ và bộ sưu tập huy hiệu cá nhân của học sinh, sinh viên trên FTalentHub.">
     <title>Huy hiệu và cấp độ | FTalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/polish.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/learner.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-badges">
     <div class="learner-layout">
@@ -308,8 +308,8 @@ function badgeMilestoneLabel(array $criteria, array $factLabels): string
             JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
         );
     ?></script>
-    <script src="../../assets/js/learner-api.js"></script>
-    <script src="../../assets/js/learner-badges.js"></script>
-    <script src="../../assets/js/learner.js"></script>
+    <script src="<?= app_href('/assets/js/learner-api.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-badges.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner.js'); ?>"></script>
 </body>
 </html>

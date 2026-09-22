@@ -32,11 +32,11 @@ $studentClass = !empty($student['class']) ? $student['class'] : 'Chưa cập nh�
     <title><?= learner_escape($opportunity['title'] ?? 'Không tìm thấy cơ hội'); ?> | TalentHub</title>
     <meta name="description" content="Chi tiết cơ hội học tập và nghề nghiệp dành cho học sinh, sinh viên trên FTalentHub.">
     <title><?= learner_escape($opportunity['title'] ?? 'Không tìm thấy cơ hội'); ?> | FTalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/global.css">
-    <link rel="stylesheet" href="../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-opportunity" data-opportunity-page data-opportunity-id="<?= learner_escape((string) ($opportunity['id'] ?? '')); ?>">
     <div class="learner-layout">
@@ -252,7 +252,7 @@ $studentClass = !empty($student['class']) ? $student['class'] : 'Chưa cập nh�
         </section>
     </div>
 
-    <script src="../../assets/js/learner-api.js"></script>
-    <script src="../../assets/js/learner.js"></script>
+    <script src="<?= app_href('/assets/js/learner-api.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner.js'); ?>"></script>
 </body>
 </html>

@@ -43,13 +43,13 @@ $bodyClass    = trim('school-dashboard ' . ($bodyClass ?? ''));
     <title><?= htmlspecialchars($pageTitle); ?> - <?= htmlspecialchars($schoolInfo['name']); ?> | TalentHub</title>
     <meta name="description" content="FTalentHub School Dashboard - Quản lý hoạt động năng khiếu cho Nhà trường.">
     <title><?= htmlspecialchars($pageTitle); ?> - <?= htmlspecialchars($schoolInfo['name']); ?> | FTalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/global.css">
-    <link rel="stylesheet" href="../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../assets/css/school.css">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/school.css'); ?>">
     <?= $extraStyles; ?>
-    <link rel="stylesheet" href="../../assets/css/typeui-selects.css">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/typeui-selects.css'); ?>">
 </head>
 <body class="<?= htmlspecialchars($bodyClass); ?>">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
@@ -77,7 +77,7 @@ $bodyClass    = trim('school-dashboard ' . ($bodyClass ?? ''));
         </div>
     </div>
 
-    <script src="../../assets/js/school.js" defer></script>
+    <script src="<?= app_href('/assets/js/school.js'); ?>" defer></script>
     <?= $extraScripts; ?>
 </body>
 </html>

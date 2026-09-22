@@ -23,5 +23,5 @@ $pageTitle = 'Thông báo';
 ob_start();
 renderPortalNotificationCenter('Theo dõi cập nhật học viên, huy hiệu, chứng nhận và các hoạt động trong nhà trường.');
 $pageBody = ob_get_clean();
-$extraStyles = '<link rel="stylesheet" href="../../assets/css/portal-notifications.css">';
+$extraStyles = '<link rel="stylesheet" href="' . app_href('/assets/css/portal-notifications.css') . '">';
 require __DIR__ . '/includes/layout.php';

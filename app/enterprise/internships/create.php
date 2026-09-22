@@ -290,13 +290,13 @@ $sidebarNav = [
     <title><?= htmlspecialchars($pageTitle); ?> | FTalentHub Enterprise</title>
     
     <!-- CSS Assets -->
-    <link rel="stylesheet" href="../../../assets/css/home.css">
-    <link rel="stylesheet" href="../../../assets/css/global.css">
-    <link rel="stylesheet" href="../../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../../assets/css/enterprise.css">
-    <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
-    <link rel="stylesheet" href="../../../assets/css/enterprise-internship-create.css">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/typeui-selects.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise-internship-create.css'); ?>">
 </head>
 <body class="enterprise-dashboard" data-post-status="<?= htmlspecialchars((string) ($editingPost['status'] ?? '')); ?>">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>

@@ -152,11 +152,11 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
     <title>Đánh giá & Nhận xét Năng lực | TalentHub</title>
     <meta name="description" content="Theo dõi điểm đánh giá năng lực và nhận xét phản hồi từ giảng viên, huấn luyện viên trên FTalentHub.">
     <title>Đánh giá & Nhận xét Năng lực | FTalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/polish.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/learner.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
     <style>
         .learner-evaluation-grid {
             display: grid;
@@ -809,7 +809,7 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
             JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
         );
     ?></script>
-    <script src="../../assets/js/learner-api.js"></script>
-    <script src="../../assets/js/learner.js"></script>
+    <script src="<?= app_href('/assets/js/learner-api.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner.js'); ?>"></script>
 </body>
 </html>

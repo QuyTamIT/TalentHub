@@ -125,12 +125,12 @@ $sidebarNav = [
     <meta name="color-scheme" content="light">
     <meta name="description" content="Duyệt và xác nhận điểm chính thức của 4 bài đánh giá năng lực (AI chấm tự động) trên TalentHub.">
     <title><?= teacher_aptitude_escape($pageTitle); ?> | TalentHub</title>
-    <link rel="stylesheet" href="../../../assets/css/home.css">
-    <link rel="stylesheet" href="../../../assets/css/global.css">
-    <link rel="stylesheet" href="../../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../../assets/css/teacher.css">
-    <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/teacher.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/typeui-selects.css'); ?>">
     <style>
         .aptitude-summary-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin:16px 0 22px}
         .aptitude-summary-card{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:16px 18px}

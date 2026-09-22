@@ -265,11 +265,11 @@ if ($pdo !== null) {
     <title>Dashboard Doanh Nghiệp - <?= htmlspecialchars($enterpriseInfo['company_name']); ?> | FTalentHub</title>
     
     <!-- CSS Assets -->
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/global.css">
-    <link rel="stylesheet" href="../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../assets/css/enterprise.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/enterprise.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/enterprise.css'); ?>">
 </head>
 <body class="enterprise-dashboard">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
@@ -317,6 +317,6 @@ if ($pdo !== null) {
     </div>
 
     <!-- JavaScript Assets -->
-    <script src="../../assets/js/enterprise.js"></script>
+    <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
 </body>
 </html>

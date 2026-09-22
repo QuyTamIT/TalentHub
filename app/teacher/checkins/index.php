@@ -230,12 +230,12 @@ $statusClasses = [
     <title><?= teacherQrEscape($pageTitle); ?> | TalentHub</title>
     <meta name="description" content="Quản lý phiên QR cho các hoạt động đang diễn ra do giáo viên phụ trách trên FTalentHub.">
     <title><?= teacherQrEscape($pageTitle); ?> | FTalentHub</title>
-    <link rel="stylesheet" href="../../../assets/css/home.css">
-    <link rel="stylesheet" href="../../../assets/css/global.css">
-    <link rel="stylesheet" href="../../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../../assets/css/teacher.css">
-    <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/teacher.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/typeui-selects.css'); ?>">
 </head>
 <body class="teacher-dashboard teacher-qr-page">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
@@ -467,10 +467,10 @@ $statusClasses = [
         </div>
     </div>
 
-    <script src="../../../assets/js/teacher.js"></script>
+    <script src="<?= app_href('/assets/js/teacher.js'); ?>"></script>
     <?php if ($oneTimeToken !== null && $oneTimeToken !== ''): ?>
-        <script src="../../../assets/vendor/qrcodejs/qrcode.min.js"></script>
+        <script src="<?= app_href('/assets/vendor/qrcodejs/qrcode.min.js'); ?>"></script>
     <?php endif; ?>
-    <script src="../../../assets/js/teacher-qr.js"></script>
+    <script src="<?= app_href('/assets/js/teacher-qr.js'); ?>"></script>
 </body>
 </html>

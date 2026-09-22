@@ -39,11 +39,11 @@ $bootData = [
     <title>Kết quả <?= learner_escape($assessmentName); ?> | TalentHub</title>
     <meta name="description" content="Kết quả và lịch sử bài đánh giá năng khiếu trên FTalentHub.">
     <title>Kết quả <?= learner_escape($assessmentName); ?> | FTalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/global.css">
-    <link rel="stylesheet" href="../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= (int) @filemtime(__DIR__ . '/../../assets/css/learner.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/learner.css'); ?>?v=<?= (int) @filemtime(__DIR__ . '/../../assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-assessment-result">
     <div class="learner-layout">
@@ -164,8 +164,8 @@ $bootData = [
 
     <script id="learner-session-boot" type="application/json"><?= json_encode(['csrfToken' => $GLOBALS['learner_page_context']['csrfToken'] ?? ''], JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
     <script id="learner-assessment-result-boot" type="application/json"><?= json_encode($bootData, JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
-    <script src="../../assets/js/learner-api.js"></script>
-    <script src="../../assets/js/learner.js"></script>
-    <script src="../../assets/js/learner-assessment.js?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner-assessment.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-api.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-assessment.js'); ?>?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner-assessment.js'); ?>"></script>
 </body>
 </html>

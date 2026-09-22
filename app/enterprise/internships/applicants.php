@@ -259,13 +259,13 @@ $sidebarNav = [
     <title><?= htmlspecialchars($pageTitle); ?> - <?= $post ? htmlspecialchars($post['title']) : 'FTalentHub Enterprise'; ?> | FTalentHub Enterprise</title>
     
     <!-- CSS Assets -->
-    <link rel="stylesheet" href="../../../assets/css/home.css">
-    <link rel="stylesheet" href="../../../assets/css/global.css">
-    <link rel="stylesheet" href="../../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../../assets/css/enterprise.css">
-    <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
-    <link rel="stylesheet" href="../../../assets/css/enterprise-applicants.css?v=<?= filemtime(dirname(__DIR__, 3) . '/assets/css/enterprise-applicants.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/typeui-selects.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise-applicants.css'); ?>?v=<?= filemtime(dirname(__DIR__, 3) . '/assets/css/enterprise-applicants.css'); ?>">
 </head>
 <body class="enterprise-dashboard">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>

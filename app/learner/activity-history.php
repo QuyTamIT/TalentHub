@@ -38,13 +38,13 @@ $formatHours = static fn (float $hours): string => rtrim(rtrim(number_format($ho
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="description" content="Xem lại lịch sử hoạt động đã được xác nhận trên FTalentHub.">
     <title>Lịch sử hoạt động | FTalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/global.css">
-    <link rel="stylesheet" href="../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/learner.css'); ?>">
     <link rel="stylesheet" href="assets/activities/activities.css">
-    <link rel="stylesheet" href="../../assets/css/typeui-selects.css">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/typeui-selects.css'); ?>">
 </head>
 <body class="learner-app learner-page-activity-history">
 <div class="learner-layout">
@@ -120,7 +120,7 @@ $formatHours = static fn (float $hours): string => rtrim(rtrim(number_format($ho
         </main>
     </div>
 </div>
-<script src="../../assets/js/learner.js"></script>
-<script src="../../assets/js/learner-activities.js"></script>
+<script src="<?= app_href('/assets/js/learner.js'); ?>"></script>
+<script src="<?= app_href('/assets/js/learner-activities.js'); ?>"></script>
 </body>
 </html>

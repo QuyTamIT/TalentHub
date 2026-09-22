@@ -93,11 +93,11 @@ if ($dashboardAiSummary === '') {
     <title>Tổng quan Học sinh | FTalentHub</title>
     <meta name="csrf-token" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
     <meta name="csrfToken" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
-    <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/polish.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/learner.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-overview" data-learner-source="<?= ($isDatabaseMode ?? false) ? 'database' : 'mock'; ?>">
     <div class="learner-layout"<?= $onboardingPending ? ' inert aria-hidden="true"' : ''; ?>>
@@ -136,7 +136,7 @@ if ($dashboardAiSummary === '') {
                     </div>
 
                     <div class="learner-welcome__visual" aria-hidden="true">
-                        <img class="learner-welcome__image" src="../../assets/images/learner/learner-journey-hero-v3.png" alt="Học viên đang khám phá hành trình phát triển tài năng trên TalentHub" width="1448" height="1086" loading="eager" fetchpriority="high" decoding="async">
+                        <img class="learner-welcome__image" src="<?= app_href('/assets/images/learner/learner-journey-hero-v3.png'); ?>" alt="Học viên đang khám phá hành trình phát triển tài năng trên TalentHub" width="1448" height="1086" loading="eager" fetchpriority="high" decoding="async">
                     </div>
                 </section>
 
@@ -379,10 +379,10 @@ if ($dashboardAiSummary === '') {
     </div>
     <?php endif; ?>
 
-    <script src="../../assets/js/learner-api.js"></script>
-    <script src="../../assets/js/learner.js"></script>
+    <script src="<?= app_href('/assets/js/learner-api.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner.js'); ?>"></script>
     <?php if ($onboardingPending): ?>
-    <script src="../../assets/js/learner-onboarding.js"></script>
+    <script src="<?= app_href('/assets/js/learner-onboarding.js'); ?>"></script>
     <?php endif; ?>
 </body>
 </html>

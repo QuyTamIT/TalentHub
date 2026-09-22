@@ -49,11 +49,11 @@ $bootData = [
     <title><?= learner_escape($assessmentName); ?> | FTalentHub</title>
     <meta name="csrf-token" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
     <meta name="csrfToken" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/global.css">
-    <link rel="stylesheet" href="../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= (int) @filemtime(__DIR__ . '/../../assets/css/learner.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/learner.css'); ?>?v=<?= (int) @filemtime(__DIR__ . '/../../assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-assessment">
     <div class="learner-layout">
@@ -277,8 +277,8 @@ $bootData = [
         'appBase' => app_href(''),
     ], JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
     <script id="learner-assessment-boot" type="application/json"><?= json_encode($bootData, JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
-    <script src="../../assets/js/learner-api.js?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner-api.js'); ?>"></script>
-    <script src="../../assets/js/learner.js?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner.js'); ?>"></script>
-    <script src="../../assets/js/learner-assessment.js?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner-assessment.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-api.js'); ?>?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner-api.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner.js'); ?>?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-assessment.js'); ?>?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner-assessment.js'); ?>"></script>
 </body>
 </html>

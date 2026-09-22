@@ -89,12 +89,12 @@ $credentialError = $error;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light">
     <title><?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8'); ?> | TalentHub Teacher</title>
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/global.css">
-    <link rel="stylesheet" href="../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../assets/css/teacher.css">
-    <link rel="stylesheet" href="../../assets/css/credential-management.css">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/teacher.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/credential-management.css'); ?>">
 </head>
 <body class="teacher-dashboard">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
@@ -109,7 +109,7 @@ $credentialError = $error;
             </main>
         </div>
     </div>
-    <script src="../../assets/js/teacher.js"></script>
-    <script src="../../assets/js/credential-management.js"></script>
+    <script src="<?= app_href('/assets/js/teacher.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/credential-management.js'); ?>"></script>
 </body>
 </html>

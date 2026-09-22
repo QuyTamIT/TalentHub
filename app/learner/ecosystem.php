@@ -101,11 +101,11 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
     <title>Hệ sinh thái &amp; Dự án | TalentHub</title>
     <meta name="description" content="Khám phá doanh nghiệp và các dự án đang triển khai tại trường trên FTalentHub.">
     <title>Hệ sinh thái &amp; Dự án | FTalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/polish.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/learner.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-ecosystem" data-ecosystem-page data-initial-tab="<?= learner_escape($initialTab); ?>">
     <div class="learner-layout">
@@ -599,10 +599,10 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
         </div>
     </div>
 
-    <script src="../../assets/js/learner-api.js?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner-api.js'); ?>"></script>
-    <script src="../../assets/js/learner.js?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner.js'); ?>"></script>
-    <script src="../../assets/js/learner-opportunity-matches.js?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner-opportunity-matches.js'); ?>"></script>
-    <script src="../../assets/js/learner-job-matches.js?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner-job-matches.js'); ?>"></script>
-    <script src="../../assets/js/learner-applications-tracker.js?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner-applications-tracker.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-api.js'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner-api.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner.js'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-opportunity-matches.js'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner-opportunity-matches.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-job-matches.js'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner-job-matches.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-applications-tracker.js'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner-applications-tracker.js'); ?>"></script>
 </body>
 </html>

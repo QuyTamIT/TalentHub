@@ -267,12 +267,12 @@ function teacherGradingInitials(string $name): string
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light">
     <title><?= $escape($pageTitle); ?> | TalentHub</title>
-    <link rel="stylesheet" href="../../../assets/css/home.css">
-    <link rel="stylesheet" href="../../../assets/css/global.css">
-    <link rel="stylesheet" href="../../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../../assets/css/teacher.css">
-    <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/teacher.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/typeui-selects.css'); ?>">
     <style>
         .teacher-assessment-tabs{display:flex;gap:12px;flex-wrap:wrap;margin:20px 0}
         .teacher-assessment-readonly{padding:22px;background:#FBFDFF;border-radius:12px;border:1px solid #E2E8F0;margin-top:16px}
@@ -572,7 +572,7 @@ function teacherGradingInitials(string $name): string
         </div>
     </template>
 
-    <script src="../../../assets/js/teacher.js"></script>
+    <script src="<?= app_href('/assets/js/teacher.js'); ?>"></script>
     <script>
     window.teacherOnSkillSelectChange = function(select) {
         const row = select.closest('.teacher-skill-row');

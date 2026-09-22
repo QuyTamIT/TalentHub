@@ -100,7 +100,7 @@ if ($resolved !== null && !empty($resolved['studentId']) && $pdo instanceof PDO)
   <meta name="color-scheme" content="light">
   <title>Hồ sơ không khả dụng | Xác thực Năng lực TalentHub</title>
   <title>Hồ sơ không khả dụng | Xác thực Năng lực FTalentHub</title>
-  <link rel="stylesheet" href="../../assets/css/learner-passport-cv.css">
+  <link rel="stylesheet" href="<?= app_href('/assets/css/learner-passport-cv.css'); ?>">
   <style>
     body { background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 1rem; }
     .not-found-card { text-align: center; padding: 3rem 2rem; background: #ffffff; border-radius: 12px; border: 1px solid #cbd5e1; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06); max-width: 480px; width: 100%; }

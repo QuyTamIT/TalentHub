@@ -342,12 +342,12 @@ $totalPledgedDisplay  = $totalPledgedAmount > 0
     <title>Tài trợ Dự án & Ươm mầm Sáng tạo - Enterprise | FTalentHub</title>
 
     <!-- CSS Assets -->
-    <link rel="stylesheet" href="../../../assets/css/home.css">
-    <link rel="stylesheet" href="../../../assets/css/global.css">
-    <link rel="stylesheet" href="../../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../../assets/css/enterprise.css?v=<?= filemtime(dirname(__DIR__, 3) . '/assets/css/enterprise.css'); ?>">
-    <link rel="stylesheet" href="../../../assets/css/enterprise-sponsorships.css?v=<?= filemtime(dirname(__DIR__, 3) . '/assets/css/enterprise-sponsorships.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise.css'); ?>?v=<?= filemtime(dirname(__DIR__, 3) . '/assets/css/enterprise.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise-sponsorships.css'); ?>?v=<?= filemtime(dirname(__DIR__, 3) . '/assets/css/enterprise-sponsorships.css'); ?>">
 </head>
 <body class="enterprise-dashboard">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>

@@ -21,11 +21,11 @@ $assetVersion = static function (string $relativePath): string {
     <title>AI gợi ý | TalentHub</title>
     <meta name="description" content="Lộ trình phát triển 90 ngày do AI FTalentHub đề xuất từ dữ liệu bạn đã cho phép.">
     <title>AI gợi ý | FTalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/polish.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
-    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/learner.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-ai">
     <div class="learner-layout">
@@ -252,10 +252,10 @@ $assetVersion = static function (string $relativePath): string {
             </div>
         </div>
     </div>
-    <script src="../../assets/js/learner-api.js?v=<?= $assetVersion('assets/js/learner-api.js'); ?>"></script>
-    <script src="../../assets/js/learner.js?v=<?= $assetVersion('assets/js/learner.js'); ?>"></script>
-    <script src="../../assets/js/learner-ai-roadmap-editor.js?v=<?= $assetVersion('assets/js/learner-ai-roadmap-editor.js'); ?>"></script>
-    <script src="../../assets/js/learner-ai-roadmap.js?v=<?= $assetVersion('assets/js/learner-ai-roadmap.js'); ?>"></script>
-    <script src="../../assets/js/learner-skill-gap.js?v=<?= $assetVersion('assets/js/learner-skill-gap.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-api.js'); ?>?v=<?= $assetVersion('assets/js/learner-api.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner.js'); ?>?v=<?= $assetVersion('assets/js/learner.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-ai-roadmap-editor.js'); ?>?v=<?= $assetVersion('assets/js/learner-ai-roadmap-editor.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-ai-roadmap.js'); ?>?v=<?= $assetVersion('assets/js/learner-ai-roadmap.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-skill-gap.js'); ?>?v=<?= $assetVersion('assets/js/learner-skill-gap.js'); ?>"></script>
 </body>
 </html>

@@ -864,12 +864,12 @@ ob_start();
 </div>
 <?php
 $pageBody = ob_get_clean();
-$extraStyles = '<link rel="stylesheet" href="../../assets/css/school-activities.css?v=' . (file_exists(dirname(__DIR__, 2) . '/assets/css/school-activities.css') ? filemtime(dirname(__DIR__, 2) . '/assets/css/school-activities.css') : time()) . '">';
+$extraStyles = '<link rel="stylesheet" href="' . app_href('/assets/css/school-activities.css') . '?v=' . (file_exists(dirname(__DIR__, 2) . '/assets/css/school-activities.css') ? filemtime(dirname(__DIR__, 2) . '/assets/css/school-activities.css') : time()) . '">';
 $toastScript = '';
 if ($flash) {
     $toastScript .= '<script>window.addEventListener("DOMContentLoaded", function() { if (typeof showSchoolToast === "function") { showSchoolToast(' . json_encode($flash, JSON_UNESCAPED_UNICODE) . '); } });</script>';
 } elseif ($error) {
     $toastScript .= '<script>window.addEventListener("DOMContentLoaded", function() { if (typeof showSchoolToast === "function") { showSchoolToast(' . json_encode($error, JSON_UNESCAPED_UNICODE) . ', "error"); } });</script>';
 }
-$extraScripts = $toastScript . '<script src="../../assets/js/school-activities.js?v=' . (file_exists(dirname(__DIR__, 2) . '/assets/js/school-activities.js') ? filemtime(dirname(__DIR__, 2) . '/assets/js/school-activities.js') : time()) . '" defer></script>';
+$extraScripts = $toastScript . '<script src="' . app_href('/assets/js/school-activities.js') . '?v=' . (file_exists(dirname(__DIR__, 2) . '/assets/js/school-activities.js') ? filemtime(dirname(__DIR__, 2) . '/assets/js/school-activities.js') : time()) . '" defer></script>';
 require __DIR__ . '/includes/layout.php';

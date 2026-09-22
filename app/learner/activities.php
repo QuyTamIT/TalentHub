@@ -64,14 +64,14 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="description" content="Khám phá hoạt động trải nghiệm đang mở dành riêng cho trường của bạn trên FTalentHub.">
     <title>Khám phá hoạt động | FTalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/global.css">
-    <link rel="stylesheet" href="../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/learner.css'); ?>">
     <link rel="stylesheet" href="assets/activities/activities.css">
-    <link rel="stylesheet" href="../../assets/css/learner-activity-matches.css">
-    <link rel="stylesheet" href="../../assets/css/typeui-selects.css">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/learner-activity-matches.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/typeui-selects.css'); ?>">
 </head>
 <body class="learner-app learner-page-activities">
     <div class="learner-layout">
@@ -281,9 +281,9 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
         </div>
     </div>
 
-    <script src="../../assets/js/learner.js"></script>
-    <script src="../../assets/js/learner-activities.js"></script>
-    <script src="../../assets/js/learner-api.js"></script>
-    <script src="../../assets/js/learner-activity-matches.js"></script>
+    <script src="<?= app_href('/assets/js/learner.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-activities.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-api.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner-activity-matches.js'); ?>"></script>
 </body>
 </html>

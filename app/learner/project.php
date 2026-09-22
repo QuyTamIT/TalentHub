@@ -55,8 +55,8 @@ if (!function_exists('learner_project_money')) {
     <title><?= learner_escape($project['title'] ?? $pageTitle); ?> | TalentHub</title>
     <meta name="description" content="Thông tin đầy đủ của dự án trường trên FTalentHub.">
     <title><?= learner_escape($project['title'] ?? $pageTitle); ?> | FTalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/learner.css'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-project-detail">
     <div class="learner-layout">
@@ -204,6 +204,6 @@ if (!function_exists('learner_project_money')) {
         </div>
     </div>
 
-    <script src="../../assets/js/learner.js?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/learner.js'); ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner.js'); ?>"></script>
 </body>
 </html>
