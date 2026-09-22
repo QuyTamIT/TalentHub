@@ -108,46 +108,166 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
 function authEscape(mixed $value): string{return htmlspecialchars((string)$value,ENT_QUOTES,'UTF-8');}
 
 $demoAccounts=[];
-try{$appEnv=Environment::appEnvironment();}catch(Throwable){$appEnv=(string)(getenv('APP_ENV')?:'');}
-if(in_array($appEnv,['local','test'],true)){
-    $testPassword=(string)(Environment::optional('TALENTHUB_TEST_PASSWORD')??'');
-    $adminPassword=(string)(Environment::optional('TALENTHUB_ADMIN_PASSWORD')??'');
-    if($testPassword!==''&&$adminPassword!==''){
-        $roleMeta=[
-            'student'=>['dot'=>'student','label'=>'Học viên','desc'=>'Hồ sơ năng lực, đánh giá và lộ trình phát triển'],
-            'teacher'=>['dot'=>'teacher','label'=>'Giáo viên','desc'=>'Chấm điểm, đồng hành và theo dõi học viên'],
-            'school'=>['dot'=>'school','label'=>'Nhà trường','desc'=>'Quản trị lớp, giáo viên và báo cáo trường'],
-            'enterprise'=>['dot'=>'business','label'=>'Doanh nghiệp','desc'=>'Tuyển dụng, kết nối nhân tài và dự án'],
-            'platform_admin'=>['dot'=>'admin','label'=>'Quản trị viên','desc'=>'Quản lý toàn hệ thống và phê duyệt tổ chức'],
-        ];
-        try{
-            $pdo=(new Connection(require __DIR__.'/config/database.php'))->connect();
-            $sql="SELECT u.email,u.fullName,r.code AS role,r.name AS roleName,r.description AS roleDesc
-                FROM users u
-                INNER JOIN roles r ON r.id=u.roleId
-                WHERE u.status='active'
-                ORDER BY FIELD(r.code,'student','teacher','school','enterprise','platform_admin'),u.createdAt ASC,u.email ASC";
-            $rows=$pdo->query($sql)->fetchAll(\PDO::FETCH_ASSOC)?:[];
-            $seen=[];
-            foreach($rows as $row){
-                $role=\TalentHub\Rbac\RoleCodes::canonical((string)($row['role']??''));
-                if(!isset($roleMeta[$role])||isset($seen[$role])){continue;}
-                if($requiredRole!==null&&!\TalentHub\Rbac\RoleCodes::matches($role,$requiredRole)){continue;}
-                $meta=$roleMeta[$role];
-                $dbDesc=trim((string)($row['roleDesc']??''));
-                $demoAccounts[]=[
-                    'role'=>$role,
-                    'dot'=>$meta['dot'],
-                    'label'=>$meta['label'],
-                    'name'=>trim((string)($row['fullName']??'')),
-                    'email'=>(string)$row['email'],
-                    'password'=>$role==='platform_admin'?$adminPassword:$testPassword,
-                    'desc'=>$dbDesc!==''?$dbDesc:$meta['desc'],
-                ];
-                $seen[$role]=true;
+$demoAccountsByRole=[];
+$testPassword=(string)(Environment::optional('TALENTHUB_TEST_PASSWORD')??'');
+$adminPassword=(string)(Environment::optional('TALENTHUB_ADMIN_PASSWORD')??'');
+if($testPassword!==''&&$adminPassword!==''){
+    $roleMeta=[
+        'student'=>['dot'=>'student','label'=>'Học viên','desc'=>'Hồ sơ năng lực, đánh giá và lộ trình phát triển'],
+        'teacher'=>['dot'=>'teacher','label'=>'Giáo viên','desc'=>'Chấm điểm, đồng hành và theo dõi học viên'],
+        'school'=>['dot'=>'school','label'=>'Nhà trường','desc'=>'Quản trị lớp, giáo viên và báo cáo trường'],
+        'enterprise'=>['dot'=>'business','label'=>'Doanh nghiệp','desc'=>'Tuyển dụng, kết nối nhân tài và dự án'],
+        'platform_admin'=>['dot'=>'admin','label'=>'Quản trị viên','desc'=>'Quản lý toàn hệ thống và phê duyệt tổ chức'],
+    ];
+    $studentPriority=[
+        'sv.tam.ai@btec.local'=>0,
+        'chau.thietke@talenthub.local'=>1,
+        'sv.minh.design@btec.local'=>2,
+        'sv.ha.mkt@btec.local'=>3,
+        'sv.quang.biz@btec.local'=>4,
+        'sv.tuyet.data@btec.local'=>5,
+        'sv.duyen.log@btec.local'=>6,
+        'sv.an.cn@btec.local'=>7,
+    ];
+    try{
+        $pdo=(new Connection(require __DIR__.'/config/database.php'))->connect();
+        $sql="SELECT u.id AS userId,u.email,u.fullName,r.code AS role,r.description AS roleDesc,
+                sp.id AS studentId,sp.talentScore,c.name AS className,spd.headline,
+                tp.specialization AS teacherSpec,e.name AS enterpriseName
+            FROM users u
+            INNER JOIN roles r ON r.id=u.roleId
+            LEFT JOIN student_profiles sp ON sp.userId=u.id
+            LEFT JOIN classes c ON c.id=sp.classId
+            LEFT JOIN student_profile_details spd ON spd.studentId=sp.id
+            LEFT JOIN teacher_profiles tp ON tp.userId=u.id
+            LEFT JOIN enterprise_members em ON em.userId=u.id
+            LEFT JOIN enterprises e ON e.id=em.enterpriseId
+            WHERE u.status='active'
+            ORDER BY FIELD(r.code,'student','teacher','school','enterprise','platform_admin'),u.email ASC";
+        $rows=$pdo->query($sql)->fetchAll(\PDO::FETCH_ASSOC)?:[];
+        $studentIds=[];
+        foreach($rows as $row){
+            $sid=(string)($row['studentId']??'');
+            if($sid!==''){$studentIds[$sid]=true;}
+        }
+        $assessmentByStudent=[];
+        $roadmapByStudent=[];
+        $appsByStudent=[];
+        if($studentIds!==[]){
+            $idList=implode(',',array_map(static fn(string $id):string=>$pdo->quote($id),array_keys($studentIds)));
+            foreach($pdo->query(
+                "SELECT ta.studentId, COUNT(DISTINCT tt.type) AS completedTypes
+                 FROM test_attempts ta
+                 INNER JOIN talent_tests tt ON tt.id=ta.testId
+                 WHERE ta.status='submitted' AND ta.studentId IN ({$idList})
+                 GROUP BY ta.studentId"
+            ) as $ar){
+                $assessmentByStudent[(string)$ar['studentId']]=(int)$ar['completedTypes'];
             }
-        }catch(Throwable){$demoAccounts=[];}
-    }
+            foreach($pdo->query(
+                "SELECT studentId, status, confidenceBand, primaryDirectionJson
+                 FROM learner_ai_roadmaps
+                 WHERE status='active' AND studentId IN ({$idList})"
+            ) as $rr){
+                $roadmapByStudent[(string)$rr['studentId']]=$rr;
+            }
+            foreach($pdo->query(
+                "SELECT studentId, COUNT(*) AS total,
+                        SUM(status IN ('submitted','reviewing','interview','accepted','invited')) AS openCount,
+                        SUM(status='accepted') AS acceptedCount
+                 FROM internship_applications
+                 WHERE studentId IN ({$idList})
+                 GROUP BY studentId"
+            ) as $ap){
+                $appsByStudent[(string)$ap['studentId']]=$ap;
+            }
+        }
+        foreach($rows as $row){
+            $role=\TalentHub\Rbac\RoleCodes::canonical((string)($row['role']??''));
+            if(!isset($roleMeta[$role])){continue;}
+            if($requiredRole!==null&&!\TalentHub\Rbac\RoleCodes::matches($role,$requiredRole)){continue;}
+            $email=(string)$row['email'];
+            $name=trim((string)($row['fullName']??''));
+            $desc=trim((string)($row['roleDesc']??''));
+            if($desc===''){$desc=$roleMeta[$role]['desc'];}
+            $statusLines=[];
+            $badges=[];
+            if($role==='student'){
+                $studentId=(string)($row['studentId']??'');
+                $headline=trim((string)($row['headline']??''));
+                $className=trim((string)($row['className']??''));
+                if($headline!==''){$desc=$headline;}
+                elseif($className!==''){$desc='Sinh viên lớp '.$className;}
+                $assessed=$assessmentByStudent[$studentId]??0;
+                $statusLines[]=$assessed>=4
+                    ? 'Đánh giá: hoàn thành 4/4 bài test'
+                    : 'Đánh giá: '.$assessed.'/4 bài test'.($assessed===0?' (chưa làm)':' (đang làm dở)');
+                $road=$roadmapByStudent[$studentId]??null;
+                if(is_array($road)){
+                    $direction='';
+                    $raw=(string)($road['primaryDirectionJson']??'');
+                    if($raw!==''){
+                        $decoded=json_decode($raw,true);
+                        if(is_array($decoded)){
+                            $direction=trim((string)($decoded['title']??$decoded['label']??$decoded['name']??''));
+                        }
+                    }
+                    $band=trim((string)($road['confidenceBand']??''));
+                    $statusLines[]='AI roadmap: đã phân tích '
+                        .($direction!==''?' · '.$direction:'')
+                        .($band!==''?' ('.$band.')':'');
+                    $badges[]=['tone'=>'success','text'=>'Có lộ trình AI'];
+                }else{
+                    $statusLines[]=$assessed>=4
+                        ? 'AI roadmap: đủ dữ liệu, chưa tạo / có thể tạo ngay'
+                        : 'AI roadmap: chưa đủ dữ liệu (cần 4/4 bài test)';
+                    $badges[]=$assessed>=4
+                        ? ['tone'=>'warn','text'=>'Chưa có AI']
+                        : ['tone'=>'muted','text'=>'Thiếu đánh giá'];
+                }
+                if($className!==''){$statusLines[]='Lớp: '.$className;}
+                $score=$row['talentScore'];
+                if($score!==null&&$score!==''){$statusLines[]='Talent score: '.(string)$score;}
+                $apps=$appsByStudent[$studentId]??null;
+                if(is_array($apps)&&(int)$apps['total']>0){
+                    $statusLines[]='Ứng tuyển TTS: '.(int)$apps['total'].' đơn'
+                        .((int)$apps['acceptedCount']>0?' · '.(int)$apps['acceptedCount'].' đã nhận':'')
+                        .((int)$apps['openCount']>0?' · '.(int)$apps['openCount'].' đang xử lý':'');
+                }
+                if($assessed>=4){$badges[]=['tone'=>'success','text'=>'4/4 test'];}
+                elseif($assessed>0){$badges[]=['tone'=>'warn','text'=>$assessed.'/4 test'];}
+            }elseif($role==='teacher'){
+                $spec=trim((string)($row['teacherSpec']??''));
+                if($spec!==''){$desc=$spec;$statusLines[]='Chuyên môn: '.$spec;}
+            }elseif($role==='enterprise'){
+                $ent=trim((string)($row['enterpriseName']??''));
+                if($ent!==''){$desc=$ent;$statusLines[]='Doanh nghiệp: '.$ent;}
+            }elseif($role==='school'){
+                $statusLines[]='Quản trị portal nhà trường BTEC FPT Cần Thơ';
+            }elseif($role==='platform_admin'){
+                $statusLines[]='Quản trị toàn hệ thống TalentHub';
+            }
+            $account=[
+                'role'=>$role,
+                'dot'=>$roleMeta[$role]['dot'],
+                'label'=>$roleMeta[$role]['label'],
+                'name'=>$name,
+                'email'=>$email,
+                'password'=>$role==='platform_admin'?$adminPassword:$testPassword,
+                'desc'=>$desc,
+                'status'=>$statusLines,
+                'badges'=>$badges,
+                'priority'=>$studentPriority[strtolower($email)]??1000,
+            ];
+            $demoAccounts[]=$account;
+            $demoAccountsByRole[$role][]=$account;
+        }
+        if(isset($demoAccountsByRole['student'])){
+            usort($demoAccountsByRole['student'],static function(array $a,array $b):int{
+                return ($a['priority']<=>$b['priority'])?:strcasecmp($a['email'],$b['email']);
+            });
+        }
+    }catch(Throwable){$demoAccounts=[];$demoAccountsByRole=[];}
 }
 ?>
 <!DOCTYPE html>
@@ -210,22 +330,11 @@ if(in_array($appEnv,['local','test'],true)){
             <?php if($errorMessage!==null): ?><div class="auth-alert auth-alert--error" role="alert"><?=authEscape($errorMessage)?></div><?php endif; ?>
             <?php if($demoAccounts!==[]): ?>
             <div class="auth-demo" data-demo-accounts>
-                <p class="auth-demo__title">Tài khoản mẫu — bấm để đăng nhập</p>
-                <ul class="auth-demo__list">
-                    <?php foreach($demoAccounts as $account): ?>
-                    <li>
-                        <button type="button" class="auth-demo__btn" data-demo-login data-email="<?=authEscape($account['email'])?>" data-password="<?=authEscape($account['password'])?>">
-                            <span class="auth-role-dot auth-role-dot--<?=authEscape($account['dot'])?>"></span>
-                            <span class="auth-demo__meta">
-                                <strong><?=authEscape($account['label'])?><?php if($account['name']!==''): ?> · <?=authEscape($account['name'])?><?php endif; ?></strong>
-                                <span class="auth-demo__email"><?=authEscape($account['email'])?></span>
-                                <span class="auth-demo__desc"><?=authEscape($account['desc'])?></span>
-                            </span>
-                            <span class="auth-demo__action">Đăng nhập</span>
-                        </button>
-                    </li>
-                    <?php endforeach; ?>
-                </ul>
+                <p class="auth-demo__title">Tài khoản mẫu để khám phá hệ thống</p>
+                <p class="auth-demo__hint"><?= count($demoAccounts) ?> tài khoản · sinh viên có diễn giải trạng thái đánh giá &amp; AI</p>
+                <button type="button" class="auth-demo__open" data-open-demo-modal>
+                    Xem tất cả tài khoản &amp; đăng nhập nhanh
+                </button>
             </div>
             <?php endif; ?>
             <form class="auth-form" method="post" action="<?= htmlspecialchars(app_href('/login.php')) ?>" data-auth-form>
@@ -241,6 +350,93 @@ if(in_array($appEnv,['local','test'],true)){
         </div>
     </section>
 </main>
+<?php if($demoAccounts!==[]): ?>
+<?php
+$roleOrder=['student'=>'Học viên','teacher'=>'Giáo viên','school'=>'Nhà trường','enterprise'=>'Doanh nghiệp','platform_admin'=>'Quản trị'];
+$firstRole=null;
+foreach($roleOrder as $roleKey=>$roleTitle){
+    if(isset($demoAccountsByRole[$roleKey])&&$demoAccountsByRole[$roleKey]!==[]){$firstRole=$roleKey;break;}
+}
+?>
+<div class="auth-demo-modal" id="auth-demo-modal" role="dialog" aria-modal="true" aria-labelledby="auth-demo-modal-title" hidden>
+    <div class="auth-demo-modal__backdrop" data-close-demo-modal></div>
+    <div class="auth-demo-modal__dialog" tabindex="-1">
+        <div class="auth-demo-modal__header">
+            <div>
+                <h2 id="auth-demo-modal-title">Tài khoản mẫu</h2>
+                <p>Chọn tab theo vai trò, rồi đăng nhập nhanh.</p>
+            </div>
+            <button type="button" class="auth-demo-modal__close" data-close-demo-modal aria-label="Đóng">×</button>
+        </div>
+        <div class="auth-demo-modal__tabs" role="tablist" aria-label="Vai trò tài khoản">
+            <?php foreach($roleOrder as $roleKey=>$roleTitle):
+                if(!isset($demoAccountsByRole[$roleKey])||$demoAccountsByRole[$roleKey]===[]){continue;}
+                $isActive=$roleKey===$firstRole;
+                $count=count($demoAccountsByRole[$roleKey]);
+                $dot=$demoAccountsByRole[$roleKey][0]['dot'];
+            ?>
+            <button type="button"
+                class="auth-demo-modal__tab<?= $isActive ? ' is-active' : '' ?>"
+                role="tab"
+                id="demo-tab-<?=authEscape($roleKey)?>"
+                aria-selected="<?= $isActive ? 'true' : 'false' ?>"
+                aria-controls="demo-panel-<?=authEscape($roleKey)?>"
+                data-demo-tab="<?=authEscape($roleKey)?>">
+                <span class="auth-role-dot auth-role-dot--<?=authEscape($dot)?>"></span>
+                <span><?=authEscape($roleTitle)?></span>
+                <em><?=$count?></em>
+            </button>
+            <?php endforeach; ?>
+        </div>
+        <div class="auth-demo-modal__body">
+            <?php foreach($roleOrder as $roleKey=>$roleTitle):
+                if(!isset($demoAccountsByRole[$roleKey])||$demoAccountsByRole[$roleKey]===[]){continue;}
+                $group=$demoAccountsByRole[$roleKey];
+                $isActive=$roleKey===$firstRole;
+            ?>
+            <section class="auth-demo-modal__panel<?= $isActive ? ' is-active' : '' ?>"
+                role="tabpanel"
+                id="demo-panel-<?=authEscape($roleKey)?>"
+                aria-labelledby="demo-tab-<?=authEscape($roleKey)?>"
+                data-demo-panel="<?=authEscape($roleKey)?>"
+                <?= $isActive ? '' : 'hidden' ?>>
+                <ul class="auth-demo-modal__list">
+                    <?php foreach($group as $account): ?>
+                    <li class="auth-demo-modal__card">
+                        <div class="auth-demo-modal__card-main">
+                            <div class="auth-demo-modal__identity">
+                                <strong><?=authEscape($account['name']!==''?$account['name']:$account['label'])?></strong>
+                                <span class="auth-demo-modal__email"><?=authEscape($account['email'])?></span>
+                                <span class="auth-demo-modal__desc"><?=authEscape($account['desc'])?></span>
+                            </div>
+                            <?php if(($account['badges']??[])!==[]): ?>
+                            <div class="auth-demo-modal__badges">
+                                <?php foreach($account['badges'] as $badge): ?>
+                                <span class="auth-demo-badge auth-demo-badge--<?=authEscape($badge['tone'])?>"><?=authEscape($badge['text'])?></span>
+                                <?php endforeach; ?>
+                            </div>
+                            <?php endif; ?>
+                            <?php if(($account['status']??[])!==[]): ?>
+                            <ul class="auth-demo-modal__status">
+                                <?php foreach($account['status'] as $line): ?>
+                                <li><?=authEscape($line)?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                            <?php endif; ?>
+                        </div>
+                        <button type="button" class="auth-demo-modal__login" data-demo-login data-email="<?=authEscape($account['email'])?>" data-password="<?=authEscape($account['password'])?>">
+                            Đăng nhập
+                        </button>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
+            </section>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 <script src="./assets/js/auth.js" defer></script>
 </body>
 </html>
+

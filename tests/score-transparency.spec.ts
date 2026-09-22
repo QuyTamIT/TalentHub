@@ -13,7 +13,7 @@ import { test, expect, type Page } from '@playwright/test';
  *    - An toàn XSS: không thực thi HTML/script injection trong minh chứng hoặc ghi chú (T24).
  * 2. Enterprise Portal:
  *    - Điểm đánh giá hiển thị nhãn "Trung bình kỹ năng đã được chấm", không dùng fallback cứng `: 96` (T31, T33).
- *    - Ẩn danh tên giảng viên thật và ẩn câu trả lời bài test trắc nghiệm đối với tài khoản doanh nghiệp (T35).
+ *    - Ẩn danh tên giảng viên  và ẩn câu trả lời bài test trắc nghiệm đối với tài khoản doanh nghiệp (T35).
  *    - Hồ sơ chưa chấm giữ trạng thái chưa chấm/null thay vì gán 0/100.
  * 3. School & Teacher Portals:
  *    - Không render AI talent_map như kỹ năng chính thức (T32).
@@ -135,7 +135,7 @@ test.describe('Package P5 & P6: Minh bạch điểm số (Score Transparency)', 
       }
     });
 
-    test('T35: Trang tài năng chi tiết ẩn danh tên giảng viên thật và không lộ câu trả lời bài test', async ({ page }) => {
+    test('T35: Trang tài năng chi tiết ẩn danh tên giảng viên  và không lộ câu trả lời bài test', async ({ page }) => {
       await page.goto('/app/enterprise/talents.php', { waitUntil: 'domcontentloaded' });
       await expect(page.locator('body')).toBeVisible();
 

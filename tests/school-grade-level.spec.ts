@@ -6,7 +6,7 @@ import { test, expect, type Page } from '@playwright/test';
  *   - Trường THCS/THPT tỉ số: "Khối" là dropdown 6-9 / 10-12.
  *   - Trường CĐ/ĐH/BTEC:       "Khối" là ô nhập tự do (vd "Năm 1", "K24-CNTT").
  *
- * Dùng tài khoản school demo và sẽ TẠO thật một lớp (redirect về classes.php?msg=created).
+ * Dùng tài khoản school demo và sẽ TẠO  một lớp (redirect về classes.php?msg=created).
  * Chạy: npx playwright test tests/school-grade-level.spec.ts --project=chromium --workers=1
  */
 

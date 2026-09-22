@@ -26,7 +26,6 @@ $renderCvSupportingSection = static function (string $section) use ($cv, $isAppl
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 Hồ sơ CV xác thực điện tử bởi FTalentHub • Mã số: <?= $escapeCv($cv['passport_code'] ?? ''); ?>
             </span>
-            <p style="margin: 0; color: #475569; font-size: 13px;">Bản CV chuẩn A4 được trích xuất từ dữ liệu chứng thực của nhà trường.</p>
             <button type="button" onclick="window.print()" style="background: #1e40af; display: inline-flex; align-items: center; gap: 6px;">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
                 In / Tải PDF

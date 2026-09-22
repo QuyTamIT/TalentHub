@@ -57,14 +57,20 @@ final class GroundedProseGuard
         if (preg_match('/\b(?:se duoc tuyen|se trung tuyen|chac chan|dam bao (?:do|thanh cong|co viec|trung tuyen)|chan doan|mac chung|roi loan|tu ky|tram cam|bo hoc|tu tu|tu lam hai|will be hired|guaranteed)\b/', $plain) === 1) {
             throw new InvalidArgumentException('grounding_unsupported_outcome');
         }
-        // Negated missing-evidence statements, instructional phrasing, and
-        // references to pre-existing technical artifacts/exercises are not
-        // claims that a personal achievement has already happened.
-        $history = preg_replace('/\b(?:sau khi|khi|chua|khong) (?:ban |em )?(?:da )?/', ' instruction ', $plain) ?? $plain;
-        // Only exempt subject-free references to technical artifacts in advice.
-        // Never erase "dự án mà bạn đã ..." or an evidence-prefixed biography.
+        $historyVerb = 'hoan thanh|tham gia|thuc tap|lam viec|dat giai|nhan giai|nhan duoc danh gia|tot nghiep|xay dung|trien khai|lanh dao|dan dat|nam|thanh thao|buoc dau lam quen';
+        $history = preg_replace(
+            '/\b(?:chua|khong) co (?:du lieu |minh chung |bang chung |thong tin |ky nang |kinh nghiem ).{0,120}?\b(?:da|tung) (?:' . $historyVerb . ')\b/',
+            ' missing_evidence ',
+            $plain,
+        ) ?? $plain;
+        $history = preg_replace(
+            '/\b(?:chua|khong) (?:tung|da) (?:' . $historyVerb . ')\b/',
+            ' missing_evidence ',
+            $history,
+        ) ?? $history;
+        $history = preg_replace('/\b(?:sau khi|khi|chua|khong) (?:ban |em )?(?:da )?/', ' instruction ', $history) ?? $history;
         $history = preg_replace('/\b(?:cho|tren|voi) (?:cac |nhung )?(?:api|tinh nang|chuc nang|module|ma nguon) da /', ' artifact ', $history) ?? $history;
-        if (preg_match('/\b(?:da|tung) (?:hoan thanh|tham gia|thuc tap|lam viec|dat giai|nhan giai|nhan duoc danh gia|tot nghiep|xay dung|trien khai|lanh dao|dan dat|nam|thanh thao|buoc dau lam quen)\b/', $history, $m1) === 1
+        if (preg_match('/\b(?:da|tung) (?:' . $historyVerb . ')\b/', $history, $m1) === 1
             || preg_match('/\b(?:ban|em) (?:hien )?(?:co(?! (?:the|co hoi|xu huong|loi the|tiem nang|kha nang|nhiem vu|ke hoach|muc tieu|dinh huong)\b)|so huu|tich luy|dat duoc)\b.{0,90}\b(?:nam kinh nghiem|chung chi|giai thuong|bang cap|du an)\b/', $history, $m2) === 1) {
             throw new InvalidArgumentException('grounding_unsupported_personal_history');
         }

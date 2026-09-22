@@ -15,7 +15,7 @@ Phạm vi: database MySQL local `talenthub`; migration từ main `8ce16a16`. Kh�
 
 - 7 bản ghi điểm chính thức mới có nguồn xác minh.
 - 88 bản ghi cũ được giữ nguyên giá trị điểm, nguồn, trạng thái xác minh, người/thời gian xác minh và thời gian tạo/cập nhật; chỉ đổi metadata `scoreState` sang `missing_source` để không dùng làm bằng chứng điểm chính thức. Hash dữ liệu các trường lịch sử trước và sau giống nhau.
-- MySQL tự động thay `updatedAt` khi đổi metadata. Lần thử đầu tiên phát hiện việc này và rollback toàn bộ. Bản sửa dùng `updatedAt=updatedAt` để giữ thời gian nguồn lịch sử; kiểm thử MySQL bằng transaction rollback đã xác nhận 88 dòng được bảo toàn trước khi đồng bộ thật.
+- MySQL tự động thay `updatedAt` khi đổi metadata. Lần thử đầu tiên phát hiện việc này và rollback toàn bộ. Bản sửa dùng `updatedAt=updatedAt` để giữ thời gian nguồn lịch sử; kiểm thử MySQL bằng transaction rollback đã xác nhận 88 dòng được bảo toàn trước khi đồng bộ .
 - Không sửa nội dung đánh giá, minh chứng hoặc xóa hồ sơ. Số dòng chỉ tăng ở `schema_migrations` (83 → 85) và `student_skills` (88 → 95).
 
 ## Xác nhận sau đồng bộ

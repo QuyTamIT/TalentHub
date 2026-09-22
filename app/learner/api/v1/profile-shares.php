@@ -34,7 +34,7 @@ try {
         $sharedFields = is_array($input['sharedFields'] ?? null) && !empty($input['sharedFields'])
             ? $input['sharedFields']
             : ProfileSharingService::ALLOWED_FIELDS;
-        $expiresInDays = isset($input['expiresInDays']) && is_numeric($input['expiresInDays']) ? (int) $input['expiresInDays'] : 30;
+        $expiresInDays = isset($input['expiresInDays']) && is_numeric($input['expiresInDays']) ? (int) $input['expiresInDays'] : 90;
 
         $share = $service->createShare($studentId, $sharedFields, $expiresInDays);
         JsonResponder::sendSuccess(['share' => $share], $context->requestId(), 201);

@@ -49,7 +49,7 @@ final class TeacherQrSessionRepository
         $params[$prefix . 'created'] = $teacherId;
         $params[$prefix . 'resp'] = $teacherId;
 
-        $clauses = [
+        $ownership = [
             "a.createdByTeacherId = :{$prefix}created",
             "d.responsibleTeacherId = :{$prefix}resp",
         ];
@@ -61,16 +61,17 @@ final class TeacherQrSessionRepository
         if ($userId !== null && $userId !== '') {
             $params[$prefix . 'ucreated'] = $userId;
             $params[$prefix . 'uresp'] = $userId;
-            $clauses[] = "a.createdByTeacherId = :{$prefix}ucreated";
-            $clauses[] = "d.responsibleTeacherId = :{$prefix}uresp";
+            $ownership[] = "a.createdByTeacherId = :{$prefix}ucreated";
+            $ownership[] = "d.responsibleTeacherId = :{$prefix}uresp";
         }
 
+        $clause = '(' . implode(' OR ', $ownership) . ')';
         if ($schoolId !== null && $schoolId !== '') {
             $params[$prefix . 'school'] = $schoolId;
-            $clauses[] = "(a.schoolId IS NOT NULL AND a.schoolId = :{$prefix}school)";
+            $clause = "({$clause} AND a.schoolId = :{$prefix}school)";
         }
 
-        return '(' . implode(' OR ', $clauses) . ')';
+        return $clause;
     }
 
     /** @return array{schoolId: ?string, userId: ?string} */

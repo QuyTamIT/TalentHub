@@ -5,7 +5,7 @@
     const READY_STATES = new Set(['ready-model', 'stale-model', 'ready-rule']);
     const PROCESSING_STEPS = [
         'Chuẩn bị dữ liệu năng lực',
-        'Gemini đang phân tích',
+        'AI đang phân tích',
         'Xây dựng lộ trình 90 ngày',
         'Kiểm tra và hoàn thiện',
     ];
@@ -927,7 +927,7 @@
             }
             const activeCopy = [
                 'FTalentHub đang tổng hợp dữ liệu đã được bạn cho phép.',
-                'Gemini đang phân tích điểm mạnh và hướng phát triển phù hợp.',
+                'AI đang phân tích điểm mạnh và hướng phát triển phù hợp.',
                 'AI đang xây dựng ba giai đoạn trong lộ trình 90 ngày.',
                 'FTalentHub đang kiểm tra cấu trúc, đầu ra và cách đo lường.',
             ];

@@ -1496,7 +1496,7 @@ if ($professionalSummary === '') {
                                     <div class="passport-qr-cv-img" id="passport-verification-qr" data-default-url="<?= learner_escape($defaultVerifyUrl); ?>" role="img" aria-label="Mã QR xác thực Talent Passport">
                                         <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&amp;data=<?= urlencode($defaultVerifyUrl); ?>" alt="Mã QR xác thực" class="passport-qr-cv-img-fallback" width="160" height="160" style="max-width: 100%; height: auto; display: block; margin: 0 auto; border-radius: 4px;">
                                     </div>
-                                    <span class="passport-qr-cv-badge" id="passport-qr-status">HIỆU LỰC 30 NGÀY</span>
+                                    <span class="passport-qr-cv-badge" id="passport-qr-status">HIỆU LỰC 90 NGÀY</span>
                                     <span class="passport-qr-cv-caption">Quét để xác thực số (Hồ sơ đã đồng ý chia sẻ)</span>
                                 </div>
 
@@ -1664,7 +1664,7 @@ if ($professionalSummary === '') {
                                 <span>Được xuất từ <strong>Hệ sinh thái FTalentHub &amp; <?= learner_escape($studentSchool); ?></strong></span>
                             </div>
                             <div>
-                                <span>Thời gian xuất: <strong><?= date('d/m/Y H:i'); ?></strong> (QR hiệu lực 30 ngày)</span>
+                                <span>Thời gian xuất: <strong><?= date('d/m/Y H:i'); ?></strong> (QR hiệu lực 90 ngày)</span>
                             </div>
                         </footer>
 
@@ -1728,7 +1728,7 @@ if ($professionalSummary === '') {
                             });
                         }
                         if (qrStatus) {
-                            qrStatus.textContent = 'HIỆU LỰC 30 NGÀY';
+                            qrStatus.textContent = 'HIỆU LỰC 90 NGÀY';
                         }
                     };
 
@@ -1741,7 +1741,7 @@ if ($professionalSummary === '') {
 
                         const result = await client.send('POST', '/profile-shares.php', {
                             sharedFields: fullShareFields,
-                            expiresInDays: 30,
+                            expiresInDays: 90,
                         });
                         const shareUrl = String(result?.share?.shareUrl || '');
                         if (!shareUrl) throw new Error('Máy chủ không trả về liên kết xác thực.');

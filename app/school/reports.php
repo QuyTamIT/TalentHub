@@ -1,7 +1,7 @@
 <?php
 /**
  * TalentHub - School Dashboard Reports Page
- * Tạo & tải các báo cáo CSV/Excel của trường (dữ liệu thật từ DB).
+ * Tạo & tải các báo cáo CSV/Excel của trường (dữ liệu  từ DB).
  */
 declare(strict_types=1);
 

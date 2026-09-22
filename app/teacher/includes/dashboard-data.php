@@ -490,7 +490,7 @@ function teacherDashboardActivitiesList(PDO $pdo, string $teacherId): array
             'status' => $rawStatus,
             'status_label' => $statusLabel,
             'status_type' => $statusType,
-            'detail_url' => '/app/teacher/activities/index.php?activity_id=' . urlencode((string) $r['id']),
+            'detail_url' => '/app/teacher/activities/detail.php?id=' . urlencode((string) $r['id']),
         ];
     }
 

@@ -45,6 +45,6 @@ php bin/migrate.php migrate
 php bin/audit-score-provenance.php --dry-run
 ```
 
-Chưa chạy migration MySQL hoặc audit `--apply` trên database ứng dụng; chưa chạy toàn bộ E2E bốn cổng hoặc gọi AI provider thật. Kết luận sẵn sàng tích hợp dựa trên các kiểm tra được liệt kê, không phải cam kết không còn lỗi trong toàn bộ hệ thống.
+Chưa chạy migration MySQL hoặc audit `--apply` trên database ứng dụng; chưa chạy toàn bộ E2E bốn cổng hoặc gọi AI provider . Kết luận sẵn sàng tích hợp dựa trên các kiểm tra được liệt kê, không phải cam kết không còn lỗi trong toàn bộ hệ thống.
 
 Nhánh tích hợp chưa được push hoặc merge vào main. Khi main thay đổi sau commit đã kiểm tra, cần ghép và kiểm thử lại trước khi merge.

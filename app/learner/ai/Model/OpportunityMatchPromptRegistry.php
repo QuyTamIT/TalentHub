@@ -19,7 +19,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
  */
 final class OpportunityMatchPromptRegistry
 {
-    public const VERSION = 'learner-opportunity-match-1.6.0';
+    public const VERSION = 'learner-opportunity-match-1.6.1';
 
     public const MAX_CANDIDATES = 10;
 

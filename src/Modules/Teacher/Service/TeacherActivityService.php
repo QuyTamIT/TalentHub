@@ -56,6 +56,18 @@ final class TeacherActivityService
         return $this->repository->responsibleTeachers($this->requireUuid($teacherId, 'teacherId'));
     }
 
+    /** @return list<array{id:string,code:string,name:string,category:string}> */
+    public function activeSkillCatalog(): array
+    {
+        return $this->repository->activeSkillCatalog();
+    }
+
+    /** @return list<array{id:string,code:string,name:string,category:string}> */
+    public function skillsForActivity(string $activityId): array
+    {
+        return $this->repository->skillsForActivity($this->requireUuid($activityId, 'activityId'));
+    }
+
     /** @param array<string,mixed> $input */
     public function create(string $teacherId, string $schoolId, array $input): string
     {
@@ -241,6 +253,11 @@ final class TeacherActivityService
         }
 
         $responsibleTeacherId = $this->nullableUuid($input['responsibleTeacherId'] ?? null, 'responsibleTeacherId');
+        $skillIds = $this->skillIds($input['skillIds'] ?? []);
+        $skillTags = $this->skillNamesForIds($skillIds);
+        if ($skillTags === [] && array_key_exists('skillTags', $input)) {
+            $skillTags = $this->textList($input['skillTags'] ?? []);
+        }
         return [
             'title' => $title,
             'category' => $category,
@@ -254,7 +271,8 @@ final class TeacherActivityService
             'summary' => $this->stringValue($input['summary'] ?? null, 'Tóm tắt', 500, $creating),
             'description' => $this->stringValue($input['description'] ?? null, 'Mô tả', 65535, $creating),
             'experienceHighlights' => $this->textList($input['experienceHighlights'] ?? []),
-            'skillTags' => $this->textList($input['skillTags'] ?? []),
+            'skillIds' => $skillIds,
+            'skillTags' => $skillTags,
             'eligibilityRules' => $this->textList($input['eligibilityRules'] ?? []),
             'benefitItems' => $this->textList($input['benefitItems'] ?? []),
             'locationName' => $this->stringValue($input['locationName'] ?? null, 'Tên địa điểm', 255, $creating && $deliveryMode !== 'online'),
@@ -277,6 +295,72 @@ final class TeacherActivityService
             'approvalMode' => $approvalMode,
             'confirmedHours' => number_format((float) $hoursText, 2, '.', ''),
         ];
+    }
+
+    /** @return list<string> */
+    private function skillIds(mixed $value): array
+    {
+        if ($value === null || $value === '') {
+            $value = [];
+        }
+        if (is_string($value)) {
+            $value = preg_split('/[\s,]+/', $value) ?: [];
+        }
+        if (!is_array($value)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Danh sách kỹ năng không hợp lệ.');
+        }
+        $ids = [];
+        $seen = [];
+        foreach ($value as $item) {
+            if (!is_string($item) && !is_numeric($item)) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Kỹ năng không hợp lệ.');
+            }
+            $id = strtolower(trim((string) $item));
+            if ($id === '') {
+                continue;
+            }
+            if (!Uuid::isValid($id)) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Kỹ năng không hợp lệ.');
+            }
+            if (isset($seen[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+            $ids[] = $id;
+        }
+        if ($ids === []) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Vui lòng chọn ít nhất một kỹ năng cho hoạt động.');
+        }
+        $catalog = $this->repository->activeSkillCatalog();
+        $valid = [];
+        foreach ($catalog as $skill) {
+            $valid[(string) $skill['id']] = true;
+        }
+        foreach ($ids as $id) {
+            if (!isset($valid[$id])) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Kỹ năng không tồn tại trong catalog hoặc không còn active.');
+            }
+        }
+        return $ids;
+    }
+
+    /** @param list<string> $skillIds @return list<string> */
+    private function skillNamesForIds(array $skillIds): array
+    {
+        if ($skillIds === []) {
+            return [];
+        }
+        $names = [];
+        $byId = [];
+        foreach ($this->repository->activeSkillCatalog() as $skill) {
+            $byId[(string) $skill['id']] = (string) $skill['name'];
+        }
+        foreach ($skillIds as $id) {
+            if (isset($byId[$id])) {
+                $names[] = $byId[$id];
+            }
+        }
+        return $names;
     }
 
     private function stringValue(mixed $value, string $label, int $maxLength, bool $required): string
@@ -351,7 +435,9 @@ final class TeacherActivityService
             'capacity' => $existing['capacity'] ?? 0, 'responsibleTeacherId' => $existing['responsibleTeacherId'] ?? null,
             'displayCategory' => $existing['displayCategory'] ?? '', 'filterCategory' => $existing['filterCategory'] ?? '',
             'summary' => $existing['summary'] ?? '', 'description' => $existing['description'] ?? '',
-            'experienceHighlights' => $this->storedList($existing['experienceHighlights'] ?? null), 'skillTags' => $this->storedList($existing['skillTags'] ?? null),
+            'experienceHighlights' => $this->storedList($existing['experienceHighlights'] ?? null),
+            'skillIds' => array_map(static fn (array $skill): string => (string) $skill['id'], $this->repository->skillsForActivity((string) ($existing['id'] ?? ''))),
+            'skillTags' => $this->storedList($existing['skillTags'] ?? null),
             'eligibilityRules' => $this->storedList($existing['eligibilityRules'] ?? null), 'benefitItems' => $this->storedList($existing['benefitItems'] ?? null),
             'locationName' => $existing['locationName'] ?? '', 'locationAddress' => $existing['locationAddress'] ?? null,
             'deliveryMode' => $existing['deliveryMode'] ?? 'in_person', 'onlineMeetingUrl' => $existing['onlineMeetingUrl'] ?? null,

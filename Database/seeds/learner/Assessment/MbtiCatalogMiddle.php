@@ -285,7 +285,7 @@ $questions = [
         'position' => 27,
         'dimension_code' => 'SN:S',
         'required' => true,
-        'content' => 'Bạn thích dựa vào sự thật và kinh nghiệm đã có sẵn.',
+        'content' => 'Bạn thích dựa vào sự  và kinh nghiệm đã có sẵn.',
         'options' => $likertOptions,
     ],
     [

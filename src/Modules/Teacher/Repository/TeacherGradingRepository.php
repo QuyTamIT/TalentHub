@@ -61,19 +61,24 @@ final class TeacherGradingRepository
     /** @return list<array<string,mixed>> */
     public function activities(string $teacherId): array
     {
+        $params = [];
+        $scope = $this->teacherOwnedActivityWhere($teacherId, $params, 'a', 'list_');
+        $detailJoin = $this->hasTable('activity_details') ? ' LEFT JOIN activity_details d ON d.activityId = a.id' : '';
         $statement = $this->pdo->prepare(
-            'SELECT a.id, a.title, a.category, a.startAt, a.endAt, a.capacity, a.status,
+            "SELECT a.id, a.title, a.category, a.startAt, a.endAt, a.capacity, a.status,
                     COUNT(ar.id) AS registrationCount
              FROM activities a
-             INNER JOIN teacher_profiles owner ON owner.id=a.createdByTeacherId AND owner.schoolId=a.schoolId
+             INNER JOIN teacher_profiles owner ON owner.id = a.createdByTeacherId AND owner.schoolId = a.schoolId
+             {$detailJoin}
              LEFT JOIN activity_registrations ar
                ON ar.activityId = a.id
-              AND ar.status IN (\'approved\', \'attended\')
-             WHERE a.createdByTeacherId = ?
+              AND ar.status IN ('approved', 'attended')
+             WHERE {$scope}
+               AND a.status = 'completed'
              GROUP BY a.id, a.title, a.category, a.startAt, a.endAt, a.capacity, a.status
-             ORDER BY a.startAt DESC, a.createdAt DESC'
+             ORDER BY a.startAt DESC, a.createdAt DESC"
         );
-        $statement->execute([$teacherId]);
+        $statement->execute($params);
 
         return $statement->fetchAll();
     }
@@ -81,13 +86,19 @@ final class TeacherGradingRepository
     /** @return array<string,mixed>|null */
     public function activityForTeacher(string $teacherId, string $activityId): ?array
     {
+        $params = ['activityId' => $activityId];
+        $scope = $this->teacherOwnedActivityWhere($teacherId, $params, 'a', 'one_');
+        $detailJoin = $this->hasTable('activity_details') ? ' LEFT JOIN activity_details d ON d.activityId = a.id' : '';
         $statement = $this->pdo->prepare(
-            'SELECT id, title, category, startAt, endAt, capacity, status
-             FROM activities
-             WHERE id = ? AND createdByTeacherId = ?
-             LIMIT 1'
+            "SELECT a.id, a.title, a.category, a.startAt, a.endAt, a.capacity, a.status
+             FROM activities a
+             {$detailJoin}
+             WHERE a.id = :activityId
+               AND {$scope}
+               AND a.status = 'completed'
+             LIMIT 1"
         );
-        $statement->execute([$activityId, $teacherId]);
+        $statement->execute($params);
         $row = $statement->fetch();
 
         return is_array($row) ? $row : null;
@@ -96,34 +107,40 @@ final class TeacherGradingRepository
     /** @return list<array<string,mixed>> */
     public function registrationsWithAssessments(string $teacherId, string $activityId, string $search = ''): array
     {
+        $params = [
+            'assessTeacherId' => $teacherId,
+            'activityId' => $activityId,
+        ];
+        $scope = $this->teacherOwnedActivityWhere($teacherId, $params, 'activity', 'reg_');
+        $detailJoin = $this->hasTable('activity_details') ? ' LEFT JOIN activity_details d ON d.activityId = activity.id' : '';
         $sql =
-            'SELECT ar.id AS registrationId, ar.studentId, ar.status AS registrationStatus, ar.registeredAt,
+            "SELECT ar.id AS registrationId, ar.studentId, ar.status AS registrationStatus, ar.registeredAt,
                     u.fullName, u.email,
                     a.id AS assessmentId, a.version AS assessmentVersion, a.overallScore, a.comment, a.status AS assessmentStatus,
                     a.publishedAt, a.updatedAt AS assessmentUpdatedAt
              FROM activity_registrations ar
              INNER JOIN activities activity ON activity.id = ar.activityId
+             {$detailJoin}
              INNER JOIN student_profiles sp ON sp.id = ar.studentId
              INNER JOIN users u ON u.id = sp.userId
              LEFT JOIN assessments a
                ON a.activityId = ar.activityId
               AND a.studentId = ar.studentId
-              AND a.teacherId = ?
-             WHERE activity.id = ?
-               AND activity.createdByTeacherId = ?
-               AND ar.status IN (\'approved\', \'attended\')';
-        $parameters = [$teacherId, $activityId, $teacherId];
+              AND a.teacherId = :assessTeacherId
+             WHERE activity.id = :activityId
+               AND {$scope}
+               AND ar.status IN ('approved', 'attended')";
 
         if ($search !== '') {
-            $sql .= ' AND (u.fullName LIKE ? OR u.email LIKE ?)';
+            $sql .= ' AND (u.fullName LIKE :qName OR u.email LIKE :qEmail)';
             $like = '%' . $search . '%';
-            $parameters[] = $like;
-            $parameters[] = $like;
+            $params['qName'] = $like;
+            $params['qEmail'] = $like;
         }
 
         $sql .= ' ORDER BY u.fullName ASC, ar.registeredAt ASC';
         $statement = $this->pdo->prepare($sql);
-        $statement->execute($parameters);
+        $statement->execute($params);
 
         return $statement->fetchAll();
     }
@@ -178,6 +195,61 @@ final class TeacherGradingRepository
         return $statement->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /** @return list<array{id:string,code:string,name:string,category:string}> */
+    public function skillsForActivity(string $activityId): array
+    {
+        if (!$this->hasTable('activity_skill_tags') || !$this->hasTable('skills')) {
+            return [];
+        }
+        $statement = $this->pdo->prepare(
+            "SELECT s.id, s.code, s.name, s.category
+             FROM activity_skill_tags ast
+             INNER JOIN skills s ON s.id = ast.skillId AND s.status = 'active'
+             WHERE ast.activityId = ?
+             ORDER BY s.category ASC, s.name ASC"
+        );
+        $statement->execute([$activityId]);
+        $rows = [];
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $rows[] = [
+                'id' => (string) $row['id'],
+                'code' => (string) $row['code'],
+                'name' => (string) $row['name'],
+                'category' => (string) $row['category'],
+            ];
+        }
+        return $rows;
+    }
+
+    /** @return array<string,string> skillId => score */
+    public function assessmentSkillScores(string $assessmentId): array
+    {
+        if (!$this->hasTable('learner_evaluation_items') || !$this->hasTable('learner_evaluations')) {
+            return [];
+        }
+        $statement = $this->pdo->prepare(
+            "SELECT i.skillId, i.score
+             FROM learner_evaluation_items i
+             WHERE i.evaluationId = (
+                 SELECT e.id FROM learner_evaluations e
+                 WHERE e.legacyAssessmentId = ?
+                 ORDER BY e.revision DESC LIMIT 1
+             )
+             AND i.itemKind = 'skill'
+             AND i.skillId IS NOT NULL"
+        );
+        $statement->execute([$assessmentId]);
+        $map = [];
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $skillId = strtolower(trim((string) ($row['skillId'] ?? '')));
+            if ($skillId === '') {
+                continue;
+            }
+            $map[$skillId] = (string) $row['score'];
+        }
+        return $map;
+    }
+
     /**
      * @param list<string> $studentIds
      * @return array<string, list<array<string,mixed>>>
@@ -223,16 +295,23 @@ final class TeacherGradingRepository
     /** @return list<array<string,mixed>> */
     public function assessmentScores(string $teacherId, string $activityId): array
     {
+        $params = [
+            'assessTeacherId' => $teacherId,
+            'activityId' => $activityId,
+        ];
+        $scope = $this->teacherOwnedActivityWhere($teacherId, $params, 'activity', 'score_');
+        $detailJoin = $this->hasTable('activity_details') ? ' LEFT JOIN activity_details d ON d.activityId = activity.id' : '';
         $statement = $this->pdo->prepare(
-            'SELECT a.studentId, score.criteriaId, score.score
+            "SELECT a.studentId, score.criteriaId, score.score
              FROM assessments a
-             INNER JOIN activities activity
-               ON activity.id = a.activityId
-              AND activity.createdByTeacherId = ?
+             INNER JOIN activities activity ON activity.id = a.activityId
+             {$detailJoin}
              INNER JOIN assessment_scores score ON score.assessmentId = a.id
-             WHERE a.teacherId = ? AND a.activityId = ?'
+             WHERE a.teacherId = :assessTeacherId
+               AND a.activityId = :activityId
+               AND {$scope}"
         );
-        $statement->execute([$teacherId, $teacherId, $activityId]);
+        $statement->execute($params);
 
         return $statement->fetchAll();
     }
@@ -279,8 +358,25 @@ final class TeacherGradingRepository
             'class' => "SELECT c.id,c.name AS title,c.status FROM classes c
                 JOIN teacher_profiles t ON t.schoolId=c.schoolId WHERE c.id=? AND t.id=?",
             'project' => 'SELECT p.id,p.title,p.status FROM projects p JOIN teacher_profiles t ON t.id=p.mentorTeacherId AND t.schoolId=p.schoolId WHERE p.id=? AND t.id=?',
-            'activity' => 'SELECT a.id,a.title,a.status FROM activities a JOIN teacher_profiles t ON t.id=a.createdByTeacherId AND t.schoolId=a.schoolId WHERE a.id=? AND t.id=?',
+            'activity' => '',
         };
+        if ($mode === 'activity') {
+            $params = ['contextId' => $contextId];
+            $scope = $this->teacherOwnedActivityWhere($teacherId, $params, 'a', 'ctx_');
+            $detailJoin = $this->hasTable('activity_details') ? ' LEFT JOIN activity_details d ON d.activityId = a.id' : '';
+            $s = $this->pdo->prepare(
+                "SELECT a.id, a.title, a.status
+                 FROM activities a
+                 {$detailJoin}
+                 WHERE a.id = :contextId
+                   AND {$scope}
+                   AND a.status = 'completed'
+                 LIMIT 1" . $this->lockSuffix($lock)
+            );
+            $s->execute($params);
+            $row = $s->fetch(PDO::FETCH_ASSOC);
+            return is_array($row) ? $row : null;
+        }
         $s = $this->pdo->prepare($sql . ' LIMIT 1' . $this->lockSuffix($lock));
         $s->execute([$contextId, $teacherId]);
         $row = $s->fetch(PDO::FETCH_ASSOC);
@@ -629,25 +725,57 @@ final class TeacherGradingRepository
     /** @return array<string,mixed>|null */
     private function registrationForTeacher(string $teacherId, string $activityId, string $studentId, bool $forUpdate): ?array
     {
+        $params = [
+            'activityId' => $activityId,
+            'studentId' => $studentId,
+        ];
+        $scope = $this->teacherOwnedActivityWhere($teacherId, $params, 'activity', 'own_');
+        $detailJoin = $this->hasTable('activity_details') ? ' LEFT JOIN activity_details d ON d.activityId = activity.id' : '';
         $sql =
-            'SELECT registration.id, registration.activityId, registration.studentId, registration.status
+            "SELECT registration.id, registration.activityId, registration.studentId, registration.status
              FROM activity_registrations registration
-             INNER JOIN activities activity
-               ON activity.id = registration.activityId
-              AND activity.createdByTeacherId = ?
-             WHERE activity.id = ?
-               AND registration.studentId = ?
-               AND registration.status IN (\'approved\', \'attended\')
-             LIMIT 1';
+             INNER JOIN activities activity ON activity.id = registration.activityId
+             {$detailJoin}
+             WHERE activity.id = :activityId
+               AND {$scope}
+               AND registration.studentId = :studentId
+               AND registration.status IN ('approved', 'attended')
+             LIMIT 1";
         if ($forUpdate && $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'sqlite') {
             $sql .= ' FOR UPDATE';
         }
 
         $statement = $this->pdo->prepare($sql);
-        $statement->execute([$teacherId, $activityId, $studentId]);
+        $statement->execute($params);
         $row = $statement->fetch();
 
         return is_array($row) ? $row : null;
+    }
+
+    private function teacherOwnedActivityWhere(string $teacherId, array &$params, string $alias = 'a', string $prefix = 't_'): string
+    {
+        $createdParam = $prefix . 'created';
+        $params[$createdParam] = $teacherId;
+        $ownership = ["{$alias}.createdByTeacherId = :{$createdParam}"];
+
+        if ($this->hasTable('activity_details')) {
+            $respParam = $prefix . 'resp';
+            $params[$respParam] = $teacherId;
+            $ownership[] = "d.responsibleTeacherId = :{$respParam}";
+        }
+
+        $clause = '(' . implode(' OR ', $ownership) . ')';
+
+        $school = $this->pdo->prepare('SELECT schoolId FROM teacher_profiles WHERE id = ? LIMIT 1');
+        $school->execute([$teacherId]);
+        $schoolId = $school->fetchColumn();
+        if (is_string($schoolId) && $schoolId !== '') {
+            $schoolParam = $prefix . 'school';
+            $params[$schoolParam] = $schoolId;
+            $clause = "({$clause} AND {$alias}.schoolId = :{$schoolParam})";
+        }
+
+        return $clause;
     }
 
     /** Called inside the assessment transaction, after scope/version checks. */

@@ -83,7 +83,7 @@
 
       if (provenance) {
         const minCohort = payload?.aggregate?.minimum_cohort || 5;
-        const originLabel = payload.analysis_origin === 'model' ? 'Gemini trên dữ liệu tổng hợp' : 'Dữ liệu tổng hợp';
+        const originLabel = payload.analysis_origin === 'model' ? 'AI trên dữ liệu tổng hợp' : 'Dữ liệu tổng hợp';
         provenance.textContent = `Nguồn: ${originLabel} · Ngưỡng bảo mật tối thiểu: ${minCohort} học sinh`;
       }
 

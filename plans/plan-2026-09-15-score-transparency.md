@@ -4,7 +4,7 @@
 
 **Mục tiêu:** mỗi điểm đánh giá/kỹ năng trên mọi cổng đều có nguồn hệ thống và cách giải thích; Gemini không tạo hoặc sửa điểm năng lực; cổng giảng viên, nhà trường, doanh nghiệp không còn đọc điểm không nguồn.
 
-**Thiết kế:** bốn họ điểm tách biệt. Nguồn sự thật của kỹ năng là `learner_evaluations` (bản công bố mới nhất) và `learner_skill_evidence`. `student_skills` và `student_profiles.talentScore` chỉ là bản đọc/tổng hợp do backend ghi. Một dịch vụ đọc (`EvidenceBackedScoreService`) cho trang chi tiết; truy vấn danh sách SQL chỉ đọc bản đọc đã được chiếu từ nguồn hợp lệ. Không nhận điểm từ Gemini.
+**Thiết kế:** bốn họ điểm tách biệt. Nguồn sự  của kỹ năng là `learner_evaluations` (bản công bố mới nhất) và `learner_skill_evidence`. `student_skills` và `student_profiles.talentScore` chỉ là bản đọc/tổng hợp do backend ghi. Một dịch vụ đọc (`EvidenceBackedScoreService`) cho trang chi tiết; truy vấn danh sách SQL chỉ đọc bản đọc đã được chiếu từ nguồn hợp lệ. Không nhận điểm từ Gemini.
 
 **Công nghệ:** PHP 8.3, MySQL, JavaScript, kiểm thử PHP và Playwright hiện có.
 
@@ -45,7 +45,7 @@ Phần 2 khóa các quyết định này. P0 **xác minh** danh sách, không c�
 - Duy trì phân quyền khi xem điểm và nguồn; không lộ dữ liệu giữa tài khoản/trường.
 - Không ghi đè các chỉnh sửa có trước trong workspace. Không push/merge/deploy production trong phạm vi chuẩn bị và kiểm thử local.
 - Tất cả tên file ghi “tạo mới” là đích triển khai đề xuất; không khẳng định file đã tồn tại.
-- Không đổi trọng số `OpportunityScore` / `JobMatchScore` trừ khi cần loại dữ kiện không nguồn. Không xây hệ thống phân vị thật.
+- Không đổi trọng số `OpportunityScore` / `JobMatchScore` trừ khi cần loại dữ kiện không nguồn. Không xây hệ thống phân vị .
 
 ---
 
@@ -53,7 +53,7 @@ Phần 2 khóa các quyết định này. P0 **xác minh** danh sách, không c�
 
 ### 2.1. Bốn họ điểm — không trộn
 
-| Họ | Nguồn sự thật | Được hiện ở hồ sơ kỹ năng? | Tên hiển thị |
+| Họ | Nguồn sự  | Được hiện ở hồ sơ kỹ năng? | Tên hiển thị |
 |---|---|---|---|
 | A. Bốn bài test | `test_attempts` / `test_results` / câu trả lời / phiên bản chấm | Không | Holland: xu hướng sở thích; MI: tự đánh giá các chiều; MBTI/DISC: xu hướng theo bài test |
 | B. Kỹ năng thực hành | `learner_evaluations` + `learner_evaluation_items` (bản công bố mới nhất) hoặc đánh giá rubric gắn báo cáo | Có, khi `state = scored` | Tên kỹ năng + phương thức chấm |
@@ -233,7 +233,7 @@ P0 còn phải xác nhận không có consumer mới ngoài danh sách. Nếu c�
 
 ## 5. P0 — Baseline và kiểm kê
 
-**Đọc:** cấu hình local, schema thật, migration đã áp dụng, file mục 4, `git status --short`, `scratch/p0_inventory.php` nếu còn (chỉ tham khảo, không phải bàn giao).
+**Đọc:** cấu hình local, schema , migration đã áp dụng, file mục 4, `git status --short`, `scratch/p0_inventory.php` nếu còn (chỉ tham khảo, không phải bàn giao).
 
 - [ ] Ghi commit hiện tại, `git status --short`, danh sách file đã thay đổi từ trước. Lưu đối chiếu chỉ cho file sắp sửa; không sao chép khóa/mật khẩu.
 - [ ] Thêm path P3–P5 vào `GitScopeGuard::ALLOWED_EXACT_PATHS`; chạy test guard hiện có nếu có.
@@ -479,7 +479,7 @@ Tất cả **chưa chạy cho bản sửa này**.
 | T32 | Trang học viên của GV | Không render `talent_map` như kỹ năng | UI |
 | T33 | `JobMatchScorer` với skill `missing_source` | Không cộng vào thành phần skill | Unit |
 | T34 | Publish lần 2 cùng assessment | `learner_evaluations.revision` tăng; bản 1 còn | DB |
-| T35 | Doanh nghiệp xem nguồn | Không tên GV thật, không câu trả lời test | API |
+| T35 | Doanh nghiệp xem nguồn | Không tên GV , không câu trả lời test | API |
 
 ---
 

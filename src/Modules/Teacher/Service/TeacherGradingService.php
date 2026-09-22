@@ -47,7 +47,9 @@ final class TeacherGradingService
             'classes'=>$mode==='class' ? $contexts : [], 'projects'=>$mode==='project' ? $contexts : [],
             'activities'=>$mode==='activity' ? $contexts : [], 'selectedActivity'=>$mode==='activity' ? $selected : null,
             'students'=>$students, 'criteria'=>$selected !== null ? $this->repository->activeCriteria() : [],
-            'availableSkills'=>$this->repository->activeSkills(),
+            'availableSkills'=>$mode === 'activity' && $selected !== null && is_string($contextId) && $contextId !== ''
+                ? $this->repository->skillsForActivity($contextId)
+                : $this->repository->activeSkills(),
             'skillCategories'=>TeacherGradingRepository::SKILL_CATEGORIES,
         ];
     }
@@ -180,6 +182,17 @@ final class TeacherGradingService
             throw new ApiException(422, 'VALIDATION_FAILED', 'Không gửi đồng thời skills và skillGroups.');
         }
 
+        $skillsInput = $this->skillsInput($input['skills'] ?? []);
+        if ($mode === 'activity' && $skillsInput !== []) {
+            $this->assertActivitySkills($activityId, $skillsInput);
+        }
+        if ($mode === 'activity' && $groupScores === null && $skillsInput === [] && $status === 'published') {
+            $assigned = $this->repository->skillsForActivity($activityId);
+            if ($assigned !== []) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Vui lòng chấm ít nhất một kỹ năng đã gắn với hoạt động.');
+            }
+        }
+
         $this->repository->saveAssessment(
             $teacherId,
             $studentId,
@@ -194,7 +207,7 @@ final class TeacherGradingService
             $userId,
             substr($requestId ?? RequestId::make(null), 0, 26),
             $mode,
-            $this->skillsInput($input['skills'] ?? []),
+            $skillsInput,
             $scoreMethod,
             $formulaVersion,
             $calculationJson,
@@ -202,6 +215,23 @@ final class TeacherGradingService
         );
 
         return $activityId;
+    }
+
+    /** @param list<array{skillId:string,score:string}> $skillsInput */
+    private function assertActivitySkills(string $activityId, array $skillsInput): void
+    {
+        $allowed = [];
+        foreach ($this->repository->skillsForActivity($activityId) as $skill) {
+            $allowed[(string) $skill['id']] = true;
+        }
+        if ($allowed === []) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Hoạt động chưa gắn kỹ năng. Hãy chỉnh sửa hoạt động trước khi chấm.');
+        }
+        foreach ($skillsInput as $item) {
+            if (!isset($allowed[$item['skillId']])) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Chỉ được chấm các kỹ năng đã gắn với hoạt động.');
+            }
+        }
     }
 
     /** @return array{id:string,status:string,version:int} */

@@ -60,13 +60,12 @@ $assetVersion = static function (string $relativePath): string {
                         </div>
                         <div class="learner-roadmap-processing__meta">
                             <strong data-roadmap-processing-percent>8%</strong>
-                            <span>Tiến độ ước tính · <span data-roadmap-processing-elapsed>0 giây</span></span>
                         </div>
                     </div>
                     <div class="learner-roadmap-processing__bar" aria-hidden="true"><span data-roadmap-processing-bar></span></div>
                     <ol class="learner-roadmap-processing__steps" data-roadmap-processing-steps>
                         <li data-processing-step="0"><span>1</span><strong>Chuẩn bị dữ liệu năng lực</strong></li>
-                        <li data-processing-step="1"><span>2</span><strong>Gemini đang phân tích</strong></li>
+                        <li data-processing-step="1"><span>2</span><strong>AI đang phân tích</strong></li>
                         <li data-processing-step="2"><span>3</span><strong>Xây dựng lộ trình 90 ngày</strong></li>
                         <li data-processing-step="3"><span>4</span><strong>Kiểm tra và hoàn thiện</strong></li>
                     </ol>
@@ -95,6 +94,90 @@ $assetVersion = static function (string $relativePath): string {
                             <div class="learner-roadmap-summary__direction" data-roadmap-direction aria-labelledby="roadmap-direction-title"><strong id="roadmap-direction-title" data-roadmap-direction-label></strong><p data-roadmap-direction-rationale></p><div data-roadmap-direction-alternatives></div></div>
                         </section>
                     </div>
+                    <div class="learner-roadmap-analysis-stack" data-skill-gap>
+                        <section class="learner-roadmap-analysis" aria-labelledby="roadmap-analysis-title">
+                            <article class="learner-card learner-roadmap-radar-card" aria-labelledby="roadmap-analysis-title">
+                                <div class="learner-roadmap-card-heading">
+                                    <span class="learner-roadmap-card-heading__icon"><?= learner_icon('compass', 20); ?></span>
+                                    <div>
+                                        <span class="learner-roadmap__eyebrow">ĐÁNH GIÁ NĂNG LỰC</span>
+                                        <h2 id="roadmap-analysis-title">Bản đồ năng khiếu</h2>
+                                    </div>
+                                </div>
+                                <div class="learner-roadmap-radar-body">
+                                    <div class="learner-roadmap-radar-wrapper" data-roadmap-talent-map></div>
+                                    <div class="learner-roadmap-radar-insights">
+                                        <div class="learner-roadmap-radar-insight-group">
+                                            <h3 class="learner-roadmap-insight-subheading">
+                                                <span class="learner-radar-badge learner-radar-badge--strength"><?= learner_icon('check', 14); ?> Điểm mạnh nổi bật</span>
+                                            </h3>
+                                            <div class="learner-roadmap-capability-list" data-roadmap-strengths></div>
+                                        </div>
+                                        <div class="learner-roadmap-radar-insight-group">
+                                            <h3 class="learner-roadmap-insight-subheading">
+                                                <span class="learner-radar-badge learner-radar-badge--potential"><?= learner_icon('sparkles', 14); ?> Tiềm năng mở rộng</span>
+                                            </h3>
+                                            <div class="learner-roadmap-capability-list" data-roadmap-potential-paths></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+                            <article class="learner-card learner-skill-gap" aria-labelledby="skill-gap-title">
+                                <div class="learner-skill-gap__heading">
+                                    <div>
+                                        <span class="learner-roadmap__eyebrow">HỒ SƠ NĂNG LỰC AI</span>
+                                        <h2 id="skill-gap-title">Phân tích khoảng cách kỹ năng</h2>
+                                        <p>Đối chiếu kỹ năng đã tích lũy với benchmark của vị trí phù hợp nhất.</p>
+                                    </div>
+                                    <a class="learner-btn learner-btn--text" href="ecosystem.php?tab=enterprises">Xem tất cả cơ hội phù hợp</a>
+                                </div>
+                                <p class="learner-skill-gap__status" data-skill-gap-status role="status" aria-live="polite">Đang tải kết quả Job Matching gần nhất...</p>
+                                <div class="learner-skill-gap__content" data-skill-gap-content hidden>
+                                    <div class="learner-skill-gap__target">
+                                        <div class="learner-skill-gap__target-label">
+                                            <span class="learner-skill-gap__target-tag"><?= learner_icon('briefcase', 14); ?> Vị trí mục tiêu được phân tích</span>
+                                        </div>
+                                        <strong data-skill-gap-target></strong>
+                                    </div>
+                                    <div class="learner-skill-gap__scores" data-skill-gap-scores></div>
+                                    <div class="learner-skill-gap__columns">
+                                        <section aria-labelledby="skill-gap-met-title">
+                                            <div class="learner-skill-gap__section-heading">
+                                                <h3 id="skill-gap-met-title"><span class="learner-indicator-dot learner-indicator-dot--success"></span> Kỹ năng đã đạt</h3>
+                                                <span>So với benchmark</span>
+                                            </div>
+                                            <div class="learner-skill-gap__skills" data-skill-gap-met></div>
+                                        </section>
+                                        <section aria-labelledby="skill-gap-missing-title">
+                                            <div class="learner-skill-gap__section-heading">
+                                                <h3 id="skill-gap-missing-title"><span class="learner-indicator-dot learner-indicator-dot--warning"></span> Kỹ năng cần bù đắp</h3>
+                                                <span>Mức thiếu & tác động</span>
+                                            </div>
+                                            <div class="learner-skill-gap__skills" data-skill-gap-missing></div>
+                                        </section>
+                                    </div>
+                                </div>
+                                <div class="learner-visually-hidden" aria-hidden="true">
+                                    <div data-roadmap-improvements></div><div data-roadmap-trends></div>
+                                    <div data-roadmap-growth-hypotheses></div>
+                                    <button type="button" data-roadmap-analysis-toggle aria-expanded="false" tabindex="-1"></button><div data-roadmap-analysis-details hidden></div>
+                                </div>
+                            </article>
+                        </section>
+                        <section class="learner-card learner-roadmap-activities learner-skill-gap__activities-section" data-skill-gap-activities-section aria-labelledby="skill-gap-activities-title">
+                            <div class="learner-roadmap-activities__heading">
+                                <div class="learner-roadmap-card-heading">
+                                    <span class="learner-roadmap-card-heading__icon"><?= learner_icon('sparkles', 20); ?></span>
+                                    <div>
+                                        <span class="learner-roadmap__eyebrow">GỢI Ý HÀNH ĐỘNG</span>
+                                        <h2 id="skill-gap-activities-title">Hoạt động đề xuất dành cho bạn</h2>
+                                    </div>
+                                </div>
+                                <span>Khóa học, workshop hoặc dự án đang mở</span>
+                            </div>
+                            <div class="learner-skill-gap__activities" data-skill-gap-activities></div>
+                        </section>
+                    </div>
                     <section class="learner-card learner-roadmap-plan" aria-labelledby="roadmap-plan-title">
                         <div class="learner-roadmap-section-heading">
                             <div><span>Định hướng theo từng chặng</span><h2 id="roadmap-plan-title">Lộ trình phát triển 90 ngày</h2></div>
@@ -111,90 +194,6 @@ $assetVersion = static function (string $relativePath): string {
                         <section class="learner-roadmap-celebration" data-roadmap-celebration hidden aria-labelledby="roadmap-celebration-title"></section>
                         <div class="learner-roadmap-phases learner-roadmap-timeline" data-roadmap-phases></div>
                     </section>
-                    <div class="learner-roadmap-analysis-stack" data-skill-gap>
-                    <section class="learner-roadmap-analysis" aria-labelledby="roadmap-analysis-title">
-                        <article class="learner-card learner-roadmap-radar-card" aria-labelledby="roadmap-analysis-title">
-                            <div class="learner-roadmap-card-heading">
-                                <span class="learner-roadmap-card-heading__icon"><?= learner_icon('compass', 20); ?></span>
-                                <div>
-                                    <span class="learner-roadmap__eyebrow">ĐÁNH GIÁ NĂNG LỰC</span>
-                                    <h2 id="roadmap-analysis-title">Bản đồ năng khiếu</h2>
-                                </div>
-                            </div>
-                            <div class="learner-roadmap-radar-body">
-                                <div class="learner-roadmap-radar-wrapper" data-roadmap-talent-map></div>
-                                <div class="learner-roadmap-radar-insights">
-                                    <div class="learner-roadmap-radar-insight-group">
-                                        <h3 class="learner-roadmap-insight-subheading">
-                                            <span class="learner-radar-badge learner-radar-badge--strength"><?= learner_icon('check', 14); ?> Điểm mạnh nổi bật</span>
-                                        </h3>
-                                        <div class="learner-roadmap-capability-list" data-roadmap-strengths></div>
-                                    </div>
-                                    <div class="learner-roadmap-radar-insight-group">
-                                        <h3 class="learner-roadmap-insight-subheading">
-                                            <span class="learner-radar-badge learner-radar-badge--potential"><?= learner_icon('sparkles', 14); ?> Tiềm năng mở rộng</span>
-                                        </h3>
-                                        <div class="learner-roadmap-capability-list" data-roadmap-potential-paths></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </article>
-                        <article class="learner-card learner-skill-gap" aria-labelledby="skill-gap-title">
-                            <div class="learner-skill-gap__heading">
-                                <div>
-                                    <span class="learner-roadmap__eyebrow">HỒ SƠ NĂNG LỰC AI</span>
-                                    <h2 id="skill-gap-title">Phân tích khoảng cách kỹ năng</h2>
-                                    <p>Đối chiếu kỹ năng đã tích lũy với benchmark của vị trí phù hợp nhất.</p>
-                                </div>
-                                <a class="learner-btn learner-btn--text" href="ecosystem.php?tab=enterprises">Xem tất cả cơ hội phù hợp</a>
-                            </div>
-                            <p class="learner-skill-gap__status" data-skill-gap-status role="status" aria-live="polite">Đang tải kết quả Job Matching gần nhất...</p>
-                            <div class="learner-skill-gap__content" data-skill-gap-content hidden>
-                                <div class="learner-skill-gap__target">
-                                    <div class="learner-skill-gap__target-label">
-                                        <span class="learner-skill-gap__target-tag"><?= learner_icon('briefcase', 14); ?> Vị trí mục tiêu được phân tích</span>
-                                    </div>
-                                    <strong data-skill-gap-target></strong>
-                                </div>
-                                <div class="learner-skill-gap__scores" data-skill-gap-scores></div>
-                                <div class="learner-skill-gap__columns">
-                                    <section aria-labelledby="skill-gap-met-title">
-                                        <div class="learner-skill-gap__section-heading">
-                                            <h3 id="skill-gap-met-title"><span class="learner-indicator-dot learner-indicator-dot--success"></span> Kỹ năng đã đạt</h3>
-                                            <span>So với benchmark</span>
-                                        </div>
-                                        <div class="learner-skill-gap__skills" data-skill-gap-met></div>
-                                    </section>
-                                    <section aria-labelledby="skill-gap-missing-title">
-                                        <div class="learner-skill-gap__section-heading">
-                                            <h3 id="skill-gap-missing-title"><span class="learner-indicator-dot learner-indicator-dot--warning"></span> Kỹ năng cần bù đắp</h3>
-                                            <span>Mức thiếu & tác động</span>
-                                        </div>
-                                        <div class="learner-skill-gap__skills" data-skill-gap-missing></div>
-                                    </section>
-                                </div>
-                            </div>
-                            <div class="learner-visually-hidden" aria-hidden="true">
-                                <div data-roadmap-improvements></div><div data-roadmap-trends></div>
-                                <div data-roadmap-growth-hypotheses></div>
-                                <button type="button" data-roadmap-analysis-toggle aria-expanded="false" tabindex="-1"></button><div data-roadmap-analysis-details hidden></div>
-                            </div>
-                        </article>
-                    </section>
-                    <section class="learner-card learner-roadmap-activities learner-skill-gap__activities-section" data-skill-gap-activities-section aria-labelledby="skill-gap-activities-title">
-                        <div class="learner-roadmap-activities__heading">
-                            <div class="learner-roadmap-card-heading">
-                                <span class="learner-roadmap-card-heading__icon"><?= learner_icon('sparkles', 20); ?></span>
-                                <div>
-                                    <span class="learner-roadmap__eyebrow">GỢI Ý HÀNH ĐỘNG</span>
-                                    <h2 id="skill-gap-activities-title">Hoạt động đề xuất dành cho bạn</h2>
-                                </div>
-                            </div>
-                            <span>Khóa học, workshop hoặc dự án đang mở</span>
-                        </div>
-                        <div class="learner-skill-gap__activities" data-skill-gap-activities></div>
-                    </section>
-                    </div>
                     <div class="learner-visually-hidden" data-roadmap-insights hidden aria-hidden="true"></div>
                 </div>
             </main>

@@ -34,7 +34,7 @@ final class ProfileSharingService
      * @param list<string> $sharedFields
      * @return array{id:string,rawToken:string,shareUrl:string,expiresAt:string,sharedFields:list<string>}
      */
-    public function createShare(string $studentId, array $sharedFields, int $expiresInDays = 30): array
+    public function createShare(string $studentId, array $sharedFields, int $expiresInDays = 90): array
     {
         if ($sharedFields === []) {
             $sharedFields = self::ALLOWED_FIELDS;
@@ -349,7 +349,7 @@ final class ProfileSharingService
             'student' => $studentView,
             'studentId' => $studentId,
             'sharedAt' => date('Y-m-d H:i:s'),
-            'expiresAt' => date('Y-m-d H:i:s', strtotime('+30 days')),
+            'expiresAt' => date('Y-m-d H:i:s', strtotime('+90 days')),
             'passportCode' => $passportCode,
             'isDirectVerification' => true,
             'skills' => array_values(array_filter(

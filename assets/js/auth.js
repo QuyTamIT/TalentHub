@@ -21,5 +21,57 @@ document.addEventListener('DOMContentLoaded',()=>{
             if(typeof form.requestSubmit==='function'){form.requestSubmit();}else{form.submit();}
         });
     });
+    const demoModal=document.getElementById('auth-demo-modal');
+    const openDemoModal=()=>{
+        if(!demoModal)return;
+        demoModal.hidden=false;
+        demoModal.classList.add('is-open');
+        document.body.classList.add('auth-demo-modal-open');
+        const activeTab=demoModal.querySelector('.auth-demo-modal__tab.is-active')||demoModal.querySelector('[data-demo-tab]');
+        activeTab?.focus();
+    };
+    const closeDemoModal=()=>{
+        if(!demoModal)return;
+        demoModal.hidden=true;
+        demoModal.classList.remove('is-open');
+        document.body.classList.remove('auth-demo-modal-open');
+        document.querySelector('[data-open-demo-modal]')?.focus();
+    };
+    const activateDemoTab=(role)=>{
+        if(!demoModal||!role)return;
+        demoModal.querySelectorAll('[data-demo-tab]').forEach(tab=>{
+            const on=tab.getAttribute('data-demo-tab')===role;
+            tab.classList.toggle('is-active',on);
+            tab.setAttribute('aria-selected',on?'true':'false');
+            tab.tabIndex=on?0:-1;
+        });
+        demoModal.querySelectorAll('[data-demo-panel]').forEach(panel=>{
+            const on=panel.getAttribute('data-demo-panel')===role;
+            panel.classList.toggle('is-active',on);
+            panel.hidden=!on;
+        });
+    };
+    document.querySelector('[data-open-demo-modal]')?.addEventListener('click',event=>{
+        event.preventDefault();
+        openDemoModal();
+    });
+    document.querySelectorAll('[data-close-demo-modal]').forEach(el=>el.addEventListener('click',closeDemoModal));
+    demoModal?.querySelectorAll('[data-demo-tab]').forEach(tab=>{
+        tab.addEventListener('click',()=>activateDemoTab(tab.getAttribute('data-demo-tab')||''));
+    });
+    document.addEventListener('keydown',event=>{
+        if(!demoModal||demoModal.hidden)return;
+        if(event.key==='Escape'){closeDemoModal();return;}
+        if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;
+        const tabs=[...demoModal.querySelectorAll('[data-demo-tab]')];
+        if(tabs.length===0)return;
+        const current=tabs.findIndex(tab=>tab.classList.contains('is-active'));
+        const next=event.key==='ArrowRight'
+            ?(current+1)%tabs.length
+            :(current-1+tabs.length)%tabs.length;
+        activateDemoTab(tabs[next].getAttribute('data-demo-tab')||'');
+        tabs[next].focus();
+        event.preventDefault();
+    });
 });
 window.addEventListener('pageshow',()=>{document.querySelectorAll('[data-submit].is-loading').forEach(button=>{button.disabled=false;button.removeAttribute('aria-disabled');button.classList.remove('is-loading');const label=button.querySelector('span');if(label){label.textContent=document.body.dataset.submitLabel||(document.body.classList.contains('auth-page--register')?'Tạo tài khoản học viên':'Đăng nhập');}});});

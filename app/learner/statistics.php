@@ -263,10 +263,14 @@ $fieldLabelMap = [
                         <h2 id="learner-statistics-period-title" data-period-kpi-title>Chỉ số trong <?= learner_escape($periodLabel); ?></h2>
                         <div class="learner-statistics-kpis-grid">
                             <?php foreach ($kpis as $kpi): ?>
+                                <?php
+                                $kpiValue = (string) ($kpi['value'] ?? '');
+                                $kpiValueLong = mb_strlen($kpiValue) > 6;
+                                ?>
                                 <article class="learner-card learner-statistics-kpi learner-statistics-kpi--<?= learner_escape($kpi['tone'] ?? 'teal'); ?>" data-statistics-kpi data-kpi-id="<?= learner_escape($kpi['id']); ?>">
                                     <span class="learner-statistics-kpi__icon" aria-hidden="true"><?= learner_icon($kpi['icon'] ?? 'clock', 27); ?></span>
                                     <div>
-                                        <strong data-kpi-value><?= learner_escape($kpi['value']); ?></strong>
+                                        <strong data-kpi-value<?= $kpiValueLong ? ' class="is-long"' : ''; ?>><?= learner_escape($kpiValue); ?></strong>
                                         <span data-kpi-suffix><?= learner_escape($kpi['suffix']); ?></span>
                                     </div>
                                     <p><?= learner_escape($kpi['label']); ?></p>

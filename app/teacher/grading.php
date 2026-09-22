@@ -8,7 +8,6 @@ use TalentHub\Bootstrap\PortalGuard;
 use TalentHub\Database\Connection;
 use TalentHub\Modules\Teacher\Repository\TeacherGradingRepository;
 use TalentHub\Modules\Teacher\Service\TeacherGradingService;
-use TalentHub\Modules\Skills\Repository\SkillGroupRepository;
 use TalentHub\Rbac\RoleCodes;
 use TalentHub\Support\Uuid;
 
@@ -140,13 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'assessmentStatus' => $status,
                 'comment' => $comment,
                 'criteria' => $serviceCriteria,
-                // Preserve the existing skill API alongside the group-only form.
-                // Mixed payloads reach service validation instead of silently dropping skills.
-                ...(array_key_exists('skills', $_POST)
-                    ? ['skills' => $_POST['skills']]
-                    : ['skillGroups' => $_POST['skillGroups'] ?? []]),
-                ...(array_key_exists('skills', $_POST) && array_key_exists('skillGroups', $_POST)
-                    ? ['skillGroups' => $_POST['skillGroups']] : []),
+                'skills' => $_POST['skills'] ?? [],
             ]);
 
             // Query back the saved assessment to retrieve backend-calculated overallScore and assessmentId
@@ -185,8 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $_SESSION['teacherGradingFlash'] = $msg;
-            $classQuery = isset($_POST['className']) ? '&class=' . urlencode((string)$_POST['className']) : '';
-            header('Location: ' . app_href('/app/teacher/grading.php') . '?student_id=' . urlencode($studentId) . '&activity_id=' . urlencode($activityId) . $classQuery);
+            header('Location: ' . app_href('/app/teacher/grading.php') . '?student_id=' . urlencode($studentId) . '&activity_id=' . urlencode($activityId));
             exit;
         } catch (\Throwable $e) {
             if ($isAjax) {
@@ -213,90 +205,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// 5. Đọc danh sách lớp học theo trường của giáo viên
-$classList = [];
-if ($teacherSchoolId !== '') {
-    try {
-        $classStmt = $pdo->prepare("
-            SELECT c.id, c.name, COUNT(sp.id) AS studentCount
-            FROM classes c
-            LEFT JOIN student_profiles sp ON sp.classId = c.id AND sp.studyStatus = 'active'
-            WHERE c.schoolId = :schoolId
-              AND c.status = 'active'
-            GROUP BY c.id, c.name
-            ORDER BY c.name ASC
-        ");
-        $classStmt->execute(['schoolId' => $teacherSchoolId]);
-        $classList = $classStmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (\Throwable $e) {
-        $classList = [];
-    }
+// 5. Đọc danh sách hoạt động thuộc phạm vi chấm của giáo viên
+$gradingRepo = new TeacherGradingRepository($pdo);
+$activityList = [];
+try {
+    $activityList = $gradingRepo->activities($teacherId);
+} catch (\Throwable $e) {
+    $activityList = [];
 }
 
-$requestedClass = trim((string) ($_GET['class'] ?? ($_GET['class_id'] ?? '')));
-$selectedClass = null;
-
-foreach ($classList as $c) {
-    if ($requestedClass !== '' && ($c['id'] === $requestedClass || $c['name'] === $requestedClass)) {
-        $selectedClass = $c;
+$requestedActivityId = trim((string) ($_GET['activity_id'] ?? $_GET['activity'] ?? ''));
+$selectedActivity = null;
+foreach ($activityList as $activityRow) {
+    if ($requestedActivityId !== '' && (string) ($activityRow['id'] ?? '') === $requestedActivityId) {
+        $selectedActivity = $activityRow;
         break;
     }
 }
-if ($selectedClass === null && !empty($classList)) {
-    $selectedClass = $classList[0];
+if ($selectedActivity === null && $activityList !== []) {
+    $selectedActivity = $activityList[0];
 }
+$activeActivityId = (string) ($selectedActivity['id'] ?? '');
+$activeActivityTitle = (string) ($selectedActivity['title'] ?? '');
 
-$activeClassId = (string) ($selectedClass['id'] ?? '');
-$activeClassName = (string) ($selectedClass['name'] ?? '');
-$requestedActivityId = trim((string) ($_GET['activity_id'] ?? $_GET['activity'] ?? ''));
-
-// 6. Đọc danh sách bài đánh giá trong HÀNG CHỜ từ dữ liệu thật
+// 6. Hàng chờ = học viên đã đăng ký / tham dự hoạt động đang chọn
 $students = [];
-if ($activeClassId !== '') {
+if ($activeActivityId !== '') {
     try {
         $stStmt = $pdo->prepare("
             SELECT sp.id AS studentId, sp.userId, u.fullName, u.email, sp.phone, sp.createdAt AS studentCreatedAt,
-                   COALESCE(c.name, :activeClassName) AS className,
+                   COALESCE(c.name, '') AS className,
                    c.id AS classId,
                    sp.talentScore,
                    a.id AS assessmentId, a.overallScore, a.comment, a.status AS assessmentStatus,
                    a.publishedAt, a.version AS assessmentVersion, a.updatedAt AS assessmentUpdatedAt,
                    a.createdAt AS assessmentCreatedAt,
                    (
-                       SELECT COUNT(sc.id) 
-                       FROM assessment_scores sc 
+                       SELECT COUNT(sc.id)
+                       FROM assessment_scores sc
                        WHERE sc.assessmentId = a.id
                    ) AS scoreCount,
                    act.id AS currentActivityId, act.title AS latestActivityTitle,
-                   (
-                       SELECT ar.registeredAt
-                       FROM activity_registrations ar
-                       WHERE ar.studentId = sp.id AND ar.activityId = act.id
-                       ORDER BY ar.registeredAt DESC
-                       LIMIT 1
-                   ) AS latestActivityRegisteredAt
-            FROM student_profiles sp
-            JOIN users u ON u.id = sp.userId
+                   ar.registeredAt AS latestActivityRegisteredAt
+            FROM activity_registrations ar
+            INNER JOIN activities act ON act.id = ar.activityId
+            INNER JOIN student_profiles sp ON sp.id = ar.studentId
+            INNER JOIN users u ON u.id = sp.userId
             LEFT JOIN classes c ON c.id = sp.classId
-            LEFT JOIN activities act ON act.id = (
-                SELECT ar.activityId FROM activity_registrations ar
-                JOIN activities eligible ON eligible.id = ar.activityId
-                WHERE ar.studentId = sp.id AND ar.status IN ('approved', 'attended')
-                  AND eligible.createdByTeacherId = :activityTeacherId AND eligible.schoolId = c.schoolId
-                  AND (:activityFilter = '' OR ar.activityId = :activityId)
-                ORDER BY ar.registeredAt DESC, ar.activityId ASC LIMIT 1
-            )
             LEFT JOIN assessments a ON a.studentId = sp.id AND a.teacherId = :teacherId AND a.activityId = act.id
-            WHERE sp.studyStatus = 'active'
-              AND sp.classId = :activeClassIdStudent
+            WHERE ar.activityId = :activityId
+              AND ar.status IN ('approved', 'attended')
+              AND sp.studyStatus = 'active'
             ORDER BY u.fullName ASC
         ");
         $stStmt->execute([
-            'activityTeacherId' => $teacherId,
-            'activityFilter' => $requestedActivityId,
-            'activityId' => $requestedActivityId,
-            'activeClassIdStudent' => $activeClassId,
-            'activeClassName' => $activeClassName,
+            'activityId' => $activeActivityId,
             'teacherId' => $teacherId,
         ]);
         $students = $stStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -305,7 +268,7 @@ if ($activeClassId !== '') {
     }
 }
 
-// Tính số lượng bài đang chờ từ dữ liệu thật (chưa hoàn tất đánh giá chính thức)
+// Tính số lượng bài đang chờ từ dữ liệu  (chưa hoàn tất đánh giá chính thức)
 $waitingCount = 0;
 foreach ($students as $st) {
     $itemStatus = resolveEvaluationStatus(
@@ -337,22 +300,28 @@ if (!empty($students)) {
     }
 }
 
-// 8. Đọc thông tin chi tiết cho học viên ĐANG CHẤM (Điểm tiêu chí & Hoạt động thực tế)
+// 8. Đọc thông tin chi tiết cho học viên ĐANG CHẤM (Điểm tiêu chí & kỹ năng hoạt động)
 $studentSavedScores = [];
 $studentActivities = [];
-$skillGroups = [];
-$savedGroupScores = [];
+$activitySkills = [];
+$savedSkillScores = [];
 $skillLoadError = null;
-$currentActivityId = (string) ($selectedStudent['currentActivityId'] ?? '');
+$currentActivityId = $activeActivityId !== '' ? $activeActivityId : (string) ($selectedStudent['currentActivityId'] ?? '');
 
 try {
-    $groupRepository = new SkillGroupRepository($pdo);
-    $skillGroups = $groupRepository->forAssessment($selectedStudent['assessmentId'] ?? null);
+    if ($currentActivityId !== '') {
+        $activitySkills = $gradingRepo->skillsForActivity($currentActivityId);
+        if ($activitySkills === []) {
+            $skillLoadError = 'Hoạt động chưa gắn kỹ năng. Hãy chỉnh sửa hoạt động và chọn kỹ năng trước khi chấm.';
+        }
+    } else {
+        $skillLoadError = 'Hãy chọn hoạt động cần chấm.';
+    }
     if ($selectedStudent && !empty($selectedStudent['assessmentId'])) {
-        $savedGroupScores = $groupRepository->assessmentScores((string) $selectedStudent['assessmentId']);
+        $savedSkillScores = $gradingRepo->assessmentSkillScores((string) $selectedStudent['assessmentId']);
     }
 } catch (\Throwable $e) {
-    $skillLoadError = 'Không tải được nhóm kỹ năng đã lưu. Vui lòng tải lại trang trước khi đánh giá.';
+    $skillLoadError = 'Không tải được kỹ năng của hoạt động. Vui lòng tải lại trang trước khi đánh giá.';
 }
 
 if ($selectedStudent) {
@@ -440,7 +409,7 @@ if (!function_exists('getStudentSingleInitial')) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light">
-    <title>Chấm điểm theo Lớp - <?= htmlspecialchars($activeClassName); ?> | TalentHub Giảng viên</title>
+    <title>Chấm điểm theo hoạt động<?= $activeActivityTitle !== '' ? ' - ' . htmlspecialchars($activeActivityTitle) : ''; ?> | TalentHub Giảng viên</title>
     <title>Chấm điểm | FTalentHub</title>
 
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
@@ -539,15 +508,45 @@ if (!function_exists('getStudentSingleInitial')) {
             color: #FFFFFF;
             box-shadow: 0 2px 8px rgba(250, 100, 0, 0.22);
         }
+        .queue-card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 0.2rem;
+        }
         .queue-card-name {
             font-size: 0.94rem;
             font-weight: 700;
             color: #0F172A;
-            margin-bottom: 0.2rem;
             line-height: 1.3;
+            min-width: 0;
         }
         .queue-card-item.is-selected .queue-card-name {
             color: #FFFFFF;
+        }
+        .queue-card-check {
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #16A34A;
+            color: #FFFFFF;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .queue-card-check[hidden] {
+            display: none;
+        }
+        .queue-card-item.is-selected .queue-card-check {
+            background: #FFFFFF;
+            color: #FA6400;
+        }
+        .queue-card-check svg {
+            width: 11px;
+            height: 11px;
+            display: block;
         }
         .queue-card-meta {
             font-size: 0.78rem;
@@ -666,16 +665,38 @@ if (!function_exists('getStudentSingleInitial')) {
             white-space: nowrap;
         }
         .criterion-score-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.15rem;
             font-size: 0.85rem;
             font-weight: 700;
             color: #475569;
-            user-select: none;
             white-space: nowrap;
         }
         .criterion-score-val {
+            width: 3.1rem;
+            min-height: 1.85rem;
+            padding: 0.15rem 0.3rem;
+            border: 1px solid #E2E8F0;
+            border-radius: 6px;
+            background: #FFFFFF;
             font-size: 0.92rem;
             font-weight: 800;
             color: #0F172A;
+            text-align: right;
+            font-family: inherit;
+            box-sizing: border-box;
+            -moz-appearance: textfield;
+        }
+        .criterion-score-val::-webkit-outer-spin-button,
+        .criterion-score-val::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .criterion-score-val:focus {
+            outline: none;
+            border-color: #FB923C;
+            box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.15);
         }
         .criterion-score-val.is-unset {
             color: #94A3B8;
@@ -961,13 +982,13 @@ if (!function_exists('getStudentSingleInitial')) {
                             </p>
                         </div>
 
-                        <?php if (count($classList) > 1): ?>
-                            <div style="display: flex; align-items: center; gap: 0.4rem; background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 0.3rem 0.65rem;">
-                                <label for="classFilterSelect" style="font-size: 0.8rem; font-weight: 700; color: #64748B; margin: 0;">Lớp:</label>
-                                <select id="classFilterSelect" style="border: none; background: transparent; font-size: 0.85rem; font-weight: 700; color: #0F172A; outline: none; cursor: pointer;" onchange="location.href='grading.php?class=' + encodeURIComponent(this.value)">
-                                    <?php foreach ($classList as $c): ?>
-                                        <option value="<?= htmlspecialchars($c['name']); ?>" <?= $c['name'] === $activeClassName ? 'selected' : ''; ?>>
-                                            <?= htmlspecialchars($c['name']); ?>
+                        <?php if (count($activityList) > 0): ?>
+                            <div style="display: flex; align-items: center; gap: 0.4rem; background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 0.3rem 0.65rem; max-width: min(420px, 100%);">
+                                <label for="activityFilterSelect" style="font-size: 0.8rem; font-weight: 700; color: #64748B; margin: 0; white-space: nowrap;">Hoạt động:</label>
+                                <select id="activityFilterSelect" style="border: none; background: transparent; font-size: 0.85rem; font-weight: 700; color: #0F172A; outline: none; cursor: pointer; min-width: 0; max-width: 320px;" onchange="location.href='grading.php?activity_id=' + encodeURIComponent(this.value)">
+                                    <?php foreach ($activityList as $activityOption): ?>
+                                        <option value="<?= htmlspecialchars((string) $activityOption['id']); ?>" <?= (string) $activityOption['id'] === $activeActivityId ? 'selected' : ''; ?>>
+                                            <?= htmlspecialchars((string) $activityOption['title']); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -985,9 +1006,13 @@ if (!function_exists('getStudentSingleInitial')) {
 
                     <div id="ajaxAlertNotification" role="alert" style="display: none; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1.25rem; font-weight: 600; align-items: center; gap: 0.5rem; font-size: 0.88rem;"></div>
 
-                    <?php if (empty($students)): ?>
+                    <?php if ($activityList === []): ?>
                         <div style="text-align: center; color: #64748B; padding: 3.5rem 1.5rem; background: #FFFFFF; border-radius: 10px; border: 1px solid #E2E8F0;">
-                            <p style="margin: 0; font-size: 0.95rem;">Hiện tại chưa có bài đánh giá nào trong danh sách.</p>
+                            <p style="margin: 0; font-size: 0.95rem;">Chưa có hoạt động đã hoàn thành để chấm. Hãy hoàn tất hoạt động trước khi chấm điểm.</p>
+                        </div>
+                    <?php elseif (empty($students)): ?>
+                        <div style="text-align: center; color: #64748B; padding: 3.5rem 1.5rem; background: #FFFFFF; border-radius: 10px; border: 1px solid #E2E8F0;">
+                            <p style="margin: 0; font-size: 0.95rem;">Hoạt động “<?= htmlspecialchars($activeActivityTitle); ?>” chưa có học viên đăng ký / tham dự để chấm.</p>
                         </div>
                     <?php else: ?>
 
@@ -1002,7 +1027,7 @@ if (!function_exists('getStudentSingleInitial')) {
                                 <?php foreach ($students as $st): 
                                     $isSelected = ($selectedStudent && $selectedStudent['studentId'] === $st['studentId']);
                                     
-                                    // Xác định trạng thái thật từ database
+                                    // Xác định trạng thái  từ database
                                     $stStatus = resolveEvaluationStatus(
                                         $st['assessmentStatus'] ?? null,
                                         $st['overallScore'] !== null ? (float)$st['overallScore'] : null,
@@ -1010,25 +1035,30 @@ if (!function_exists('getStudentSingleInitial')) {
                                         $st['comment'] ?? null
                                     );
 
-                                    $actTitle = !empty($st['latestActivityTitle']) 
-                                        ? $st['latestActivityTitle'] 
-                                        : 'Chưa có Activity phù hợp để chấm';
+                                    $actTitle = !empty($st['latestActivityTitle'])
+                                        ? $st['latestActivityTitle']
+                                        : $activeActivityTitle;
                                     
                                     $evalTimestamp = $st['assessmentUpdatedAt'] ?? ($st['assessmentCreatedAt'] ?? ($st['latestActivityRegisteredAt'] ?? ($st['studentCreatedAt'] ?? null)));
                                     $relTime = formatRelativeDate($evalTimestamp);
                                 ?>
-                                    <a href="grading.php?class=<?= urlencode($activeClassName); ?>&student_id=<?= urlencode($st['studentId']); ?>&activity_id=<?= urlencode((string) ($st['currentActivityId'] ?? $requestedActivityId)); ?>"
+                                    <a href="grading.php?activity_id=<?= urlencode($activeActivityId); ?>&student_id=<?= urlencode($st['studentId']); ?>"
                                        class="queue-card-item <?= $isSelected ? 'is-selected' : ''; ?>"
-                                       id="queue-item-<?= htmlspecialchars($st['studentId']); ?>">
-                                        <div class="queue-card-name">
-                                            <?= htmlspecialchars($st['fullName']); ?>
+                                       id="queue-item-<?= htmlspecialchars($st['studentId']); ?>"
+                                       data-status="<?= htmlspecialchars($stStatus); ?>">
+                                        <div class="queue-card-top">
+                                            <div class="queue-card-name">
+                                                <?= htmlspecialchars($st['fullName']); ?>
+                                            </div>
+                                            <span class="queue-card-check" aria-label="Đã chấm" <?= $stStatus === 'unassessed' ? 'hidden' : ''; ?>>
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                            </span>
                                         </div>
                                         <div class="queue-card-meta">
                                             <span class="queue-card-act" title="<?= htmlspecialchars($actTitle); ?>"><?= htmlspecialchars($actTitle); ?></span>
                                             <span class="queue-meta-sep">•</span>
                                             <span class="queue-card-time"><?= htmlspecialchars($relTime); ?></span>
                                         </div>
-                                        <!-- Giữ badge ẩn để JS cập nhật không bị lỗi -->
                                         <span class="status-badge status-badge--<?= htmlspecialchars($stStatus); ?>" style="display: none;"><?= $stStatus === 'published' ? 'Đã đánh giá' : ($stStatus === 'draft' ? 'Bản nháp' : 'Chưa đánh giá'); ?></span>
                                     </a>
                                 <?php endforeach; ?>
@@ -1046,7 +1076,7 @@ if (!function_exists('getStudentSingleInitial')) {
                                 $curOverallScore = $selectedStudent['overallScore'] !== null ? (float)$selectedStudent['overallScore'] : null;
                                 $curComment = $selectedStudent['comment'] ?? '';
 
-                                // Xác định trạng thái thật của học viên đang chọn
+                                // Xác định trạng thái  của học viên đang chọn
                                 $curStatus = resolveEvaluationStatus(
                                     $selectedStudent['assessmentStatus'] ?? null,
                                     $curOverallScore,
@@ -1054,9 +1084,9 @@ if (!function_exists('getStudentSingleInitial')) {
                                     $curComment
                                 );
                                 
-                                $curActTitle = !empty($selectedStudent['latestActivityTitle']) 
-                                    ? $selectedStudent['latestActivityTitle'] 
-                                    : 'Chưa có Activity phù hợp để chấm';
+                                $curActTitle = !empty($selectedStudent['latestActivityTitle'])
+                                    ? $selectedStudent['latestActivityTitle']
+                                    : ($activeActivityTitle !== '' ? $activeActivityTitle : 'Chưa chọn hoạt động');
                                 
                                 $curTimestamp = $selectedStudent['assessmentUpdatedAt'] ?? ($selectedStudent['assessmentCreatedAt'] ?? ($selectedStudent['latestActivityRegisteredAt'] ?? ($selectedStudent['studentCreatedAt'] ?? null)));
                                 $curRelTime = formatRelativeDate($curTimestamp);
@@ -1067,7 +1097,6 @@ if (!function_exists('getStudentSingleInitial')) {
                                     <input type="hidden" name="activityId" value="<?= htmlspecialchars($currentActivityId); ?>">
                                     <input type="hidden" name="assessmentId" value="<?= htmlspecialchars((string) ($selectedStudent['assessmentId'] ?? '')); ?>">
                                     <input type="hidden" name="expectedVersion" value="<?= (int) ($selectedStudent['assessmentVersion'] ?? 0); ?>">
-                                    <input type="hidden" name="className" value="<?= htmlspecialchars($activeClassName); ?>">
                                     <input type="hidden" name="action" id="gradingActionInput" value="save_draft">
 
                                     <!-- Thông tin học viên đang chấm: Tên + Meta bên trái, Avatar tròn chữ cái bên phải -->
@@ -1113,10 +1142,19 @@ if (!function_exists('getStudentSingleInitial')) {
                                                         <?php endif; ?>
                                                     </label>
                                                     <div class="criterion-score-badge">
-                                                        <strong id="val_display_<?= htmlspecialchars($cid); ?>" 
-                                                                class="criterion-score-val <?= $savedScoreVal === null ? 'is-unset' : ''; ?>">
-                                                            <?= $savedScoreVal !== null ? (int)$savedScoreVal : '—'; ?>
-                                                        </strong>
+                                                        <input type="number"
+                                                               id="val_display_<?= htmlspecialchars($cid); ?>"
+                                                               class="criterion-score-val <?= $savedScoreVal === null ? 'is-unset' : ''; ?>"
+                                                               min="0"
+                                                               max="100"
+                                                               step="1"
+                                                               inputmode="numeric"
+                                                               placeholder="—"
+                                                               aria-label="Điểm <?= htmlspecialchars($crit['name']); ?>"
+                                                               data-cid="<?= htmlspecialchars($cid); ?>"
+                                                               value="<?= $savedScoreVal !== null ? (int)$savedScoreVal : ''; ?>"
+                                                               oninput="handleScoreInput(this)"
+                                                               onblur="handleScoreBlur(this)">
                                                         <span class="criterion-score-max"> / 100</span>
                                                     </div>
                                                 </div>
@@ -1159,26 +1197,26 @@ if (!function_exists('getStudentSingleInitial')) {
                                     </div>
 
                                     <fieldset class="verified-skills" <?= $currentActivityId === '' || $skillLoadError !== null ? 'disabled' : ''; ?>>
-                                        <legend class="comment-label">Kỹ năng được xác thực</legend>
-                                        <p class="verified-skills-help" id="verifiedSkillsHelp">Chọn nhóm năng lực học viên đã thể hiện. Nhập điểm riêng cho mỗi nhóm (0–100).</p>
+                                        <legend class="comment-label">Kỹ năng của hoạt động</legend>
+                                        <p class="verified-skills-help" id="verifiedSkillsHelp">Chỉ chấm các kỹ năng đã gắn khi tạo hoạt động. Nhập điểm riêng cho mỗi kỹ năng (0–100).</p>
                                         <?php if ($skillLoadError !== null || $currentActivityId === ''): ?>
-                                            <p class="verified-skills-help verified-skills-error" role="alert"><?= htmlspecialchars($skillLoadError ?? 'Học viên chưa có Activity thuộc phạm vi chấm của bạn.'); ?></p>
-                                        <?php elseif ($skillGroups === []): ?>
-                                            <p class="verified-skills-empty">Chưa có nhóm kỹ năng đang hoạt động.</p>
+                                            <p class="verified-skills-help verified-skills-error" role="alert"><?= htmlspecialchars($skillLoadError ?? 'Hãy chọn hoạt động cần chấm.'); ?></p>
+                                        <?php elseif ($activitySkills === []): ?>
+                                            <p class="verified-skills-empty">Hoạt động chưa gắn kỹ năng.</p>
                                         <?php else: ?>
                                             <div class="verified-skills-list">
-                                                <?php foreach ($skillGroups as $groupIndex => $group):
-                                                    $groupCode = (string) $group['code'];
-                                                    $isGroupSelected = array_key_exists($groupCode, $savedGroupScores);
+                                                <?php foreach ($activitySkills as $skillIndex => $skill):
+                                                    $skillId = (string) $skill['id'];
+                                                    $isSkillSelected = array_key_exists($skillId, $savedSkillScores);
                                                 ?>
                                                     <div class="verified-skill-row">
                                                         <label class="verified-skill-choice">
-                                                            <input type="checkbox" name="skillGroups[<?= $groupIndex; ?>][groupCode]" value="<?= htmlspecialchars($groupCode); ?>" <?= $isGroupSelected ? 'checked' : ''; ?>>
-                                                            <span><?= htmlspecialchars($group['name']); ?></span>
+                                                            <input type="checkbox" name="skills[<?= $skillIndex; ?>][skillId]" value="<?= htmlspecialchars($skillId); ?>" <?= $isSkillSelected ? 'checked' : ''; ?>>
+                                                            <span><?= htmlspecialchars((string) $skill['name']); ?></span>
                                                         </label>
                                                         <label class="verified-skill-score">
                                                             <span>Điểm</span>
-                                                            <input type="number" name="skillGroups[<?= $groupIndex; ?>][score]" min="0" max="100" step="0.01" inputmode="decimal" placeholder="0–100" aria-label="Điểm <?= htmlspecialchars($group['name']); ?>" value="<?= $isGroupSelected ? htmlspecialchars($savedGroupScores[$groupCode]) : ''; ?>" <?= $isGroupSelected ? 'required' : 'disabled'; ?>>
+                                                            <input type="number" name="skills[<?= $skillIndex; ?>][score]" min="0" max="100" step="0.01" inputmode="decimal" placeholder="0–100" aria-label="Điểm <?= htmlspecialchars((string) $skill['name']); ?>" value="<?= $isSkillSelected ? htmlspecialchars($savedSkillScores[$skillId]) : ''; ?>" <?= $isSkillSelected ? 'required' : 'disabled'; ?>>
                                                             <span>/ 100</span>
                                                         </label>
                                                     </div>
@@ -1248,25 +1286,65 @@ if (!function_exists('getStudentSingleInitial')) {
             slider.style.background = `linear-gradient(to right, #FA6400 0%, #FA6400 ${pct}%, #EEF2F6 ${pct}%, #EEF2F6 100%)`;
         }
 
-        // Khi người dùng tương tác với slider
-        function handleSliderInput(slider) {
-            const cid = slider.getAttribute('data-cid');
+        function applyCriterionScore(cid, rawValue) {
+            const slider = document.getElementById('slider_' + cid);
             const hidden = document.getElementById('crit_hidden_' + cid);
             const display = document.getElementById('val_display_' + cid);
+            if (!slider || !hidden || !display) return;
 
+            const clamped = Math.max(0, Math.min(100, Math.round(Number(rawValue))));
+            if (Number.isNaN(clamped)) return;
+
+            slider.value = String(clamped);
             slider.setAttribute('data-has-value', '1');
             updateSliderFill(slider);
 
-            if (hidden) {
-                hidden.disabled = false;
-                hidden.value = slider.value;
-            }
-            if (display) {
-                display.textContent = slider.value;
-                display.classList.remove('is-unset');
-            }
+            hidden.disabled = false;
+            hidden.value = String(clamped);
+
+            display.value = String(clamped);
+            display.classList.remove('is-unset');
 
             calcOverallLiveScore();
+        }
+
+        function handleSliderInput(slider) {
+            applyCriterionScore(slider.getAttribute('data-cid'), slider.value);
+        }
+
+        function handleScoreInput(input) {
+            const raw = String(input.value ?? '').trim();
+            if (raw === '') return;
+            const num = Number(raw);
+            if (Number.isNaN(num)) return;
+            applyCriterionScore(input.getAttribute('data-cid'), num);
+        }
+
+        function handleScoreBlur(input) {
+            const cid = input.getAttribute('data-cid');
+            const slider = document.getElementById('slider_' + cid);
+            const raw = String(input.value ?? '').trim();
+            if (raw === '') {
+                if (slider && slider.getAttribute('data-has-value') === '1') {
+                    input.value = slider.value;
+                    input.classList.remove('is-unset');
+                } else {
+                    input.classList.add('is-unset');
+                }
+                return;
+            }
+            const num = Number(raw);
+            if (Number.isNaN(num)) {
+                if (slider && slider.getAttribute('data-has-value') === '1') {
+                    input.value = slider.value;
+                    input.classList.remove('is-unset');
+                } else {
+                    input.value = '';
+                    input.classList.add('is-unset');
+                }
+                return;
+            }
+            applyCriterionScore(cid, num);
         }
 
         // Tự động tính điểm tổng kết trung bình cộng của 4 tiêu chí
@@ -1364,19 +1442,17 @@ if (!function_exists('getStudentSingleInitial')) {
                         }
                     }
 
-                    // Cập nhật trạng thái bên Hàng chờ
                     const activeQueueItem = document.querySelector('#queueListWrapper .queue-card-item.is-selected');
                     if (activeQueueItem) {
+                        const nextStatus = data.status === 'published' ? 'published' : 'draft';
+                        activeQueueItem.setAttribute('data-status', nextStatus);
                         const tagEl = activeQueueItem.querySelector('.status-badge');
                         if (tagEl) {
-                            if (data.status === 'published') {
-                                tagEl.className = 'status-badge status-badge--published';
-                                tagEl.textContent = 'Đã đánh giá';
-                            } else {
-                                tagEl.className = 'status-badge status-badge--draft';
-                                tagEl.textContent = 'Bản nháp';
-                            }
+                            tagEl.className = 'status-badge status-badge--' + nextStatus;
+                            tagEl.textContent = nextStatus === 'published' ? 'Đã đánh giá' : 'Bản nháp';
                         }
+                        const checkEl = activeQueueItem.querySelector('.queue-card-check');
+                        if (checkEl) checkEl.hidden = false;
                     }
                 } else {
                     if (res.status === 409 && data.code === 'ASSESSMENT_VERSION_CONFLICT') {
@@ -1436,7 +1512,7 @@ if (!function_exists('getStudentSingleInitial')) {
                     if (checkbox.checked) selected++;
                 });
                 const count = document.getElementById('verifiedSkillsCount');
-                if (count) count.textContent = selected + ' nhóm kỹ năng được chọn';
+                if (count) count.textContent = selected + ' kỹ năng được chọn';
             };
             skillRows.forEach(row => row.querySelector('input[type="checkbox"]').addEventListener('change', updateSkills));
             updateSkills();
@@ -1446,5 +1522,6 @@ if (!function_exists('getStudentSingleInitial')) {
             calcOverallLiveScore();
         });
     </script>
+    <script src="<?= app_href('/assets/js/teacher.js'); ?>"></script>
 </body>
 </html>

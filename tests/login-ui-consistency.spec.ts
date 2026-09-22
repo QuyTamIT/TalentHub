@@ -15,7 +15,7 @@ const AUTH_CSS_ORDER = [
   'polish.css',
 ];
 
-/** Lấy src thật của `<img>` bên trong logo (bỏ domain giữa test). */
+/** Lấy src  của `<img>` bên trong logo (bỏ domain giữa test). */
 async function logoImgSrc(page: Page, selector: string): Promise<string | null> {
   const src = await page
     .locator(selector)

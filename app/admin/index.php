@@ -44,7 +44,7 @@ $audit = [
     ['time' => '09:56', 'title' => 'Quyền được cập nhật', 'detail' => 'admin.security · payment.read', 'tone' => 'warning'],
 ];
 
-// Các khu vực này được render từ API Admin; không hiển thị fixture dễ gây nhầm lẫn với dữ liệu thật.
+// Các khu vực này được render từ API Admin; không hiển thị fixture dễ gây nhầm lẫn với dữ liệu .
 $queue = [];
 $organizations = [];
 $audit = [];

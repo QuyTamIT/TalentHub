@@ -58,7 +58,7 @@ final class StructuredOpportunityScorer
     {
         $required = $candidate->requiredSkills();
         if ($required === []) {
-            return 0;
+            return OpportunityScore::MAX['skill_match'];
         }
         $profileSkills = $profile->skills();
         $met = 0;

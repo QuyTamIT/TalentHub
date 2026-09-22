@@ -45,20 +45,21 @@ final class TeacherActivityRepository
         $tParam = $prefix . 'teacherId';
         $params[$tParam] = $teacherId;
 
-        $clauses = ["a.createdByTeacherId = :{$tParam}"];
+        $ownership = ["a.createdByTeacherId = :{$tParam}"];
         if ($this->hasTable('activity_details')) {
             $rParam = $prefix . 'respId';
             $params[$rParam] = $teacherId;
-            $clauses[] = "d.responsibleTeacherId = :{$rParam}";
+            $ownership[] = "d.responsibleTeacherId = :{$rParam}";
         }
 
+        $clause = '(' . implode(' OR ', $ownership) . ')';
         if ($schoolId !== null && $schoolId !== '') {
             $sParam = $prefix . 'schoolId';
             $params[$sParam] = $schoolId;
-            $clauses[] = "(a.schoolId IS NOT NULL AND a.schoolId = :{$sParam})";
+            $clause = "({$clause} AND a.schoolId = :{$sParam})";
         }
 
-        return '(' . implode(' OR ', $clauses) . ')';
+        return $clause;
     }
 
     /** @return list<array<string,mixed>> */
@@ -148,6 +149,7 @@ final class TeacherActivityRepository
             ]);
             $this->writeDetails($activityId, $actualSchoolId, $data);
             $this->writePolicies($activityId, $data);
+            $this->replaceActivitySkillTags($activityId, $data['skillIds'] ?? []);
             if ($ownsTransaction) $this->pdo->commit();
         } catch (Throwable $exception) {
             if ($ownsTransaction && $this->pdo->inTransaction()) $this->pdo->rollBack();
@@ -188,6 +190,7 @@ final class TeacherActivityRepository
             ]);
             $this->writeDetails($activityId, (string) $row['schoolId'], $data);
             $this->writePolicies($activityId, $data);
+            $this->replaceActivitySkillTags($activityId, $data['skillIds'] ?? []);
             if (in_array((string) $row['status'], ['published', 'ongoing'], true)) {
                 $students = (new AiAudienceResolver($this->pdo))->schoolStudents((string) $row['schoolId']);
                 if ($students !== []) {
@@ -379,6 +382,81 @@ final class TeacherActivityRepository
         $statement = $this->pdo->prepare("SELECT COUNT(*) FROM {$table} WHERE activityId=:activityId");
         $statement->execute(['activityId' => $activityId]);
         return (int) $statement->fetchColumn();
+    }
+
+    /** @return list<array{id:string,code:string,name:string,category:string}> */
+    public function activeSkillCatalog(): array
+    {
+        if (!$this->hasTable('skills')) {
+            return [];
+        }
+        $statement = $this->pdo->query(
+            "SELECT id, code, name, category FROM skills WHERE status='active' ORDER BY category ASC, name ASC"
+        );
+        if ($statement === false) {
+            return [];
+        }
+        $rows = [];
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $rows[] = [
+                'id' => (string) $row['id'],
+                'code' => (string) $row['code'],
+                'name' => (string) $row['name'],
+                'category' => (string) $row['category'],
+            ];
+        }
+        return $rows;
+    }
+
+    /** @return list<array{id:string,code:string,name:string,category:string}> */
+    public function skillsForActivity(string $activityId): array
+    {
+        if (!$this->hasTable('activity_skill_tags') || !$this->hasTable('skills')) {
+            return [];
+        }
+        $statement = $this->pdo->prepare(
+            "SELECT s.id, s.code, s.name, s.category
+             FROM activity_skill_tags ast
+             INNER JOIN skills s ON s.id = ast.skillId AND s.status = 'active'
+             WHERE ast.activityId = :activityId
+             ORDER BY s.category ASC, s.name ASC"
+        );
+        $statement->execute(['activityId' => $activityId]);
+        $rows = [];
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $rows[] = [
+                'id' => (string) $row['id'],
+                'code' => (string) $row['code'],
+                'name' => (string) $row['name'],
+                'category' => (string) $row['category'],
+            ];
+        }
+        return $rows;
+    }
+
+    /** @param list<string> $skillIds */
+    private function replaceActivitySkillTags(string $activityId, array $skillIds): void
+    {
+        if (!$this->hasTable('activity_skill_tags')) {
+            return;
+        }
+        $delete = $this->pdo->prepare('DELETE FROM activity_skill_tags WHERE activityId = :activityId');
+        $delete->execute(['activityId' => $activityId]);
+        if ($skillIds === []) {
+            return;
+        }
+        $now = gmdate('Y-m-d H:i:s.u');
+        $insert = $this->pdo->prepare(
+            'INSERT INTO activity_skill_tags (id, activityId, skillId, createdAt) VALUES (:id, :activityId, :skillId, :createdAt)'
+        );
+        foreach ($skillIds as $skillId) {
+            $insert->execute([
+                'id' => Uuid::v4(),
+                'activityId' => $activityId,
+                'skillId' => $skillId,
+                'createdAt' => $now,
+            ]);
+        }
     }
 
     private function hasTable(string $table): bool

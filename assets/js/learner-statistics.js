@@ -107,7 +107,11 @@
             if (!item) return;
             const value = card.querySelector('[data-kpi-value]');
             const suffix = card.querySelector('[data-kpi-suffix]');
-            if (value) value.textContent = String(item.value ?? 0);
+            if (value) {
+                const text = String(item.value ?? 0);
+                value.textContent = text;
+                value.classList.toggle('is-long', text.length > 6);
+            }
             if (suffix) suffix.textContent = String(item.suffix ?? '');
         });
     }

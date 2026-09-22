@@ -1548,7 +1548,7 @@
             } else if (!sharedFields.includes('fullName')) {
                 sharedFields.unshift('fullName');
             }
-            const expiresInDays = Number(formData.get('expiresInDays')) || 30;
+            const expiresInDays = Number(formData.get('expiresInDays')) || 90;
 
             if (submitBtn) {
                 submitBtn.disabled = true;

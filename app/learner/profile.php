@@ -492,8 +492,8 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                     <select name="expiresInDays" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; width: 100%;">
                         <option value="7">7 ngày</option>
                         <option value="14">14 ngày</option>
-                        <option value="30" selected>30 ngày</option>
-                        <option value="90">90 ngày</option>
+                        <option value="30">30 ngày</option>
+                        <option value="90" selected>90 ngày</option>
                     </select>
                 </label>
 

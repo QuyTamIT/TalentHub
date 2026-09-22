@@ -27,7 +27,7 @@ final class MatchingInputSnapshot
         // RecommendationInput deliberately strips private-looking keys such
         // as provider_name. A digest of the complete public candidate input
         // still detects edits to these facts without weakening that filter.
-        $payload['matching_context'] = ['version'=>'matching-input-2',
+        $payload['matching_context'] = ['version'=>'matching-input-3',
             'catalog_digest'=>self::digest($catalog), 'benchmark_digest'=>self::digest($benchmarks),
             'consent_digest'=>is_string($consentHash) ? $consentHash : '',
             'catalog'=>$catalog, 'benchmarks'=>$benchmarks];

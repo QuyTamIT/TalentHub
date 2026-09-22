@@ -14,7 +14,7 @@ final class SharedStudentAdapter
         $initial = mb_strtoupper(mb_substr($last, 0, 1));
 
         $avatarUrl = !empty($profile['avatarUrl']) ? (string) $profile['avatarUrl'] : (!empty($profile['avatar_url']) ? (string) $profile['avatar_url'] : null);
-        // Chỉ hiển thị giá trị thật từ DB; khi trống trả về chuỗi rỗng/0/false, tuyệt đối không dữ liệu mẫu.
+        // Chỉ hiển thị giá trị  từ DB; khi trống trả về chuỗi rỗng/0/false, tuyệt đối không dữ liệu mẫu.
         $location = trim((string) ($profile['location'] ?? ''));
         $headline = trim((string) ($profile['headline'] ?? ''));
         $bio = trim((string) ($profile['bio'] ?? ''));

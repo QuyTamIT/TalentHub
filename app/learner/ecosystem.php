@@ -373,7 +373,8 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
                     <section class="learner-job-ai learner-card" data-job-matches aria-labelledby="job-ai-title">
                         <header class="learner-job-ai__header">
                             <span class="learner-job-ai__icon" aria-hidden="true"><?= learner_icon('sparkles', 22); ?></span>
-                            <div><span class="learner-eyebrow">AI JOB MATCHING</span><h2 id="job-ai-title">Vị trí phù hợp với hồ sơ của bạn</h2><p>Gemini giải thích kết quả từ điểm 40/35/25 và dữ liệu bạn đã cho phép.</p></div>
+                            <div><span class="learner-eyebrow">AI JOB MATCHING</span><h2 id="job-ai-title">Vị trí phù hợp với hồ sơ của bạn</h2>
+                            </div>
                             <div class="learner-job-ai__header-actions">
                                 <p class="learner-job-ai__status" data-job-ai-status role="status" aria-live="polite">Sẵn sàng phân tích</p>
                                 <button class="learner-job-ai__collapse" type="button" data-job-ai-collapse aria-expanded="true" aria-controls="job-ai-body">Thu gọn</button>
@@ -383,9 +384,9 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
                             <div class="learner-job-ai__progress" data-job-ai-progress hidden>
                                 <div class="learner-job-ai__progress-heading"><span data-job-ai-progress-text>Đang quét hồ sơ...</span><strong data-job-ai-progress-pct>8%</strong></div>
                                 <div class="learner-job-ai__progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="8"><span data-job-ai-progress-bar style="width:8%"></span></div>
-                                <div class="learner-job-ai__progress-stages" data-job-ai-progress-stages><span>1. Quét hồ sơ</span><span>2. Lọc vị trí</span><span>3. Gemini phân tích</span><span>4. Xếp hạng</span></div>
+                                <div class="learner-job-ai__progress-stages" data-job-ai-progress-stages><span>1. Quét hồ sơ</span><span>2. Lọc vị trí</span><span>3. AI phân tích</span><span>4. Xếp hạng</span></div>
                             </div>
-                            <div class="learner-job-ai__message" data-job-ai-not-generated><strong>Khám phá cơ hội ứng tuyển phù hợp</strong><span>Bấm nút AI phía trên để đối chiếu hồ sơ với các vị trí đang tuyển thật.</span></div>
+                            <div class="learner-job-ai__message" data-job-ai-not-generated><strong>Khám phá cơ hội ứng tuyển phù hợp</strong><span>Bấm nút AI phía trên để đối chiếu hồ sơ với các vị trí đang tuyển.</span></div>
                             <div class="learner-job-ai__message is-warning" data-job-ai-consent-required hidden><strong>Cần quyền sử dụng dữ liệu AI</strong><span>Hãy cập nhật quyền dữ liệu trong hồ sơ năng lực trước khi phân tích.</span><a class="learner-btn learner-btn--outline" href="profile.php">Quản lý quyền</a></div>
                             <div class="learner-job-ai__message is-warning" data-job-ai-insufficient-data hidden><strong>Chưa đủ dữ liệu benchmark</strong><span>Bổ sung kỹ năng và hoàn thành đánh giá để hệ thống chấm mức độ phù hợp.</span><a class="learner-btn learner-btn--outline" href="profile.php">Bổ sung hồ sơ</a></div>
                             <div class="learner-job-ai__message is-warning" data-job-ai-catalog-insufficient hidden><strong>Chưa có vị trí đang mở phù hợp phạm vi</strong><span>Danh sách sẽ được cập nhật khi doanh nghiệp công bố cơ hội mới.</span></div>
@@ -460,7 +461,7 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
                             <span class="learner-opportunity-ai__icon" aria-hidden="true"><?= learner_icon('sparkles', 22); ?></span>
                             <div>
                                 <h2 id="opportunity-ai-title">Top 3 dự án AI đề xuất cho bạn</h2>
-                                <p>Gemini đối chiếu hồ sơ năng lực và điểm đánh giá của bạn với các dự án thật trên FTalentHub.</p>
+                                <p>Đối chiếu hồ sơ năng lực và điểm đánh giá của bạn với các dự án trên FTalentHub.</p>
                             </div>
                             <div class="learner-opportunity-ai__header-actions">
                                 <p class="learner-opportunity-ai__status" data-opportunity-ai-status role="status" aria-live="polite">Sẵn sàng phân tích</p>
@@ -488,7 +489,7 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
                                 <div class="learner-opportunity-ai__progress-stages" data-opportunity-ai-progress-stages>
                                     <span class="is-active" data-stage="1">1. Quét hồ sơ</span>
                                     <span data-stage="2">2. Lọc dự án</span>
-                                    <span data-stage="3">3. Gemini đối chiếu</span>
+                                    <span data-stage="3">3. AI đối chiếu</span>
                                     <span data-stage="4">4. Xếp hạng Top 3</span>
                                 </div>
                             </div>
@@ -508,17 +509,17 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
                         </div>
                         <div class="learner-opportunity-ai__message learner-opportunity-ai__message--warning" data-opportunity-ai-catalog-insufficient hidden>
                             <?= learner_icon('info', 20); ?>
-                            <div><strong>Chưa đủ dự án đang mở</strong><span>Gemini sẽ phân tích ngay cả khi chỉ có một hoặc hai dự án để bạn biết mức độ phù hợp.</span></div>
+                            <div><strong>Chưa đủ dự án đang mở</strong><span>AI sẽ phân tích ngay cả khi chỉ có một hoặc hai dự án để bạn biết mức độ phù hợp.</span></div>
                         </div>
                         <div class="learner-opportunity-ai__message learner-opportunity-ai__message--warning" data-opportunity-ai-low-fit hidden>
                             <?= learner_icon('info', 20); ?>
-                            <div><strong>Dự án gần phù hợp</strong><span>Danh sách dưới đây có điểm 40–59. Gemini nêu rõ kỹ năng, điều kiện còn thiếu và bước cải thiện cho từng dự án.</span></div>
+                            <div><strong>Dự án gần phù hợp</strong><span>Danh sách dưới đây có điểm 40–59. AI nêu rõ kỹ năng, điều kiện còn thiếu và bước cải thiện cho từng dự án.</span></div>
                         </div>
                         <div class="learner-opportunity-ai__message learner-opportunity-ai__message--warning learner-opportunity-ai__analysis-panel" data-opportunity-ai-no-fit hidden>
                             <?= learner_icon('info', 20); ?>
                             <div class="learner-opportunity-ai__analysis-body">
                                 <div class="learner-opportunity-ai__analysis-heading">
-                                    <span class="learner-opportunity-ai__gemini-badge"><?= learner_icon('sparkles', 14); ?> Gemini phân tích hồ sơ của bạn</span>
+                                    <span class="learner-opportunity-ai__gemini-badge"><?= learner_icon('sparkles', 14); ?> AI phân tích hồ sơ của bạn</span>
                                     <strong data-opportunity-ai-analysis-headline>Chưa có dự án đủ phù hợp</strong>
                                     <p data-opportunity-ai-analysis-explanation>Các dự án hiện tại chưa phù hợp với hồ sơ của bạn.</p>
                                 </div>

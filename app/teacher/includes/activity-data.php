@@ -168,7 +168,9 @@ function teacherActivitiesNormalize(array $row, ?DateTimeImmutable $now = null):
         'registration_closes_input' => teacherActivitiesDate($row['registrationClosesAt'] ?? null)?->format('Y-m-d\TH:i') ?? '',
         'cancellation_closes_input' => teacherActivitiesDate($row['cancellationClosesAt'] ?? null)?->format('Y-m-d\TH:i') ?? '',
         'experience_highlights_list' => teacherActivitiesJsonList($row['experienceHighlights'] ?? null),
-        'skill_tags_list' => teacherActivitiesJsonList($row['skillTags'] ?? null),
+        'assigned_skills' => is_array($row['assigned_skills'] ?? null) ? $row['assigned_skills'] : [],
+        'assigned_skill_ids' => is_array($row['assigned_skill_ids'] ?? null) ? $row['assigned_skill_ids'] : [],
+        'skill_tags_list' => teacherActivitiesSkillTagList($row),
         'eligibility_rules_list' => teacherActivitiesJsonList($row['eligibilityRules'] ?? null),
         'benefit_items_list' => teacherActivitiesJsonList($row['benefitItems'] ?? null),
         'location_label' => trim((string) ($row['locationName'] ?? '')) ?: 'Chưa cập nhật',
@@ -207,6 +209,47 @@ function teacherActivitiesJsonList(mixed $value): array
     return array_values(array_filter(array_map(static fn (mixed $item): string => is_scalar($item) ? trim((string) $item) : '', $value), static fn (string $item): bool => $item !== ''));
 }
 
+/** @param array<string,mixed> $row @return list<string> */
+function teacherActivitiesSkillTagList(array $row): array
+{
+    $assigned = $row['assigned_skills'] ?? [];
+    if (is_array($assigned) && $assigned !== []) {
+        $names = [];
+        foreach ($assigned as $skill) {
+            if (!is_array($skill)) {
+                continue;
+            }
+            $name = trim((string) ($skill['name'] ?? ''));
+            if ($name !== '') {
+                $names[] = $name;
+            }
+        }
+        if ($names !== []) {
+            return $names;
+        }
+    }
+    return teacherActivitiesJsonList($row['skillTags'] ?? null);
+}
+
+/** @param array<string,mixed> $row @return array<string,mixed> */
+function teacherActivitiesAttachSkills(PDO $pdo, string $teacherId, array $row): array
+{
+    $activityId = (string) ($row['id'] ?? '');
+    if ($activityId === '') {
+        $row['assigned_skills'] = [];
+        $row['assigned_skill_ids'] = [];
+        return $row;
+    }
+    try {
+        $skills = teacherActivitiesService($pdo)->skillsForActivity($activityId);
+    } catch (Throwable) {
+        $skills = [];
+    }
+    $row['assigned_skills'] = $skills;
+    $row['assigned_skill_ids'] = array_values(array_map(static fn (array $skill): string => (string) $skill['id'], $skills));
+    return $row;
+}
+
 function teacherActivitiesDeliveryMode(string $value): string
 {
     return match (strtolower(trim($value))) {
@@ -223,8 +266,8 @@ function teacherActivitiesRead(PDO $pdo, string $teacherId, string $search = '')
         $rows = teacherActivitiesService($pdo)->list($teacherId, $search);
         $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Ho_Chi_Minh'));
 
-        return array_map(static function (array $row) use ($now): array {
-            return teacherActivitiesNormalize($row, $now);
+        return array_map(static function (array $row) use ($pdo, $teacherId, $now): array {
+            return teacherActivitiesNormalize(teacherActivitiesAttachSkills($pdo, $teacherId, $row), $now);
         }, $rows);
     } catch (Throwable $exception) {
         return [];
@@ -235,7 +278,7 @@ function teacherActivitiesFind(PDO $pdo, string $teacherId, string $activityId):
 {
     try {
         $row = teacherActivitiesService($pdo)->find($teacherId, $activityId);
-        return is_array($row) ? teacherActivitiesNormalize($row) : null;
+        return is_array($row) ? teacherActivitiesNormalize(teacherActivitiesAttachSkills($pdo, $teacherId, $row)) : null;
     } catch (Throwable $exception) {
         return null;
     }

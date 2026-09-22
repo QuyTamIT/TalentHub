@@ -25,7 +25,21 @@ try {
     $cv=\TalentHub\Learner\Data\ReadModel\PassportCvViewModel::build($data,$stamp);
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443) ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $verificationUrl = $scheme . '://' . $host . (function_exists('app_href') ? app_href('/app/learner/shared-profile.php') : '/app/learner/shared-profile.php') . '?code=' . urlencode($cv['passport_code']);
+    $sharePath = function_exists('app_href') ? app_href('/app/learner/shared-profile.php') : '/app/learner/shared-profile.php';
+    $verificationUrl = $scheme . '://' . $host . $sharePath . '?code=' . urlencode($cv['passport_code']);
+    try {
+        require_once __DIR__.'/data/Service/ProfileSharingService.php';
+        $permissions = new \TalentHub\Rbac\Service\PermissionService($context->pdo());
+        $permissions->require((string)$sessionUser['id'], 'student_profile.share_own');
+        $permissions->require((string)$sessionUser['id'], 'privacy_consent.manage_own');
+        $share = (new \TalentHub\Learner\Data\Service\ProfileSharingService($context->pdo()))->createShare(
+            $studentId,
+            \TalentHub\Learner\Data\Service\ProfileSharingService::ALLOWED_FIELDS,
+            90
+        );
+        $verificationUrl = $scheme . '://' . $host . $share['shareUrl'];
+    } catch (\Throwable) {
+    }
     require __DIR__.'/includes/passport-cv-template.php';
 } catch (Throwable $error) {
     http_response_code($error instanceof \TalentHub\Http\ApiException ? $error->status : 503);

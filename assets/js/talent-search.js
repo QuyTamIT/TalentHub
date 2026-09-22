@@ -1582,7 +1582,7 @@ function initTalentSearchModule() {
                 const status = matchData.state || 'provider_unavailable';
 
                 if (aiProvenanceEl && matchData.model_version) {
-                    aiProvenanceEl.textContent = matchData.model_version + (status === 'stale_model' ? ' (cached LKG)' : '');
+                    aiProvenanceEl.textContent = 'AI' + (status === 'stale_model' ? ' (cached LKG)' : '');
                 }
                 if (aiFreshnessEl && (matchData.generated_at || matchData.updated_at)) {
                     aiFreshnessEl.textContent = matchData.generated_at || matchData.updated_at;

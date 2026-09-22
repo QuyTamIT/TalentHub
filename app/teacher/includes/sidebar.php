@@ -13,8 +13,6 @@
  * 4. Teacher information block at the bottom:
  *    - Teacher Full Name
  *    - Teacher Role
- *    - Managed Classes count (Số lớp phụ trách: X lớp)
- *    - Total Students count (Số học viên: X)
  * 5. Logout action at the very bottom
  */
 
@@ -22,19 +20,13 @@ if (!function_exists('app_href') && is_file(dirname(__DIR__, 3) . '/bin/bootstra
     require_once dirname(__DIR__, 3) . '/bin/bootstrap.php';
 }
 
-// 1. Ensure teacher info and metrics are loaded if not already passed by the caller
-if (!isset($teacherInfo) || empty($teacherInfo['full_name']) || !isset($metrics) || !isset($metrics['total_students'])) {
+if (!isset($teacherInfo) || empty($teacherInfo['full_name'])) {
     if (!function_exists('teacherDashboardReadData') && is_file(__DIR__ . '/dashboard-data.php')) {
         require_once __DIR__ . '/dashboard-data.php';
     }
     if (function_exists('teacherDashboardReadData')) {
         $dashData = teacherDashboardReadData();
-        if (!isset($teacherInfo) || empty($teacherInfo['full_name'])) {
-            $teacherInfo = $dashData['teacherInfo'] ?? [];
-        }
-        if (!isset($metrics) || !isset($metrics['total_students'])) {
-            $metrics = $dashData['metrics'] ?? [];
-        }
+        $teacherInfo = $dashData['teacherInfo'] ?? [];
     }
 }
 
@@ -57,11 +49,7 @@ if (count($nameParts) === 1) {
     $teacherAvatarInitials = $nameParts === [] ? 'GV' : mb_strtoupper(mb_substr($nameParts[0], 0, 1) . mb_substr($nameParts[count($nameParts) - 1], 0, 1));
 }
 
-// 3. Resolve Class count and Student count
-$sidebarClassCount = (int) ($metrics['managed_classes'] ?? (!empty($teacherInfo['managed_class_name']) ? 1 : 1));
-$sidebarStudentCount = (int) ($metrics['total_students'] ?? 1);
-
-// 4. Resolve Active Route deterministically
+// 3. Resolve Active Route deterministically
 $reqUri = $_SERVER['REQUEST_URI'] ?? '';
 $scriptName = $_SERVER['SCRIPT_NAME'] ?? ($_SERVER['PHP_SELF'] ?? '');
 $currentPath = (string) (parse_url($reqUri, PHP_URL_PATH) ?: $scriptName);
@@ -183,16 +171,6 @@ $teacherNav = [
                 <div class="teacher-sidebar__teacher-role" title="<?= htmlspecialchars($teacherRoleLabel); ?>">
                     <?= htmlspecialchars($teacherRoleLabel); ?>
                 </div>
-            </div>
-        </div>
-        <div class="teacher-sidebar__teacher-stats">
-            <div class="teacher-sidebar__stat-row">
-                <span class="label">Số lớp phụ trách:</span>
-                <span class="value"><?= htmlspecialchars((string) $sidebarClassCount); ?> lớp</span>
-            </div>
-            <div class="teacher-sidebar__stat-row">
-                <span class="label">Số học viên:</span>
-                <span class="value"><?= htmlspecialchars((string) $sidebarStudentCount); ?></span>
             </div>
         </div>
     </div>

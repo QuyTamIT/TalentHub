@@ -30,7 +30,7 @@ $managedActivities = $managedActivities ?? ($dashboardData['managedActivities'] 
             <h4 class="teacher-empty-state__title">Chưa có hoạt động nào phụ trách</h4>
             <p class="teacher-empty-state__desc">Thầy/Cô chưa có hoạt động hoặc sân chơi nào được tạo hoặc phân công.</p>
             <div class="teacher-empty-state__action">
-                <a href="/app/teacher/activities/index.php?action=create" class="btn btn-primary btn-sm">
+                <a href="/app/teacher/activities/create.php" class="btn btn-primary btn-sm">
                     + Tạo hoạt động mới
                 </a>
             </div>

@@ -287,5 +287,97 @@ document.addEventListener('DOMContentLoaded', () => {
             control.focus();
         }, 0);
     }, true);
+
+    const skillTree = form.querySelector('[data-skill-tree]');
+    if (skillTree instanceof HTMLElement) {
+        const countEl = skillTree.querySelector('[data-skill-tree-count]');
+        const searchInput = skillTree.querySelector('[data-skill-tree-search]');
+
+        const syncParent = (node) => {
+            const parent = node.querySelector('[data-skill-tree-parent]');
+            const leaves = [...node.querySelectorAll('[data-skill-tree-leaf] input[type="checkbox"]')]
+                .filter((input) => input instanceof HTMLInputElement && !input.closest('.is-filtered-out'));
+            if (!(parent instanceof HTMLInputElement)) return;
+            if (leaves.length === 0) {
+                parent.checked = false;
+                parent.indeterminate = false;
+                return;
+            }
+            const checked = leaves.filter((input) => input.checked).length;
+            parent.checked = checked === leaves.length;
+            parent.indeterminate = checked > 0 && checked < leaves.length;
+        };
+
+        const syncCount = () => {
+            const selected = skillTree.querySelectorAll('[data-skill-tree-leaf] input[type="checkbox"]:checked').length;
+            if (countEl) countEl.textContent = `${selected} đã chọn`;
+        };
+
+        const setOpen = (node, open) => {
+            const children = node.querySelector('.teacher-skill-tree__children');
+            node.classList.toggle('is-open', open);
+            node.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (children instanceof HTMLElement) children.hidden = !open;
+        };
+
+        skillTree.querySelectorAll('[data-skill-tree-node]').forEach((node) => {
+            if (!(node instanceof HTMLElement)) return;
+            const parent = node.querySelector('[data-skill-tree-parent]');
+            if (parent instanceof HTMLInputElement && parent.getAttribute('data-indeterminate') === '1') {
+                parent.indeterminate = true;
+                parent.removeAttribute('data-indeterminate');
+            }
+            syncParent(node);
+
+            const toggle = node.querySelector('[data-skill-tree-toggle]');
+            if (toggle instanceof HTMLButtonElement) {
+                toggle.addEventListener('click', () => setOpen(node, !node.classList.contains('is-open')));
+            }
+
+            if (parent instanceof HTMLInputElement) {
+                parent.addEventListener('change', () => {
+                    node.querySelectorAll('[data-skill-tree-leaf] input[type="checkbox"]').forEach((input) => {
+                        if (!(input instanceof HTMLInputElement)) return;
+                        if (input.closest('.is-filtered-out')) return;
+                        input.checked = parent.checked;
+                    });
+                    parent.indeterminate = false;
+                    if (parent.checked) setOpen(node, true);
+                    syncCount();
+                });
+            }
+
+            node.querySelectorAll('[data-skill-tree-leaf] input[type="checkbox"]').forEach((input) => {
+                if (!(input instanceof HTMLInputElement)) return;
+                input.addEventListener('change', () => {
+                    syncParent(node);
+                    syncCount();
+                });
+            });
+        });
+
+        if (searchInput instanceof HTMLInputElement) {
+            searchInput.addEventListener('input', () => {
+                const needle = searchInput.value.trim().toLowerCase();
+                skillTree.querySelectorAll('[data-skill-tree-node]').forEach((node) => {
+                    if (!(node instanceof HTMLElement)) return;
+                    let visibleLeaves = 0;
+                    node.querySelectorAll('[data-skill-tree-leaf]').forEach((leaf) => {
+                        if (!(leaf instanceof HTMLElement)) return;
+                        const name = leaf.getAttribute('data-skill-name') || '';
+                        const match = needle === '' || name.includes(needle);
+                        leaf.classList.toggle('is-filtered-out', !match);
+                        if (match) visibleLeaves += 1;
+                    });
+                    const hideNode = needle !== '' && visibleLeaves === 0;
+                    node.classList.toggle('is-filtered-out', hideNode);
+                    if (needle !== '' && visibleLeaves > 0) setOpen(node, true);
+                    syncParent(node);
+                });
+            });
+        }
+
+        syncCount();
+    }
 });
 

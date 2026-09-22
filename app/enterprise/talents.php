@@ -282,7 +282,7 @@ $sidebarNav = [
                                 <h3 class="ent-ai-matcher-card__title">Tìm nhân tài bằng AI</h3>
                             </div>
                             <div class="ent-ai-matcher-card__metadata" style="display: none;">
-                                <span>Phiên bản: <strong data-enterprise-ai-provenance>gemini-1.5-pro</strong></span>
+                                <span>Phiên bản: <strong data-enterprise-ai-provenance>AI</strong></span>
                                 <span>Cập nhật: <strong data-enterprise-ai-freshness>--</strong></span>
                                 <span class="ent-ai-matcher-card__state" data-enterprise-ai-state>idle</span>
                             </div>

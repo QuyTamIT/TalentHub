@@ -22,17 +22,17 @@
     });
 
     const COPY = Object.freeze({
-        'not-generated': 'Bấm “AI gợi ý dự án phù hợp” để Gemini đối chiếu hồ sơ năng lực và điểm đánh giá của bạn.',
-        loading: 'Gemini đang đối chiếu dữ liệu đã được bạn cho phép…',
+        'not-generated': 'Bấm “AI gợi ý dự án phù hợp” để AI đối chiếu hồ sơ năng lực và điểm đánh giá của bạn.',
+        loading: 'AI đang đối chiếu dữ liệu đã được bạn cho phép…',
         pending: 'Yêu cầu đã được tiếp nhận, chưa có kết quả hoàn tất. Bạn có thể bấm phân tích để kiểm tra hoặc thử lại.',
         'consent-required': 'Bạn cần cho phép sử dụng dữ liệu học tập trước khi nhận đề xuất cá nhân hóa.',
         'insufficient-data': 'Hồ sơ chưa đủ dữ liệu để phân tích. Hãy bổ sung kỹ năng hoặc hoàn thành một bài đánh giá.',
         'catalog-insufficient': 'Hiện chưa có đủ ba dự án đang mở phù hợp để AI xếp hạng.',
-        'low-fit-model': 'Gemini đã phân tích các cơ hội gần phù hợp và chỉ ra khoảng trống cần bổ sung.',
-        'no-fit-model': 'Gemini chưa tìm thấy cơ hội đạt ngưỡng phù hợp với hồ sơ hiện tại.',
+        'low-fit-model': 'AI đã phân tích các cơ hội gần phù hợp và chỉ ra khoảng trống cần bổ sung.',
+        'no-fit-model': 'AI chưa tìm thấy cơ hội đạt ngưỡng phù hợp với hồ sơ hiện tại.',
         'source-error': 'Chưa thể hoàn tất phân tích lúc này. Bạn có thể thử lại sau.',
         'ready-model': 'Phân tích vừa xong',
-        'stale-model': 'Đang hiển thị phân tích gần nhất vì Gemini tạm thời chưa phản hồi.',
+        'stale-model': 'Đang hiển thị phân tích gần nhất vì AI tạm thời chưa phản hồi.',
     });
 
     function mapOpportunityMatchState(state) {
@@ -317,7 +317,7 @@
         card.appendChild(header);
 
         const narrative = element('section', 'learner-opportunity-ai-card__narrative');
-        narrative.appendChild(element('h4', '', 'Phân tích của Gemini'));
+        narrative.appendChild(element('h4', '', 'Phân tích của AI'));
         narrative.appendChild(element('p', '', item.why_fit));
         card.appendChild(narrative);
 
@@ -407,7 +407,7 @@
                     setProgressState(pct, 'Đang quét danh mục cơ hội việc làm & thực tập...', 2);
                 } else if (elapsed < 16) {
                     const pct = Math.min(85, Math.round(55 + (elapsed - 7) * 3.33));
-                    setProgressState(pct, 'Gemini AI đang phân tích độ phù hợp và tìm điểm mạnh...', 3);
+                    setProgressState(pct, 'AI đang phân tích độ phù hợp và tìm điểm mạnh...', 3);
                 } else {
                     const pct = Math.min(95, Math.round(85 + (elapsed - 16) * 0.8));
                     setProgressState(pct, 'Đang hoàn thiện bảng xếp hạng và diễn giải Top 3...', 4);

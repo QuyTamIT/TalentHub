@@ -2,7 +2,7 @@
     'use strict';
 
     const ENDPOINT = '/ai-job-matches.php';
-    const STAGES = ['Quét hồ sơ', 'Lọc vị trí', 'Gemini phân tích', 'Xếp hạng kết quả'];
+    const STAGES = ['Quét hồ sơ', 'Lọc vị trí', 'AI phân tích', 'Xếp hạng kết quả'];
     const STATE_MAP = Object.freeze({
         not_generated: 'not-generated', consent_required: 'consent-required',
         insufficient_data: 'insufficient-data', benchmark_insufficient: 'insufficient-data',
@@ -320,7 +320,7 @@
                     const top = node('div', 'learner-job-position__top'); const identity = node('div'); identity.append(node('h4', '', position.title), node('span', `learner-job-fit ${position.fit_class}`, position.fit_label));
                     const score = node('div', `learner-job-score ${position.fit_class}`); score.append(node('strong', '', String(position.match_score)), node('span', '', '/100')); top.append(identity, score); card.appendChild(top);
                     const track = node('div', 'learner-job-score__track'); const fill = node('span', ''); fill.style.width = `${position.match_score}%`; track.appendChild(fill); card.appendChild(track);
-                    const narrative = node('div', 'learner-job-position__analysis'); narrative.append(node('strong', '', 'Gemini phân tích'), node('p', '', position.analysis)); card.appendChild(narrative);
+                    const narrative = node('div', 'learner-job-position__analysis'); narrative.append(node('strong', '', 'AI phân tích'), node('p', '', position.analysis)); card.appendChild(narrative);
                     const isNearMatch = false;
                     const hasMetSkills = (Array.isArray(position.strength_details) && position.strength_details.length > 0)
                         || (Array.isArray(position.strengths) && position.strengths.length > 0);
@@ -368,7 +368,7 @@
             const top = node('div', 'learner-job-position__top'); const identity = node('div'); identity.append(node('h4', '', position.title), node('span', 'learner-job-fit is-low', position.fit_label));
             const score = node('div', 'learner-job-score is-low'); score.append(node('strong', '', String(position.match_score)), node('span', '', '/100')); top.append(identity, score); card.appendChild(top);
             const track = node('div', 'learner-job-score__track is-low'); const fill = node('span'); fill.style.width = `${position.match_score}%`; track.appendChild(fill); card.appendChild(track);
-            const narrative = node('div', 'learner-job-position__analysis is-low'); narrative.append(node('strong', '', 'Gemini phân tích vì sao chưa phù hợp'), node('p', '', position.analysis)); card.appendChild(narrative);
+            const narrative = node('div', 'learner-job-position__analysis is-low'); narrative.append(node('strong', '', 'AI phân tích vì sao chưa phù hợp'), node('p', '', position.analysis)); card.appendChild(narrative);
             const isNearMatch = true;
             const hasMetSkills = (Array.isArray(position.strength_details) && position.strength_details.length > 0)
                 || (Array.isArray(position.strengths) && position.strengths.length > 0);

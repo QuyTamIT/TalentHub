@@ -36,7 +36,7 @@ if (($teacherName === '' || $teacherName === 'Thầy/Cô' || $teacherName === 'G
         </div>
     </div>
     <div class="teacher-welcome__actions">
-        <a href="/app/teacher/activities/index.php?action=create" class="btn btn-primary btn-sm">
+        <a href="/app/teacher/activities/create.php" class="btn btn-primary btn-sm">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
