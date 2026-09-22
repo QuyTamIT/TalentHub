@@ -14,6 +14,13 @@
             : null;
     }
 
+    function learnerPath(path) {
+        const boot = parseBoot('learner-assessment-boot') || parseBoot('learner-discover-boot') || {};
+        const base = String(boot.appBase || '').replace(/\/$/, '');
+        const normalized = '/' + String(path || '').replace(/^\/+/, '');
+        return base + normalized;
+    }
+
     function buildRetakeWarningMessage(elapsedDays, remainingDays) {
         const elapsed = Math.max(0, parseInt(elapsedDays, 10) || 0);
         const remaining = Math.max(0, parseInt(remainingDays, 10) || 0);
@@ -1053,13 +1060,13 @@
             const action = doc.createElement(published ? 'a' : 'button');
             action.className = `learner-btn learner-btn--${published ? (complete ? 'primary' : 'primary') : 'secondary'} learner-btn--block`;
             action.textContent = published ? (item?.attempt_status === 'in_progress' ? 'Tiếp tục bài test' : (complete ? 'Làm lại bài đánh giá' : 'Bắt đầu bài test')) : 'Chưa có phiên bản được duyệt';
-            if (action.tagName === 'A') action.href = `assessment.php?code=${encodeURIComponent(code)}${bandQuery}`;
+            if (action.tagName === 'A') action.href = learnerPath(`/app/learner/assessment.php?code=${encodeURIComponent(code)}${bandQuery}`);
             else { action.type = 'button'; action.disabled = true; }
             article.appendChild(action);
             if (complete && item?.can_view_result && item?.latest_result?.id) {
                 const resultLink = doc.createElement('a');
                 resultLink.className = 'learner-btn learner-btn--outline learner-btn--block';
-                resultLink.href = `assessment-result.php?code=${encodeURIComponent(code)}&attempt=${encodeURIComponent(item.latest_result.id)}${bandQuery}`;
+                resultLink.href = learnerPath(`/app/learner/assessment-result.php?code=${encodeURIComponent(code)}&attempt=${encodeURIComponent(item.latest_result.id)}${bandQuery}`);
                 resultLink.textContent = 'Xem kết quả';
                 article.appendChild(resultLink);
             }
@@ -1189,7 +1196,7 @@
                     talents,
                     'Hoàn thành bài Đa trí thông minh để xem bản đồ năng khiếu.',
                     'Làm bài Đa trí thông minh',
-                    'assessment.php?code=multiple_intelligence'
+                    learnerPath('/app/learner/assessment.php?code=multiple_intelligence')
                 );
             } else {
                 renderTalentRadar(doc, talents, summary.talents);
@@ -1203,7 +1210,7 @@
                     career,
                     'Hoàn thành bài Holland để xem định hướng phù hợp.',
                     'Làm bài Holland',
-                    'assessment.php?code=holland'
+                    learnerPath('/app/learner/assessment.php?code=holland')
                 );
             } else {
                 const careerScores = summary.career.map((i) => Number(i.score) || 0);
@@ -1266,7 +1273,7 @@
                     mbtiContainer,
                     'Hoàn thành bài MBTI để khám phá xu hướng tính cách của bạn.',
                     'Làm bài MBTI',
-                    'assessment.php?code=mbti'
+                    learnerPath('/app/learner/assessment.php?code=mbti')
                 );
             } else {
                 if (mbtiBadge) mbtiBadge.textContent = summary.mbtiItem?.result_code || summary.mbtiItem?.code || '—';
@@ -1329,7 +1336,7 @@
                     discContainer,
                     'Hoàn thành bài DISC để nhận diện phong cách hành vi & giao tiếp.',
                     'Làm bài DISC',
-                    'assessment.php?code=disc'
+                    learnerPath('/app/learner/assessment.php?code=disc')
                 );
             } else {
                 const discScores = summary.disc.map((i) => Number(i.score) || 0);
@@ -1501,7 +1508,7 @@
         let selectedBand = normalizeEducationBand(urlParams.get('band'));
         const urlAttemptId = urlParams.get('attempt') || '';
         let currentAttempt = null;
-        const resultUrl = boot.result_url || `assessment-result.php?code=${encodeURIComponent(code)}`;
+        const resultUrl = boot.result_url || learnerPath(`/app/learner/assessment-result.php?code=${encodeURIComponent(code)}`);
         let retryRunnerAction = null;
 
         const retakeModal = doc.querySelector('[data-assessment-retake-modal]');
@@ -2003,7 +2010,7 @@
                     const effectiveBand = educationBand || response?.education_band;
                     const bandQuery = effectiveBand ? `&band=${encodeURIComponent(effectiveBand)}` : '';
                     if (global.location) {
-                        global.location.href = `assessment.php?code=${encodeURIComponent(code)}&attempt=${encodeURIComponent(newAttemptId)}${bandQuery}`;
+                        global.location.href = learnerPath(`/app/learner/assessment.php?code=${encodeURIComponent(code)}&attempt=${encodeURIComponent(newAttemptId)}${bandQuery}`);
                     }
                 }
             } catch (error) {

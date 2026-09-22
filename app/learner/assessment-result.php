@@ -54,7 +54,7 @@ $bootData = [
                 <nav class="learner-breadcrumbs" aria-label="Đường dẫn">
                     <a href="discover.php">Khám phá năng khiếu</a>
                     <span>/</span>
-                    <a href="assessment.php?code=<?= learner_escape($assessmentCode); ?>"><?= learner_escape($assessmentName); ?></a>
+                    <a href="<?= learner_escape(app_href('/app/learner/assessment.php?code=' . rawurlencode($assessmentCode))); ?>"><?= learner_escape($assessmentName); ?></a>
                     <span>/</span>
                     <span>Kết quả</span>
                 </nav>
@@ -73,7 +73,7 @@ $bootData = [
                 <section class="learner-card learner-not-found" data-assessment-result-empty hidden>
                     <h1>Chưa có kết quả</h1>
                     <p>Hãy hoàn thành bài đánh giá để xem phân tích chi tiết.</p>
-                    <a class="learner-btn learner-btn--primary" href="assessment.php?code=<?= learner_escape($assessmentCode); ?>">Làm bài đánh giá</a>
+                    <a class="learner-btn learner-btn--primary" href="<?= learner_escape(app_href('/app/learner/assessment.php?code=' . rawurlencode($assessmentCode))); ?>">Làm bài đánh giá</a>
                 </section>
 
                 <div data-assessment-result-content hidden>

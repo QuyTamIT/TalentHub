@@ -11,8 +11,8 @@ if (!in_array($assessmentCode, $validCodes, true)) {
 }
 $requestedBand = strtolower(trim((string) ($_GET['band'] ?? '')));
 $educationBand = in_array($requestedBand, ['middle', 'high', 'college'], true) ? $requestedBand : '';
-$historyResultUrl = 'assessment-result.php?code=' . urlencode($assessmentCode)
-    . ($educationBand !== '' ? '&band=' . urlencode($educationBand) : '');
+$historyResultUrl = app_href('/app/learner/assessment-result.php?code=' . urlencode($assessmentCode)
+    . ($educationBand !== '' ? '&band=' . urlencode($educationBand) : ''));
 
 $assessmentNames = [
     'holland' => 'Holland — Sở thích nghề nghiệp',
@@ -62,7 +62,7 @@ $bootData = [
             <?php include __DIR__ . '/includes/header.php'; ?>
             <main class="learner-content" id="main-content">
                 <nav class="learner-breadcrumbs" aria-label="Đường dẫn">
-                    <a href="discover.php">Khám phá năng khiếu</a><span aria-hidden="true">/</span><span><?= learner_escape($assessmentName); ?></span>
+                    <a href="<?= learner_escape(app_href('/app/learner/discover.php')); ?>">Khám phá năng khiếu</a><span aria-hidden="true">/</span><span><?= learner_escape($assessmentName); ?></span>
                 </nav>
 
                 <div class="learner-assessment-shell" data-assessment-runner data-assessment-code="<?= learner_escape($assessmentCode); ?>">

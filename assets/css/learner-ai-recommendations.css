@@ -128,13 +128,18 @@
 .learner-page-ai .learner-ai-workspace__brief-meta {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 6px;
 }
 
 .learner-page-ai .learner-ai-workspace__brief-meta > * {
-    min-width: 0;
+    box-sizing: border-box;
+    flex: 0 1 auto;
+    width: fit-content;
     max-width: 100%;
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
 }
 
 .learner-page-ai .learner-ai-workspace__brief-meta span,
@@ -150,13 +155,8 @@
     white-space: normal;
 }
 
-.learner-page-ai .learner-ai-workspace__confidence {
-    flex: 1 1 11rem;
-}
-
 .learner-page-ai .learner-ai-workspace__evidence-trigger {
     appearance: none;
-    flex: 0 1 auto;
     padding: 5px 10px;
     color: inherit;
     background: var(--ai-warm);
