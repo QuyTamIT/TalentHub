@@ -44,13 +44,14 @@ Lệnh này bị khóa cứng ở `APP_ENV=local` hoặc `APP_ENV=test`; không 
 ### 2. Chạy web
 
 ```bash
-php -S 127.0.0.1:8080 -t .
+php -S 127.0.0.1:8080 router.php
 ```
 
 Mở:
 
 - Trang chủ: <http://127.0.0.1:8080/>
-- Đăng nhập: <http://127.0.0.1:8080/login.php>
+- Đăng nhập: <http://127.0.0.1:8080/login>
+- Liên hệ: <http://127.0.0.1:8080/contact>
 
 ### Tài khoản mẫu
 

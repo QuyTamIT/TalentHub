@@ -10,5 +10,16 @@ document.addEventListener('DOMContentLoaded',()=>{
     const syncClasses=(reset=false)=>{if(!schoolSelect||!classSelect)return;const schoolId=schoolSelect.value;let available=0;Array.from(classSelect.options).forEach((option,index)=>{if(index===0)return;const matches=schoolId!==''&&option.dataset.schoolId===schoolId;option.hidden=!matches;option.disabled=!matches;if(matches)available+=1;});if(reset||classSelect.selectedOptions[0]?.dataset.schoolId!==schoolId){classSelect.value='';}classSelect.disabled=schoolId===''||available===0;if(classHint){classHint.textContent=schoolId===''?'Chọn trường trước.':available===0?'Trường này chưa có lớp đang hoạt động.':`${available} lớp đang hoạt động.`;}};
     if(schoolSelect&&classSelect){syncClasses(false);schoolSelect.addEventListener('change',()=>{syncClasses(true);if(!classSelect.disabled)classSelect.focus();});}
     document.querySelectorAll('[data-auth-form]').forEach(form=>form.addEventListener('submit',event=>{if(!validateMatch()||!form.checkValidity()){event.preventDefault();form.reportValidity();return;}const button=form.querySelector('[data-submit]');if(button){button.disabled=true;button.setAttribute('aria-disabled','true');button.classList.add('is-loading');button.querySelector('span')?.replaceChildren(document.createTextNode('Đang xử lý...'));}}));
+    document.querySelectorAll('[data-demo-login]').forEach(button=>{
+        button.addEventListener('click',()=>{
+            const form=document.querySelector('[data-auth-form]');
+            const email=document.getElementById('email');
+            const passwordInput=document.getElementById('password');
+            if(!form||!email||!passwordInput)return;
+            email.value=button.getAttribute('data-email')||'';
+            passwordInput.value=button.getAttribute('data-password')||'';
+            if(typeof form.requestSubmit==='function'){form.requestSubmit();}else{form.submit();}
+        });
+    });
 });
 window.addEventListener('pageshow',()=>{document.querySelectorAll('[data-submit].is-loading').forEach(button=>{button.disabled=false;button.removeAttribute('aria-disabled');button.classList.remove('is-loading');const label=button.querySelector('span');if(label){label.textContent=document.body.dataset.submitLabel||(document.body.classList.contains('auth-page--register')?'Tạo tài khoản học viên':'Đăng nhập');}});});

@@ -141,7 +141,7 @@ $audiences = [
         <nav class="site-nav" aria-label="Điều hướng chính">
             <a href="<?= contact_escape(app_href('/index.php#hero')) ?>" class="site-nav__link">Về FTalentHub</a>
             <a href="<?= contact_escape(app_href('/index.php#statistics')) ?>" class="site-nav__link">Thống kê</a>
-            <a href="<?= contact_escape(app_href('/index.php#modules')) ?>" class="site-nav__link">Tính năng (8 mô-đun)</a>
+            <a href="<?= contact_escape(app_href('/index.php#modules')) ?>" class="site-nav__link">Tính năng</a>
             <a href="<?= contact_escape(app_href('/index.php#audiences')) ?>" class="site-nav__link">Đối tượng</a>
         </nav>
 
@@ -171,7 +171,7 @@ $audiences = [
         <nav class="mobile-menu__nav" aria-label="Điều hướng di động">
             <a href="<?= contact_escape(app_href('/index.php#hero')) ?>" class="mobile-menu__link">Về FTalentHub</a>
             <a href="<?= contact_escape(app_href('/index.php#statistics')) ?>" class="mobile-menu__link">Thống kê</a>
-            <a href="<?= contact_escape(app_href('/index.php#modules')) ?>" class="mobile-menu__link">Tính năng (8 mô-đun)</a>
+            <a href="<?= contact_escape(app_href('/index.php#modules')) ?>" class="mobile-menu__link">Tính năng</a>
             <a href="<?= contact_escape(app_href('/index.php#audiences')) ?>" class="mobile-menu__link">Đối tượng</a>
 
             <div class="mobile-menu__actions">

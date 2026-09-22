@@ -7,6 +7,7 @@ use TalentHub\Auth\Service\AuthPortalRouter;
 use TalentHub\Auth\Service\AuthService;
 use TalentHub\Auth\Service\LoginRateLimiter;
 use TalentHub\Auth\Session\SessionManager;
+use TalentHub\Config\Environment;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
 use TalentHub\Support\Id\RequestId;
@@ -105,6 +106,49 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
 }
 
 function authEscape(mixed $value): string{return htmlspecialchars((string)$value,ENT_QUOTES,'UTF-8');}
+
+$demoAccounts=[];
+try{$appEnv=Environment::appEnvironment();}catch(Throwable){$appEnv=(string)(getenv('APP_ENV')?:'');}
+if(in_array($appEnv,['local','test'],true)){
+    $testPassword=(string)(Environment::optional('TALENTHUB_TEST_PASSWORD')??'');
+    $adminPassword=(string)(Environment::optional('TALENTHUB_ADMIN_PASSWORD')??'');
+    if($testPassword!==''&&$adminPassword!==''){
+        $roleMeta=[
+            'student'=>['dot'=>'student','label'=>'Học viên','desc'=>'Hồ sơ năng lực, đánh giá và lộ trình phát triển'],
+            'teacher'=>['dot'=>'teacher','label'=>'Giáo viên','desc'=>'Chấm điểm, đồng hành và theo dõi học viên'],
+            'school'=>['dot'=>'school','label'=>'Nhà trường','desc'=>'Quản trị lớp, giáo viên và báo cáo trường'],
+            'enterprise'=>['dot'=>'business','label'=>'Doanh nghiệp','desc'=>'Tuyển dụng, kết nối nhân tài và dự án'],
+            'platform_admin'=>['dot'=>'admin','label'=>'Quản trị viên','desc'=>'Quản lý toàn hệ thống và phê duyệt tổ chức'],
+        ];
+        try{
+            $pdo=(new Connection(require __DIR__.'/config/database.php'))->connect();
+            $sql="SELECT u.email,u.fullName,r.code AS role,r.name AS roleName,r.description AS roleDesc
+                FROM users u
+                INNER JOIN roles r ON r.id=u.roleId
+                WHERE u.status='active'
+                ORDER BY FIELD(r.code,'student','teacher','school','enterprise','platform_admin'),u.createdAt ASC,u.email ASC";
+            $rows=$pdo->query($sql)->fetchAll(\PDO::FETCH_ASSOC)?:[];
+            $seen=[];
+            foreach($rows as $row){
+                $role=\TalentHub\Rbac\RoleCodes::canonical((string)($row['role']??''));
+                if(!isset($roleMeta[$role])||isset($seen[$role])){continue;}
+                if($requiredRole!==null&&!\TalentHub\Rbac\RoleCodes::matches($role,$requiredRole)){continue;}
+                $meta=$roleMeta[$role];
+                $dbDesc=trim((string)($row['roleDesc']??''));
+                $demoAccounts[]=[
+                    'role'=>$role,
+                    'dot'=>$meta['dot'],
+                    'label'=>$meta['label'],
+                    'name'=>trim((string)($row['fullName']??'')),
+                    'email'=>(string)$row['email'],
+                    'password'=>$role==='platform_admin'?$adminPassword:$testPassword,
+                    'desc'=>$dbDesc!==''?$dbDesc:$meta['desc'],
+                ];
+                $seen[$role]=true;
+            }
+        }catch(Throwable){$demoAccounts=[];}
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -164,7 +208,27 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
             <?php endif; ?>
             <?php if(is_array($roleAlert)): ?><div class="auth-alert auth-alert--warning" role="alert"><strong>Yêu cầu đăng nhập <?=authEscape($roleAlert['label'])?>:</strong> <?=authEscape($roleAlert['desc'])?></div><?php endif; ?>
             <?php if($errorMessage!==null): ?><div class="auth-alert auth-alert--error" role="alert"><?=authEscape($errorMessage)?></div><?php endif; ?>
-            <form class="auth-form" method="post" action="./login.php" data-auth-form>
+            <?php if($demoAccounts!==[]): ?>
+            <div class="auth-demo" data-demo-accounts>
+                <p class="auth-demo__title">Tài khoản mẫu — bấm để đăng nhập</p>
+                <ul class="auth-demo__list">
+                    <?php foreach($demoAccounts as $account): ?>
+                    <li>
+                        <button type="button" class="auth-demo__btn" data-demo-login data-email="<?=authEscape($account['email'])?>" data-password="<?=authEscape($account['password'])?>">
+                            <span class="auth-role-dot auth-role-dot--<?=authEscape($account['dot'])?>"></span>
+                            <span class="auth-demo__meta">
+                                <strong><?=authEscape($account['label'])?><?php if($account['name']!==''): ?> · <?=authEscape($account['name'])?><?php endif; ?></strong>
+                                <span class="auth-demo__email"><?=authEscape($account['email'])?></span>
+                                <span class="auth-demo__desc"><?=authEscape($account['desc'])?></span>
+                            </span>
+                            <span class="auth-demo__action">Đăng nhập</span>
+                        </button>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+            <?php endif; ?>
+            <form class="auth-form" method="post" action="<?= htmlspecialchars(app_href('/login.php')) ?>" data-auth-form>
                 <input type="hidden" name="csrfToken" value="<?=authEscape($loginCsrfToken)?>">
                 <?php if($requestedNext!==null): ?><input type="hidden" name="next" value="<?=authEscape($requestedNext)?>"><?php endif; ?>
                 <?php if($requiredRole!==null): ?><input type="hidden" name="role_required" value="<?=authEscape($requiredRole)?>"><?php endif; ?>
@@ -172,8 +236,8 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
                 <div class="auth-field"><div class="auth-field__label-row"><label for="password">Mật khẩu</label></div><div class="auth-password"><input id="password" name="password" type="password" autocomplete="current-password" maxlength="255" required <?php if(isset($fieldErrors['password'])): ?>aria-invalid="true" aria-describedby="password-error"<?php endif; ?>><button type="button" class="auth-password__toggle" data-password-toggle aria-controls="password" aria-pressed="false">Hiện</button></div><?php if(isset($fieldErrors['password'])): ?><span class="auth-field__error" id="password-error"><?=authEscape($fieldErrors['password'])?></span><?php endif; ?></div>
                 <button class="auth-submit" type="submit" data-submit><span>Đăng nhập</span><span aria-hidden="true">→</span></button>
             </form>
-            <p class="auth-switch">Chưa có tài khoản? <a href="./role-selection.php">Chọn vai trò để đăng ký</a></p>
-            <a class="auth-back" href="./index.php">← Về trang chủ</a>
+            <p class="auth-switch">Chưa có tài khoản? <a href="<?= htmlspecialchars(app_href('/role-selection.php')) ?>">Chọn vai trò để đăng ký</a></p>
+            <a class="auth-back" href="<?= htmlspecialchars(app_href('/index.php')) ?>">← Về trang chủ</a>
         </div>
     </section>
 </main>

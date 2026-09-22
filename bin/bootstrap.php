@@ -97,6 +97,22 @@ require_once dirname(__DIR__) . '/app/shared/timezone_helper.php';
  * Preserves query parameters, works consistently from any nested route,
  * and avoids fragile relative "../" traversing.
  */
+if (!function_exists('app_pretty_path')) {
+    function app_pretty_path(string $path): string {
+        if ($path === '/index.php' || $path === '/') {
+            return '/';
+        }
+        if (str_ends_with($path, '/index.php')) {
+            $dir = substr($path, 0, -strlen('/index.php'));
+            return $dir === '' ? '/' : $dir;
+        }
+        if (str_ends_with($path, '.php')) {
+            return substr($path, 0, -4);
+        }
+        return $path;
+    }
+}
+
 if (!function_exists('app_href')) {
     function app_href(string $absolutePath): string {
         $appRootFs  = str_replace('\\', '/', dirname(__DIR__));
@@ -114,12 +130,29 @@ if (!function_exists('app_href')) {
             $basePrefix = '/TalentHub';
         }
 
+        $fragment = '';
+        $query = '';
         $path = '/' . ltrim($absolutePath, '/');
-        if ($basePrefix !== '' && (str_starts_with($path, $basePrefix . '/') || $path === $basePrefix)) {
-            return $path;
+        $hashPos = strpos($path, '#');
+        if ($hashPos !== false) {
+            $fragment = substr($path, $hashPos);
+            $path = substr($path, 0, $hashPos);
+        }
+        $queryPos = strpos($path, '?');
+        if ($queryPos !== false) {
+            $query = substr($path, $queryPos);
+            $path = substr($path, 0, $queryPos);
         }
 
-        return $basePrefix . $path;
+        if (!(preg_match('/\.[A-Za-z0-9]+$/', $path) === 1 && !str_ends_with($path, '.php'))) {
+            $path = app_pretty_path($path);
+        }
+
+        if ($basePrefix !== '' && (str_starts_with($path, $basePrefix . '/') || $path === $basePrefix)) {
+            return $path . $query . $fragment;
+        }
+
+        return $basePrefix . $path . $query . $fragment;
     }
 }
 

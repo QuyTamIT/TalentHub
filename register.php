@@ -107,8 +107,8 @@ $schools=[];foreach($classes as $class){$schools[$class['schoolId']]=['id'=>$cla
                 </div>
                 <button class="auth-submit" type="submit" data-submit <?php if($classes===[]): ?>disabled<?php endif; ?>><span>Tạo tài khoản học viên</span><span aria-hidden="true">→</span></button>
             </form>
-            <p class="auth-switch">Đã có tài khoản? <a href="./login.php">Đăng nhập</a></p>
-            <a class="auth-back" href="./index.php">← Về trang chủ</a>
+            <p class="auth-switch">Đã có tài khoản? <a href="<?= htmlspecialchars(app_href('/login.php')) ?>">Đăng nhập</a></p>
+            <a class="auth-back" href="<?= htmlspecialchars(app_href('/index.php')) ?>">← Về trang chủ</a>
         </div>
     </section>
 </main>

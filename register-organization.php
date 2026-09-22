@@ -181,8 +181,8 @@ $label = $type === 'school' ? 'Nhà trường' : 'Doanh nghiệp';
                 </button>
             </form>
 
-            <p class="auth-switch">Muốn chọn vai trò khác? <a href="./role-selection.php">Quay lại chọn vai trò</a></p>
-            <p class="auth-switch">Đã có tài khoản? <a href="./login.php">Đăng nhập</a></p>
+            <p class="auth-switch">Muốn chọn vai trò khác? <a href="<?= htmlspecialchars(app_href('/role-selection.php')) ?>">Quay lại chọn vai trò</a></p>
+            <p class="auth-switch">Đã có tài khoản? <a href="<?= htmlspecialchars(app_href('/login.php')) ?>">Đăng nhập</a></p>
         </div>
     </section>
 </main>

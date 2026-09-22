@@ -4,6 +4,7 @@
  * Entry point for public visitors (Students, Teachers, Schools, Enterprises).
  * Impeccable Craft Redesign (Editorial Hierarchy & Asymmetric Layouts)
  */
+require_once __DIR__ . '/bin/bootstrap.php';
 require_once __DIR__ . '/app/shared/BrandHeader.php';
 
 // Core Modules Data
@@ -151,17 +152,17 @@ $audiences = [
             <nav class="site-nav" aria-label="Điều hướng chính">
                 <a href="#hero" class="site-nav__link">Về FTalentHub</a>
                 <a href="#statistics" class="site-nav__link">Thống kê</a>
-                <a href="#modules" class="site-nav__link">Tính năng (8 mô-đun)</a>
+                <a href="#modules" class="site-nav__link">Tính năng</a>
                 <a href="#audiences" class="site-nav__link">Đối tượng</a>
             </nav>
 
             <!-- Header Actions -->
             <div class="site-header__actions">
-                <a href="login.php" class="btn btn-secondary site-header__login-btn" data-cta="login">
+                <a href="<?= htmlspecialchars(app_href('/login.php')) ?>" class="btn btn-secondary site-header__login-btn" data-cta="login">
                     Đăng nhập
                 </a>
                 
-                <a href="./role-selection.php" class="btn btn-primary site-header__app-btn" style="display: flex; align-items: center; gap: 8px;">
+                <a href="<?= htmlspecialchars(app_href('/role-selection.php')) ?>" class="btn btn-primary site-header__app-btn" style="display: flex; align-items: center; gap: 8px;">
                     Đăng ký
                     <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -184,12 +185,12 @@ $audiences = [
             <nav class="mobile-menu__nav" aria-label="Điều hướng di động">
                 <a href="#hero" class="mobile-menu__link">Về FTalentHub</a>
                 <a href="#statistics" class="mobile-menu__link">Thống kê</a>
-                <a href="#modules" class="mobile-menu__link">Tính năng (8 mô-đun)</a>
+                <a href="#modules" class="mobile-menu__link">Tính năng</a>
                 <a href="#audiences" class="mobile-menu__link">Đối tượng</a>
                 
                 <div class="mobile-menu__actions">
-                    <a href="login.php" class="btn btn-secondary mobile-menu__btn" data-cta="login">Đăng nhập</a>
-                    <a href="./role-selection.php" class="btn btn-primary mobile-menu__btn">
+                    <a href="<?= htmlspecialchars(app_href('/login.php')) ?>" class="btn btn-secondary mobile-menu__btn" data-cta="login">Đăng nhập</a>
+                    <a href="<?= htmlspecialchars(app_href('/role-selection.php')) ?>" class="btn btn-primary mobile-menu__btn">
                         Đăng ký
                         <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -223,7 +224,7 @@ $audiences = [
                             TalentHub giúp học sinh ghi nhận hồ sơ năng lực 360°, kết nối nhà trường, giáo viên và doanh nghiệp nhằm định hướng và tối ưu hóa tiềm năng của thế hệ trẻ.
                         </p>
                         <div class="hero-cta-group">
-                            <a href="./login.php" class="btn btn-primary" data-cta="app">
+                            <a href="<?= htmlspecialchars(app_href('/login.php')) ?>" class="btn btn-primary" data-cta="app">
                                 Trải nghiệm ngay
                                 <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -442,7 +443,7 @@ $audiences = [
                                 </div>
                             </div>
 
-                            <a href="./login.php" class="module-footer-link">
+                            <a href="<?= htmlspecialchars(app_href('/login.php')) ?>" class="module-footer-link">
                                 Trải nghiệm module
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -451,21 +452,7 @@ $audiences = [
                         </article>
                     <?php endforeach; ?>
 
-                    <!-- Expansion Banner for Modules 7 & 8 -->
-                    <div class="modules-expansion-banner">
-                        <div class="expansion-info">
-                            <h4>
-                                ✨ Mô-đun 07 & 08
-                                <span class="expansion-badge">Sắp ra mắt</span>
-                            </h4>
-                            <p>
-                                Đội ngũ TalentHub đang phát triển và hoàn thiện 2 module tiếp theo nhằm mở rộng thêm khả năng định hướng sự nghiệp và kết nối quỹ tài trợ chuyên sâu.
-                            </p>
-                        </div>
-                        <a href="./role-selection.php" class="btn btn-primary expansion-btn" data-cta="register">
-                            Đăng ký nhận thông báo
-                        </a>
-                    </div>
+                    
                 </div>
             </div>
         </section>
@@ -543,7 +530,7 @@ $audiences = [
                                 </div>
 
                                 <div class="panel-footer">
-                                    <a href="./role-selection.php" class="btn btn-primary" data-cta="register">
+                                    <a href="<?= htmlspecialchars(app_href('/role-selection.php')) ?>" class="btn btn-primary" data-cta="register">
                                         <?= htmlspecialchars($aud['cta_text']); ?>
                                         <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                                     </a>
@@ -566,13 +553,13 @@ $audiences = [
                         Gia nhập nền tảng ngay hôm nay để khai phá tiềm năng, xây dựng hồ sơ năng lực 360° và kết nối hàng ngàn cơ hội phát triển đột phá.
                     </p>
                     <div class="cta-buttons">
-                        <a href="./login.php" class="btn btn-white" data-cta="app">
+                        <a href="<?= htmlspecialchars(app_href('/login.php')) ?>" class="btn btn-white" data-cta="app">
                             Trải nghiệm ngay
                             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M5 12h14M12 5l7 7-7 7"/>
                             </svg>
                         </a>
-                        <a href="./contact.php" class="btn btn-outline-white">
+                        <a href="<?= htmlspecialchars(app_href('/contact.php')) ?>" class="btn btn-outline-white">
                             Liên hệ tư vấn
                         </a>
                     </div>
