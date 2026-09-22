@@ -91,43 +91,6 @@
     }
   });
 
-  // Account dropdown (sync style with enterprise header)
-  const accountTrigger = document.querySelector('#admin-account-trigger');
-  const accountMenu = document.querySelector('#admin-account-menu');
-  const closeAccountMenu = () => {
-    if (!accountMenu || !accountTrigger) return;
-    accountMenu.classList.remove('is-open');
-    accountMenu.hidden = true;
-    accountTrigger.setAttribute('aria-expanded', 'false');
-  };
-  const openAccountMenu = () => {
-    if (!accountMenu || !accountTrigger) return;
-    accountMenu.hidden = false;
-    accountMenu.classList.add('is-open');
-    accountTrigger.setAttribute('aria-expanded', 'true');
-  };
-  accountTrigger?.addEventListener('click', (event) => {
-    event.stopPropagation();
-    if (accountMenu?.classList.contains('is-open')) {
-      closeAccountMenu();
-    } else {
-      openAccountMenu();
-      closeNotifMenu();
-    }
-  });
-  document.addEventListener('click', (event) => {
-    if (!accountMenu?.classList.contains('is-open')) return;
-    if (event.target instanceof Node && accountMenu.contains(event.target)) return;
-    if (event.target instanceof Node && accountTrigger?.contains(event.target)) return;
-    closeAccountMenu();
-  });
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && accountMenu?.classList.contains('is-open')) {
-      closeAccountMenu();
-      accountTrigger?.focus();
-    }
-  });
-
   // Notification dropdown (chuông - danh sách việc cần xử lý)
   const notifTrigger = document.querySelector('#admin-notif-trigger');
   const notifMenu = document.querySelector('#admin-notif-menu');
@@ -1883,19 +1846,4 @@
   const pathSection = window.location.pathname.includes('/users') ? 'users' : '';
   const initial = location.hash.slice(1) || urlParams.get('section') || pathSection;
   if(labels[initial])loadSection(initial);else if(initial==='tasks'||initial==='queue')loadSection('tasks');else{document.querySelectorAll('[data-admin-section]').forEach((item)=>{const active=item.dataset.adminSection==='dashboard';item.classList.toggle('is-active',active);active?item.setAttribute('aria-current','page'):item.removeAttribute('aria-current');});refreshDashboard();}
-  document.querySelector('[data-admin-logout]')?.addEventListener('click', async (event) => {
-    const button = event.currentTarget;
-    button.disabled = true;
-    const original = button.innerHTML;
-    button.textContent = 'Đang đăng xuất…';
-    try {
-      const csrf = (await api('/auth/csrf')).csrfToken;
-      await api('/auth/logout', { method:'POST', headers:{'X-CSRF-Token':csrf} });
-      window.location.assign(`${basePath}/login.php`);
-    } catch (error) {
-      button.disabled = false;
-      button.innerHTML = original;
-      showToast(`Không thể đăng xuất: ${error.message}`);
-    }
-  });
-})();
+  })();

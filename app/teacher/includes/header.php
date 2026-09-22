@@ -70,19 +70,24 @@ if (!is_string($portalNotificationBootJson)) {
     </div>
 
     <div class="teacher-header__right">
-        <!-- Notification Bell (API badge + navigates to /app/teacher/notifications.php) -->
-        <a
+        <!-- Notification Bell (popup + badge API, "Xem chi tiết" navigates to /app/teacher/notifications.php) -->
+        <button
+            type="button"
+            data-notif-trigger
+            data-portal="teacher"
+            data-endpoint="/app/teacher/api/v1/notifications.php"
+            data-detail-url="/app/teacher/notifications.php"
             class="teacher-header__notif teacher-header__icon-btn"
             id="teacher-notification-button"
-            href="<?= function_exists('app_href') ? app_href('/app/teacher/notifications.php') : '/app/teacher/notifications.php'; ?>"
             aria-label="Xem thông báo"
+            aria-haspopup="dialog"
         >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
             </svg>
             <span class="teacher-header__badge" id="teacher-unread-badge" aria-hidden="true" style="display: none;"></span>
-        </a>
+        </button>
 
         <!-- Teacher Account Area with Dropdown -->
         <div class="teacher-header__account-wrapper" id="teacher-account-wrapper">
@@ -172,6 +177,25 @@ if (!is_string($portalNotificationBootJson)) {
             </div>
         </div>
     </div>
+
+    <!-- Teacher notification popup (shared portal-notifications.js: data-notif-trigger / data-notif-dialog) -->
+    <dialog class="notif-popup" data-notif-dialog aria-labelledby="teacher-notif-title">
+        <div class="notif-popup__header">
+            <h2 class="notif-popup__title" id="teacher-notif-title">Thông báo</h2>
+            <button type="button" class="notif-popup__close" data-notif-close aria-label="Đóng thông báo">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="notif-popup__list" data-notif-list aria-live="polite"></div>
+        <div class="notif-popup__footer">
+            <a class="notif-popup__detail-link" href="<?= function_exists('app_href') ? app_href('/app/teacher/notifications.php') : '/app/teacher/notifications.php'; ?>">Xem chi tiết</a>
+            <button type="button" class="notif-popup__mark-all" data-notif-mark-all>Đánh dấu đã đọc</button>
+        </div>
+    </dialog>
 </header>
 <script id="portal-notifications-boot" type="application/json"><?= $portalNotificationBootJson; ?></script>
 <script src="<?= function_exists('app_href') ? app_href('/assets/js/portal-notifications.js') : '/assets/js/portal-notifications.js'; ?>" defer></script>
+<script src="<?= function_exists('app_href') ? app_href('/assets/js/notifications-popup.js') : '/assets/js/notifications-popup.js'; ?>" defer></script>

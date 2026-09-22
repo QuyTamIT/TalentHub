@@ -30,9 +30,10 @@ if (!empty($schoolInfo['logo_initials'])) {
     }
 }
 
+$basePrefix = (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/TalentHub') !== false) ? '/TalentHub' : '';
 $profileRoute = '/app/school/account.php';
-$profileUrl = function_exists('app_href') ? app_href($profileRoute) : '/app/school/account.php';
-$logoutUrl = function_exists('app_href') ? app_href('/app/auth/logout.php?role=school') : '/app/auth/logout.php?role=school';
+$profileUrl = function_exists('app_href') ? app_href($profileRoute) : ($basePrefix . $profileRoute);
+$logoutUrl = function_exists('app_href') ? app_href('/app/auth/logout.php?role=school') : ($basePrefix . '/app/auth/logout.php?role=school');
 $portalNotificationBoot = [
     'portal' => 'school',
     'endpoint' => '/app/school/api/v1/notifications.php',
@@ -66,19 +67,24 @@ if (!is_string($portalNotificationBootJson)) {
     </div>
 
     <div class="school-header__right">
-        <!-- Notification Bell (API badge + navigates to /app/school/notifications.php) -->
-        <a
+        <!-- Notification Bell (popup, API badge + dialog preview) -->
+        <button
+            type="button"
+            data-notif-trigger
+            data-portal="school"
+            data-endpoint="<?= function_exists('app_href') ? app_href('/app/school/api/v1/notifications.php') : ($basePrefix . '/app/school/api/v1/notifications.php'); ?>"
+            data-detail-url="<?= function_exists('app_href') ? app_href('/app/school/notifications.php') : ($basePrefix . '/app/school/notifications.php'); ?>"
             class="school-header__notif school-header__icon-btn"
             id="school-notification-button"
-            href="<?= function_exists('app_href') ? app_href('/app/school/notifications.php') : '/app/school/notifications.php'; ?>"
             aria-label="Xem thông báo"
+            aria-haspopup="dialog"
         >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
             </svg>
             <span class="school-header__badge" id="school-unread-badge" aria-hidden="true" style="display: none;"></span>
-        </a>
+        </button>
 
         <!-- School Account Area with Dropdown -->
         <div class="school-header__account-wrapper" id="school-account-wrapper">
@@ -168,6 +174,25 @@ if (!is_string($portalNotificationBootJson)) {
             </div>
         </div>
     </div>
+
+    <!-- Notification popup (shared notif-popup CSS/JS for 3 portals) -->
+    <dialog class="notif-popup" data-notif-dialog aria-labelledby="school-notif-title">
+        <div class="notif-popup__header">
+            <h2 class="notif-popup__title" id="school-notif-title">Thông báo</h2>
+            <button type="button" class="notif-popup__close" data-notif-close aria-label="Đóng thông báo">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="notif-popup__list" data-notif-list aria-live="polite"></div>
+        <div class="notif-popup__footer">
+            <a class="notif-popup__detail-link" href="<?= function_exists('app_href') ? app_href('/app/school/notifications.php') : ($basePrefix . '/app/school/notifications.php'); ?>">Xem chi tiết</a>
+            <button type="button" class="notif-popup__mark-all" data-notif-mark-all>Đánh dấu đã đọc</button>
+        </div>
+    </dialog>
 </header>
 <script id="portal-notifications-boot" type="application/json"><?= $portalNotificationBootJson; ?></script>
 <script src="<?= function_exists('app_href') ? app_href('/assets/js/portal-notifications.js') : '/assets/js/portal-notifications.js'; ?>" defer></script>
+<script src="<?= function_exists('app_href') ? app_href('/assets/js/notifications-popup.js') : '/assets/js/notifications-popup.js'; ?>" defer></script>

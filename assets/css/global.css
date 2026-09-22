@@ -2807,7 +2807,289 @@
 }
 
 /* --------------------------------------------------------------------------
-   C. SIDEBAR LOGOUT LINK — đồng bộ icon position và hover
+   C. NOTIFICATION POPUP DIALOG — dùng chung 3 portal (school/teacher/enterprise)
+   -------------------------------------------------------------------------- */
+
+/* Backdrop mờ khi dialog mở */
+dialog.notif-popup::backdrop {
+    background-color: rgba(0, 0, 0, 0.25);
+}
+
+/* Dialog container — desktop: fixed top-right dưới chuông.
+   QUAN TRỌNG: chỉ display khi [open]; <dialog> chưa mở mặc định display:none
+   theo UA stylesheet — rule không [open] sẽ làm popup hiện thường trực,
+   không đóng được kể cả F5. */
+dialog.notif-popup[open] {
+    position: fixed;
+    inset: auto 0 auto auto;           /* căn phải */
+    margin: 60px 20px 0 0;             /* cách top header ~60px, cách mép phải 20px */
+    padding: 0;
+    width: min(360px, 92vw);
+    max-height: calc(100dvh - 80px);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: var(--radius-lg, 12px);
+    background: var(--surface, #fff);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: notif-pop-in 180ms ease-out;
+    transform-origin: top right;
+}
+
+/* Hiệu ứng mở/đóng popup + item vào so le + badge pulse.
+   (Đóng dialog là tức thì theo native behavior; entrance mới cần animation.) */
+@keyframes notif-pop-in {
+    from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+}
+
+dialog.notif-popup::backdrop {
+    animation: notif-backdrop-in 180ms ease-out;
+}
+
+@keyframes notif-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Item trượt vào so le (tối đa 8 item như JS render) */
+.notif-popup__list > .notif-popup__item {
+    animation: notif-item-in 260ms ease-out both;
+}
+
+.notif-popup__list > .notif-popup__item:nth-child(2) { animation-delay: 35ms; }
+.notif-popup__list > .notif-popup__item:nth-child(3) { animation-delay: 70ms; }
+.notif-popup__list > .notif-popup__item:nth-child(4) { animation-delay: 105ms; }
+.notif-popup__list > .notif-popup__item:nth-child(5) { animation-delay: 140ms; }
+.notif-popup__list > .notif-popup__item:nth-child(6) { animation-delay: 175ms; }
+.notif-popup__list > .notif-popup__item:nth-child(7) { animation-delay: 210ms; }
+.notif-popup__list > .notif-popup__item:nth-child(8) { animation-delay: 245ms; }
+
+@keyframes notif-item-in {
+    from { opacity: 0; transform: translateX(12px); }
+    to { opacity: 1; transform: none; }
+}
+
+/* Trạng thái đang tải: chữ nhấp nháy nhẹ */
+.notif-popup__list.is-loading .notif-popup__empty {
+    animation: notif-loading-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes notif-loading-pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+}
+
+/* Badge chuông pulse khi có thông báo (phần tử display:none không paint nên an toàn) */
+#enterprise-unread-badge,
+#school-unread-badge,
+#teacher-unread-badge,
+#learner-unread-badge {
+    animation: notif-badge-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes notif-badge-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
+    50% { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+}
+
+/* Tôn trọng người dùng giảm chuyển động */
+@media (prefers-reduced-motion: reduce) {
+    dialog.notif-popup[open],
+    dialog.notif-popup::backdrop,
+    .notif-popup__list > .notif-popup__item,
+    .notif-popup__list.is-loading .notif-popup__empty,
+    #enterprise-unread-badge,
+    #school-unread-badge,
+    #teacher-unread-badge,
+    #learner-unread-badge {
+        animation: none !important;
+    }
+}
+
+/* Header popup: tiêu đề + nút đóng */
+.notif-popup__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    flex-shrink: 0;
+}
+
+.notif-popup__title {
+    margin: 0;
+    font-size: 0.9375rem;              /* 15px */
+    font-weight: var(--font-semibold, 600);
+    color: var(--text-primary, #111827);
+    line-height: 1.3;
+}
+
+.notif-popup__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm, 6px);
+    background: transparent;
+    color: var(--text-secondary, #6b7280);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background var(--transition-fast, 150ms), color var(--transition-fast, 150ms);
+}
+
+.notif-popup__close:hover {
+    background: var(--surface-hover, #f3f4f6);
+    color: var(--text-primary, #111827);
+}
+
+/* List — scrollable */
+.notif-popup__list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    max-height: 320px;
+    overscroll-behavior: contain;
+}
+
+/* Mỗi item thông báo */
+.notif-popup__item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    cursor: pointer;
+    transition: background var(--transition-fast, 150ms);
+}
+
+.notif-popup__item:last-child {
+    border-bottom: none;
+}
+
+.notif-popup__item:hover {
+    background: var(--surface-hover, #f9fafb);
+}
+
+/* Item dạng link (có deepLink an toàn) — reset style <a>, cả khối bấm được */
+a.notif-popup__item {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+}
+
+a.notif-popup__item:visited {
+    color: inherit;
+}
+
+/* Chưa đọc — nền nhạt xanh/brand */
+.notif-popup__item.is-unread {
+    background: var(--color-primary-50, #eff6ff);
+}
+
+.notif-popup__item.is-unread:hover {
+    background: var(--color-primary-100, #dbeafe);
+}
+
+.notif-popup__item-title {
+    font-size: 0.8125rem;              /* 13px */
+    font-weight: var(--font-semibold, 600);
+    color: var(--text-primary, #111827);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.notif-popup__item-message {
+    font-size: 0.75rem;                /* 12px */
+    color: var(--text-secondary, #6b7280);
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.notif-popup__item-time {
+    font-size: 0.6875rem;              /* 11px */
+    color: var(--text-tertiary, #9ca3af);
+    margin-top: 2px;
+}
+
+/* Footer: xem chi tiết + đánh dấu đã đọc */
+.notif-popup__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+    flex-shrink: 0;
+    background: var(--surface, #fff);
+}
+
+.notif-popup__detail-link {
+    font-size: 0.8125rem;
+    font-weight: var(--font-medium, 500);
+    color: var(--color-primary, #2563eb);
+    text-decoration: none;
+    transition: color var(--transition-fast, 150ms);
+}
+
+.notif-popup__detail-link:hover {
+    color: var(--color-primary-700, #1d4ed8);
+    text-decoration: underline;
+}
+
+.notif-popup__mark-all {
+    font-size: 0.8125rem;
+    font-weight: var(--font-medium, 500);
+    color: var(--text-secondary, #6b7280);
+    background: transparent;
+    border: none;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm, 6px);
+    cursor: pointer;
+    transition: background var(--transition-fast, 150ms), color var(--transition-fast, 150ms);
+    white-space: nowrap;
+}
+
+.notif-popup__mark-all:hover {
+    background: var(--surface-hover, #f3f4f6);
+    color: var(--text-primary, #111827);
+}
+
+/* Trạng thái rỗng */
+.notif-popup__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 40px 16px;
+    color: var(--text-tertiary, #9ca3af);
+    font-size: 0.8125rem;
+    text-align: center;
+}
+
+/* Mobile: căn giữa màn hình */
+@media (max-width: 480px) {
+    dialog.notif-popup {
+        inset: 0;
+        margin: auto;
+        max-height: 85dvh;
+        border-radius: var(--radius-lg, 12px);
+        width: min(360px, 92vw);
+    }
+}
+
+/* --------------------------------------------------------------------------
+   D. SIDEBAR LOGOUT LINK — đồng bộ icon position và hover
    -------------------------------------------------------------------------- */
 
 /* Tất cả portal: logout icon animate translateX khi hover */
