@@ -290,13 +290,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const skillTree = form.querySelector('[data-skill-tree]');
     if (skillTree instanceof HTMLElement) {
-        const countEl = skillTree.querySelector('[data-skill-tree-count]');
-        const searchInput = skillTree.querySelector('[data-skill-tree-search]');
-
         const syncParent = (node) => {
             const parent = node.querySelector('[data-skill-tree-parent]');
             const leaves = [...node.querySelectorAll('[data-skill-tree-leaf] input[type="checkbox"]')]
-                .filter((input) => input instanceof HTMLInputElement && !input.closest('.is-filtered-out'));
+                .filter((input) => input instanceof HTMLInputElement);
             if (!(parent instanceof HTMLInputElement)) return;
             if (leaves.length === 0) {
                 parent.checked = false;
@@ -306,11 +303,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const checked = leaves.filter((input) => input.checked).length;
             parent.checked = checked === leaves.length;
             parent.indeterminate = checked > 0 && checked < leaves.length;
-        };
-
-        const syncCount = () => {
-            const selected = skillTree.querySelectorAll('[data-skill-tree-leaf] input[type="checkbox"]:checked').length;
-            if (countEl) countEl.textContent = `${selected} đã chọn`;
         };
 
         const setOpen = (node, open) => {
@@ -338,12 +330,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 parent.addEventListener('change', () => {
                     node.querySelectorAll('[data-skill-tree-leaf] input[type="checkbox"]').forEach((input) => {
                         if (!(input instanceof HTMLInputElement)) return;
-                        if (input.closest('.is-filtered-out')) return;
                         input.checked = parent.checked;
                     });
                     parent.indeterminate = false;
                     if (parent.checked) setOpen(node, true);
-                    syncCount();
                 });
             }
 
@@ -351,33 +341,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!(input instanceof HTMLInputElement)) return;
                 input.addEventListener('change', () => {
                     syncParent(node);
-                    syncCount();
                 });
             });
         });
-
-        if (searchInput instanceof HTMLInputElement) {
-            searchInput.addEventListener('input', () => {
-                const needle = searchInput.value.trim().toLowerCase();
-                skillTree.querySelectorAll('[data-skill-tree-node]').forEach((node) => {
-                    if (!(node instanceof HTMLElement)) return;
-                    let visibleLeaves = 0;
-                    node.querySelectorAll('[data-skill-tree-leaf]').forEach((leaf) => {
-                        if (!(leaf instanceof HTMLElement)) return;
-                        const name = leaf.getAttribute('data-skill-name') || '';
-                        const match = needle === '' || name.includes(needle);
-                        leaf.classList.toggle('is-filtered-out', !match);
-                        if (match) visibleLeaves += 1;
-                    });
-                    const hideNode = needle !== '' && visibleLeaves === 0;
-                    node.classList.toggle('is-filtered-out', hideNode);
-                    if (needle !== '' && visibleLeaves > 0) setOpen(node, true);
-                    syncParent(node);
-                });
-            });
-        }
-
-        syncCount();
     }
 });
 

@@ -72,6 +72,27 @@ if (!function_exists('getSchoolCode')) {
     }
 }
 
+$pdo = $context['pdo'] ?? null;
+$skillCatalog = [];
+if ($pdo instanceof PDO) {
+    try {
+        $skillStmt = $pdo->query("SELECT id, code, name, category FROM skills WHERE status='active' ORDER BY category ASC, name ASC");
+        $skillCatalog = $skillStmt ? $skillStmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    } catch (Throwable) {
+        $skillCatalog = [];
+    }
+}
+$skillsByCategory = [];
+foreach ($skillCatalog as $skill) {
+    $cat = trim((string) ($skill['category'] ?? '')) ?: 'Khác';
+    $skillsByCategory[$cat][] = [
+        'id' => (string) $skill['id'],
+        'code' => (string) $skill['code'],
+        'name' => (string) $skill['name'],
+        'category' => $cat,
+    ];
+}
+
 $companyInitials = getInitials($enterprise['name']);
 $isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
 $accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
@@ -210,6 +231,20 @@ if ($editingPost) {
 
 $postAudience = $editingPost ? ($editingPost['audience'] ?? 'public') : 'public';
 $selectedTargetSchoolIds = $editingPost ? ($editingPost['targetSchoolIds'] ?? []) : [];
+$initialSkillNames = $editingPost ? array_column($editingPost['skills'] ?? [], 'name') : [];
+$initialSkillIds = [];
+$initialSkillLabels = [];
+foreach ($skillCatalog as $skill) {
+    foreach ($initialSkillNames as $name) {
+        if (mb_strtolower(trim((string) $name), 'UTF-8') === mb_strtolower(trim((string) $skill['name']), 'UTF-8')) {
+            $initialSkillIds[] = (string) $skill['id'];
+            $initialSkillLabels[] = (string) $skill['name'];
+            break;
+        }
+    }
+}
+$initialSkillIds = array_values(array_unique($initialSkillIds));
+$initialSkillLabels = array_values(array_unique($initialSkillLabels));
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $submittedAudience = (string) ($_POST['audience'] ?? $postAudience);
     if (in_array($submittedAudience, ['public', 'partner_schools'], true)) {
@@ -367,7 +402,7 @@ $sidebarNav = [
                         <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($context['csrfToken']); ?>">
                         <input type="hidden" id="form-post-id" name="postId" value="<?= $isEdit ? htmlspecialchars((string) $editingPost['id']) : ''; ?>">
                         <input type="hidden" id="form-action" name="action" value="publish">
-                        <input type="hidden" id="form-skills-json" name="skills" value="<?= htmlspecialchars(json_encode($isEdit ? array_column($editingPost['skills'], 'name') : [])); ?>">
+                        <input type="hidden" id="form-skills-json" name="skills" value="<?= htmlspecialchars(json_encode($initialSkillLabels, JSON_UNESCAPED_UNICODE)); ?>">
                         
                         <!-- 1. General Info Section -->
                         <section class="ent-create-section mb-4">
@@ -532,64 +567,65 @@ $sidebarNav = [
                             <!-- Kỹ năng yêu cầu Section -->
                             <div class="ent-create-form-group mb-4">
                                 <div class="d-flex flex-column gap-1 mb-2">
-                                    <label class="ent-create-label required">Yêu cầu kỹ năng (Tags)</label>
-                                    <p class="ent-create-section__subtitle">Chọn hoặc nhập các kỹ năng cần thiết cho vị trí thực tập.</p>
+                                    <label class="ent-create-label required">Yêu cầu kỹ năng</label>
+                                    <p class="ent-create-section__subtitle">Chọn từ catalog kỹ năng hệ thống (dùng khi đối chiếu hồ sơ ứng viên).</p>
                                 </div>
 
-                                <div class="ent-skill-unified-wrapper" id="skill-picker-container" data-initial-skills="<?= htmlspecialchars(json_encode($isEdit ? $editingPost['skills'] : [])); ?>">
-                                    <!-- 1. Selected Skills Area -->
+                                <div class="ent-skill-tree" id="skill-picker-container" data-skill-tree data-initial-skill-ids="<?= htmlspecialchars(json_encode($initialSkillIds)); ?>">
                                     <div class="ent-selected-skills-box" id="selected-skills-area">
                                         <div class="ent-selected-skills-header">
                                             <span class="ent-selected-skills-title">
-                                                Kỹ năng đã chọn <span class="ent-selected-badge" id="selected-skills-count">0</span>
+                                                Kỹ năng đã chọn <span class="ent-selected-badge" id="selected-skills-count"><?= count($initialSkillIds); ?></span>
                                             </span>
-                                            <button type="button" class="btn-clear-all-skills" id="btn-clear-skills" style="display: none;">
-                                                Xóa tất cả
-                                            </button>
+                                            <button type="button" class="btn-clear-all-skills" id="btn-clear-skills" <?= $initialSkillIds === [] ? 'hidden' : ''; ?>>Xóa tất cả</button>
                                         </div>
-                                        <div class="ent-skill-tags-wrapper" id="form-selected-skills">
-                                            <!-- Dynamically rendered selected skill tags -->
-                                        </div>
+                                        <div class="ent-skill-tags-wrapper" id="form-selected-skills" data-skill-tree-selected></div>
                                     </div>
 
-                                    <!-- 2. Technical Skills Section -->
-                                    <div class="ent-skill-group-section">
-                                        <div class="ent-skill-group-header">
-                                            <h4 class="ent-skill-group-title">Kỹ năng chuyên môn</h4>
-                                            <p class="ent-skill-group-desc" id="tech-skill-field-label">Gợi ý theo lĩnh vực: ...</p>
+                                    <?php if ($skillsByCategory === []): ?>
+                                        <p class="ent-skill-empty-tip">Chưa có kỹ năng active trong catalog.</p>
+                                    <?php else: ?>
+                                        <div class="ent-skill-tree__panel" role="tree" aria-label="Catalog kỹ năng">
+                                            <?php foreach ($skillsByCategory as $category => $skills):
+                                                $categoryChecked = 0;
+                                                foreach ($skills as $skill) {
+                                                    if (in_array($skill['id'], $initialSkillIds, true)) {
+                                                        $categoryChecked++;
+                                                    }
+                                                }
+                                                $allChecked = $categoryChecked === count($skills) && count($skills) > 0;
+                                                $someChecked = $categoryChecked > 0 && !$allChecked;
+                                                $startOpen = $someChecked || $allChecked;
+                                            ?>
+                                                <div class="ent-skill-tree__node<?= $startOpen ? ' is-open' : ''; ?>" data-skill-tree-node role="treeitem" aria-expanded="<?= $startOpen ? 'true' : 'false'; ?>">
+                                                    <div class="ent-skill-tree__row ent-skill-tree__row--parent">
+                                                        <button type="button" class="ent-skill-tree__toggle" data-skill-tree-toggle aria-label="Mở/đóng nhóm <?= htmlspecialchars($category); ?>">
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                                        </button>
+                                                        <label class="ent-skill-tree__check">
+                                                            <input type="checkbox" data-skill-tree-parent <?= $allChecked ? 'checked' : ''; ?> <?= $someChecked ? 'data-indeterminate="1"' : ''; ?>>
+                                                            <span><?= htmlspecialchars(mb_strtoupper($category, 'UTF-8')); ?></span>
+                                                        </label>
+                                                    </div>
+                                                    <div class="ent-skill-tree__children" role="group"<?= $startOpen ? '' : ' hidden'; ?>>
+                                                        <?php foreach ($skills as $skill):
+                                                            $checked = in_array($skill['id'], $initialSkillIds, true);
+                                                        ?>
+                                                            <label class="ent-skill-tree__row ent-skill-tree__row--child" data-skill-tree-leaf data-skill-id="<?= htmlspecialchars($skill['id']); ?>" data-skill-name="<?= htmlspecialchars(mb_strtolower($skill['name'], 'UTF-8')); ?>" data-skill-label="<?= htmlspecialchars($skill['name']); ?>">
+                                                                <span class="ent-skill-tree__check">
+                                                                    <input type="checkbox" value="<?= htmlspecialchars($skill['id']); ?>" <?= $checked ? 'checked' : ''; ?>>
+                                                                    <span><?= htmlspecialchars($skill['name']); ?></span>
+                                                                </span>
+                                                            </label>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
                                         </div>
-                                        <div class="ent-chip-cloud" id="tech-skills-suggestions">
-                                            <!-- Dynamically populated tech skill chips -->
-                                        </div>
-                                    </div>
-
-                                    <!-- 3. Soft Skills Section -->
-                                    <div class="ent-skill-group-section">
-                                        <div class="ent-skill-group-header">
-                                            <h4 class="ent-skill-group-title">Kỹ năng mềm</h4>
-                                            <p class="ent-skill-group-desc">Có thể áp dụng cho mọi lĩnh vực</p>
-                                        </div>
-                                        <div class="ent-chip-cloud" id="soft-skills-suggestions">
-                                            <!-- Static soft skill chips -->
-                                        </div>
-                                    </div>
-
-                                    <!-- 4. Search & Custom Add Skill Input -->
-                                    <div class="ent-skill-search-wrapper">
-                                        <div class="ent-skill-search-box">
-                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <circle cx="11" cy="11" r="8"></circle>
-                                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                                            </svg>
-                                            <input type="text" id="input-custom-skill" class="ent-skill-search-input" placeholder="Tìm hoặc thêm kỹ năng khác..." autocomplete="off">
-                                            <button type="button" class="btn-add-custom-skill" id="btn-add-custom-skill">+ Thêm</button>
-                                        </div>
-                                        <div id="custom-skill-search-results" class="ent-skill-search-results" style="display: none;"></div>
-                                    </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
 
-                            <!-- Quyền lợi & Phụ cấp -->
                             <div class="ent-create-form-group">
                                 <label for="form-benefits" class="ent-create-label">Quyền lợi & Mức phụ cấp / Lương</label>
                                 <textarea id="form-benefits" 

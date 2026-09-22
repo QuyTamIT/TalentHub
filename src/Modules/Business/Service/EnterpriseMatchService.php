@@ -11,7 +11,7 @@ use TalentHub\Modules\Business\Repository\EnterpriseTalentRepository;
 
 /**
  * Privacy-first enterprise matching pipeline.
- * Evaluates real candidate profiles using AI matching & ranking.
+ * Ranks candidates with deterministic rules; AI only explains fit.
  */
 final class EnterpriseMatchService
 {
@@ -142,15 +142,17 @@ final class EnterpriseMatchService
             ];
         }
 
-        $targetLimit = ($limit !== null && $limit > 0) ? $limit : null;
-
-        // Build rich candidate projections for provider
         $candidateProjections = [];
         $refMap = [];
+        $studentToRef = [];
         $i = 1;
         foreach ($candidates as $cand) {
             $ref = 'candidate_' . $i++;
             $refMap[$ref] = $cand;
+            $studentId = (string) ($cand['student_id'] ?? '');
+            if ($studentId !== '') {
+                $studentToRef[$studentId] = $ref;
+            }
             $verifiedSkills = [];
             foreach ((array) ($cand['skills'] ?? []) as $sk) {
                 $sState = $sk['score_state'] ?? null;
@@ -175,7 +177,7 @@ final class EnterpriseMatchService
                     'contribution' => (string) ($pr['contribution'] ?? ''),
                 ];
             }
-            $candidateProjections[] = [
+            $candidateProjections[$ref] = [
                 'candidate_ref' => $ref,
                 'headline' => (string) ($cand['headline'] ?? ''),
                 'school_name' => (string) ($cand['school_name'] ?? ''),
@@ -187,16 +189,13 @@ final class EnterpriseMatchService
             ];
         }
 
-        // Bind rankings to the actual current inputs, including lowered/removed
-        // grades and group scores. Candidate identity also binds anonymous refs.
         $jobHash = hash('sha256', json_encode([
-            'schema' => 'enterprise-current-skills-1',
+            'schema' => 'enterprise-match-explain-1',
             'job' => $normalized,
             'candidate_ids' => array_column($candidates, 'student_id'),
-            'candidates' => $candidateProjections,
+            'candidates' => array_values($candidateProjections),
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
-        // 1. Check durable cache in DB first for deterministic, instantaneous response
         $cached = $this->repository->cachedMatchRanking($enterpriseId, $jobHash);
         if ($cached !== null && $this->isCurrentLkg($cached)) {
             $cachedItems = $this->validatedCachedItems($cached['items'] ?? null, $candidates);
@@ -214,78 +213,109 @@ final class EnterpriseMatchService
                 }
             }
 
-            if ($cachedItems !== null && count($cachedItems) === count($candidates) && !$hasNewerCandidateData) {
+            if ($cachedItems !== null && !$hasNewerCandidateData) {
                 $enrichedCached = $this->enrichItemsWithCandidateData($cachedItems, $refMap, $normalized);
                 return [
                     'state' => 'ready_model',
-                    'analysis_origin' => $cached['analysis_origin'] ?? 'model',
+                    'analysis_origin' => 'model',
                     'freshness_status' => 'current',
                     'last_known_good' => true,
-                    'model_version' => (string) ($cached['model_version'] ?? $this->modelVersion ?? 'gemini-1.5-pro'),
+                    'model_version' => (string) ($cached['model_version'] ?? 'rule-matching-engine-v3'),
                     'job' => $normalized,
                     'items' => $enrichedCached,
                     'total_relevant' => count($enrichedCached),
-                    'desired_count' => null,
+                    'desired_count' => $limit,
                     'generated_at' => (string) ($cached['generated_at'] ?? $generatedAt),
                 ];
             }
         }
 
-        // 2. If not in cache, evaluate candidates via AI provider callback
-        $callback = $provider ?? $this->provider;
-        if ($callback !== null) {
-            try {
-                $modelOutput = $callback($normalized, $candidateProjections);
-                $modelVersion = trim((string) ($modelOutput['model_version'] ?? $this->modelVersion ?? ''));
-                if ($modelVersion === '') {
-                    throw new \RuntimeException('Enterprise AI model version is missing.');
-                }
-                $items = $this->rank($normalized, $modelOutput, $refMap);
-                $rankingPayload = [
-                    'schema_version' => 'enterprise-match-3.0.0',
-                    'analysis_origin' => 'model',
-                    'model_version' => $modelVersion,
-                    'generated_at' => $generatedAt,
-                    'items' => $items,
-                ];
-                $this->repository->storeMatchRanking($enterpriseId, $jobHash, $rankingPayload);
+        $items = $this->rankLocally($normalized, $refMap);
+        $modelVersion = 'rule-matching-engine-v3';
 
-                return [
-                    'state' => 'ready_model',
-                    'analysis_origin' => 'model',
-                    'freshness_status' => 'current',
-                    'model_version' => $modelVersion,
-                    'job' => $normalized,
-                    'items' => $items,
-                    'total_relevant' => count($items),
-                    'desired_count' => null,
-                    'generated_at' => $generatedAt,
-                ];
-            } catch (\Throwable $e) {
-                error_log('Enterprise AI Provider error: ' . $e->getMessage());
+        $callback = $provider ?? $this->provider;
+        if ($callback !== null && $items !== []) {
+            $explainProjections = [];
+            foreach (array_slice($items, 0, 20) as $item) {
+                $sid = (string) ($item['student_id'] ?? '');
+                $ref = $studentToRef[$sid] ?? null;
+                if ($ref === null || !isset($candidateProjections[$ref])) {
+                    continue;
+                }
+                $explainProjections[] = array_merge($candidateProjections[$ref], [
+                    'match_score' => $item['match_score'] ?? null,
+                    'match_level' => $item['match_level'] ?? null,
+                    'matched_skills' => $item['matched_skills'] ?? [],
+                    'skill_gaps' => $item['skill_gaps'] ?? [],
+                ]);
+            }
+
+            if ($explainProjections !== []) {
+                try {
+                    $explained = $callback($normalized, $explainProjections);
+                    $explainedVersion = trim((string) ($explained['model_version'] ?? $this->modelVersion ?? ''));
+                    if ($explainedVersion === '') {
+                        throw new \RuntimeException('Enterprise AI model version is missing.');
+                    }
+                    $reasonByRef = [];
+                    $codesByRef = [];
+                    foreach ((array) ($explained['items'] ?? []) as $row) {
+                        if (!is_array($row)) {
+                            continue;
+                        }
+                        $ref = trim((string) ($row['candidate_ref'] ?? ''));
+                        $reason = trim((string) ($row['recommendation_reason'] ?? ''));
+                        if ($ref === '' || $reason === '') {
+                            continue;
+                        }
+                        $reasonByRef[$ref] = $reason;
+                        $codes = $row['reason_codes'] ?? [];
+                        if (is_array($codes) && array_is_list($codes)) {
+                            $codesByRef[$ref] = array_values(array_filter($codes, static fn(mixed $c): bool => is_string($c)));
+                        }
+                    }
+                    if ($reasonByRef !== []) {
+                        foreach ($items as &$item) {
+                            $sid = (string) ($item['student_id'] ?? '');
+                            $ref = $studentToRef[$sid] ?? null;
+                            if ($ref === null || !isset($reasonByRef[$ref])) {
+                                continue;
+                            }
+                            $item['recommendation_reason'] = $reasonByRef[$ref];
+                            if (isset($codesByRef[$ref]) && $codesByRef[$ref] !== []) {
+                                $item['reason_codes'] = array_values(array_unique(array_merge(
+                                    (array) ($item['reason_codes'] ?? []),
+                                    $codesByRef[$ref]
+                                )));
+                            }
+                        }
+                        unset($item);
+                        $modelVersion = $explainedVersion;
+                    }
+                } catch (\Throwable $e) {
+                    error_log('Enterprise AI Explain error: ' . $e->getMessage());
+                }
             }
         }
 
-        // 3. Deterministic Hybrid / Local AI Ranking Engine fallback: ensures employers always receive ranked real candidates
-        $localItems = $this->rankLocally($normalized, $refMap);
         $rankingPayload = [
-            'schema_version' => 'enterprise-match-3.0.0',
-            'analysis_origin' => 'hybrid_ai',
-            'model_version' => 'hybrid-ai-matching-engine-v3',
+            'schema_version' => 'enterprise-match-3.1.0',
+            'analysis_origin' => 'model',
+            'model_version' => $modelVersion,
             'generated_at' => $generatedAt,
-            'items' => $localItems,
+            'items' => $items,
         ];
         $this->repository->storeMatchRanking($enterpriseId, $jobHash, $rankingPayload);
 
         return [
             'state' => 'ready_model',
-            'analysis_origin' => 'hybrid_ai',
+            'analysis_origin' => 'model',
             'freshness_status' => 'current',
-            'model_version' => 'hybrid-ai-matching-engine-v3',
+            'model_version' => $modelVersion,
             'job' => $normalized,
-            'items' => $localItems,
-            'total_relevant' => count($localItems),
-            'desired_count' => null,
+            'items' => $items,
+            'total_relevant' => count($items),
+            'desired_count' => $limit,
             'generated_at' => $generatedAt,
         ];
     }
@@ -333,7 +363,7 @@ final class EnterpriseMatchService
             'slots' => isset($job['slots']) && is_numeric($job['slots']) ? (int) $job['slots'] : null,
             'description' => $description,
             'required_skills' => array_values($skills),
-            'schema_version' => 'enterprise-match-3.0.0',
+            'schema_version' => 'enterprise-match-3.1.0',
         ];
     }
 
@@ -1390,11 +1420,10 @@ final class EnterpriseMatchService
     {
         $origin = $cached['analysis_origin'] ?? null;
         $schema = $cached['schema_version'] ?? '';
-        if (!in_array($origin, ['model', 'hybrid_ai', 'local_ai'], true) || !is_array($cached['items'] ?? null)) {
+        if (!in_array($origin, ['model', 'rule', 'hybrid_ai', 'local_ai'], true) || !is_array($cached['items'] ?? null)) {
             return false;
         }
-        // Invalidate older caches from previous schemas
-        if ($schema !== 'enterprise-match-3.0.0') {
+        if ($schema !== 'enterprise-match-3.1.0') {
             return false;
         }
         $generatedAt = strtotime((string) ($cached['generated_at'] ?? $cached['updated_at'] ?? ''));

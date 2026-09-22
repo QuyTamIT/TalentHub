@@ -35,7 +35,7 @@ final class EnterpriseAiGeminiMatcher
     /**
      * @param array<string,mixed> $job
      * @param list<array<string,mixed>> $candidateProjections
-     * @return array{model_version:string,items:list<array{candidate_ref:string,match_score:float,reason_codes:list<string>}>}
+     * @return array{model_version:string,items:list<array{candidate_ref:string,recommendation_reason:string,reason_codes:list<string>}>}
      */
     public function __invoke(array $job, array $candidateProjections): array
     {
@@ -62,25 +62,18 @@ final class EnterpriseAiGeminiMatcher
             'required_skills' => array_values((array) ($job['required_skills'] ?? [])),
         ];
 
-        $systemInstruction = "You are FTalentHub Enterprise AI Matcher. Evaluate anonymous candidate projections against internship job requirements based on verified skills, real practical projects, domain/major, achievements, and teacher competency assessment scores.\n"
-            . "CRITICAL MATCHING & RANKING RULES:\n"
-            . "1. DIRECT PROFESSIONAL SKILLS & REAL PRACTICAL PROJECTS FIRST: Technical and specialized domain skills directly required by the job position—demonstrated either via verified skills or real practical projects (e.g. project title, topic, description, technologies)—MUST have the highest weight and priority.\n"
-            . "2. HIERARCHY OF RELEVANCE:\n"
-            . "   - Candidates with multiple directly matching professional skills or relevant practical project experience MUST be ranked at the very top and receive highest scores (>= 75 for strong alignment, 45-74 for solid partial alignment).\n"
-            . "   - Candidates with real practical projects directly utilizing required technologies (e.g. PHP, MySQL/SQL, Backend Development) are highly relevant candidates.\n"
-            . "   - Soft skills (Teamwork, Communication, etc.), badges, and teacher assessment scores are strictly supplementary.\n"
-            . "   - Candidates who lack both direct professional skills and relevant practical projects MUST NOT be ranked high or classified as 'Rất phù hợp' or 'Phù hợp'. If included, they must receive low scores (<= 35) and 'Có liên quan'.\n"
-            . "   - Do not include candidates who have 0 skills, no projects, and no relevance to the job.\n"
-            . "3. FACTUAL REASONING FROM REAL DATA ONLY: In 'recommendation_reason', provide a concise, natural Vietnamese explanation strictly referencing ONLY the skills, projects, and metrics that the candidate ACTUALLY possesses. NEVER hallucinate.\n"
-            . "Entries with item_kind=skill_group are teacher grades of that whole competency group. Never infer individual technology scores or mastery from a group grade. Scores are current, including zero; a recorded skill does not imply high proficiency.\n"
-            . "4. CLASSIFICATION:\n"
-            . "   - 'Rất phù hợp': Score >= 75.0 (possesses multiple directly matching professional skills or strong relevant practical project experience).\n"
-            . "   - 'Phù hợp': Score 45.0 - 74.9 (possesses at least 1 core matching professional skill or relevant practical project).\n"
-            . "   - 'Có liên quan': Score < 45.0 (related field or supporting skills without core professional skills or projects).\n"
-            . "Respond strictly in JSON format matching the schema without markdown formatting.";
+        $systemInstruction = "You are FTalentHub Enterprise Fit Explainer. Candidates are ALREADY ranked by a deterministic matching engine. Do NOT change scores, levels, or ranking.\n"
+            . "Your ONLY job: write a concise Vietnamese recommendation_reason explaining WHY each candidate fits (or partially fits) the internship job, using ONLY facts present in the candidate projection.\n"
+            . "RULES:\n"
+            . "1. Reference only verified skills, matched_skills, skill_gaps, projects, talent_score, and headline that appear in the input.\n"
+            . "2. NEVER invent skills, projects, scores, or achievements.\n"
+            . "3. Prefer 1-3 short sentences. Mention matching professional skills and relevant projects when present; mention skill gaps briefly when present.\n"
+            . "4. Entries with item_kind=skill_group are teacher grades of a competency group. Never infer individual technology mastery from a group grade.\n"
+            . "5. reason_codes must be chosen only from the allowed list.\n"
+            . "Respond strictly in JSON matching the schema without markdown formatting.";
 
         $userPayload = [
-            'prompt_version' => 'enterprise-match-3.1.0',
+            'prompt_version' => 'enterprise-explain-1.0.0',
             'job' => $safeJob,
             'candidates' => $candidateProjections,
             'response_schema' => [
@@ -88,8 +81,6 @@ final class EnterpriseAiGeminiMatcher
                 'items' => [
                     [
                         'candidate_ref' => 'string',
-                        'match_score' => 'float between 0.0 and 100.0',
-                        'match_level' => 'Rất phù hợp | Phù hợp | Có liên quan',
                         'recommendation_reason' => 'string in Vietnamese',
                         'reason_codes' => ['verified_skill_match', 'partial_skill_match', 'skill_gap', 'strong_verified_level', 'domain_match', 'teacher_recommended', 'project_experience'],
                     ],
@@ -132,7 +123,7 @@ final class EnterpriseAiGeminiMatcher
                     $timeout
                 );
                 $status = (int) ($response['status'] ?? 0);
-                $this->logGeminiInteraction('Enterprise AI Matching / Tìm nhân tài bằng AI', $body, $response['body'] ?? '', $status);
+                $this->logGeminiInteraction('Enterprise AI Explain / Tìm hồ sơ phù hợp', $body, $response['body'] ?? '', $status);
                 if (strlen((string) ($response['body'] ?? '')) > 200000) {
                     throw new RuntimeException('Enterprise AI response too large.');
                 }
@@ -158,34 +149,25 @@ final class EnterpriseAiGeminiMatcher
                                 throw new RuntimeException('invalid_candidate_ref');
                             }
                             $seenRefs[$ref] = true;
-                            if (!array_key_exists('match_score', $item) || !is_numeric($item['match_score'])) {
-                                throw new RuntimeException('invalid_match_score');
+                            $recReason = trim((string) ($item['recommendation_reason'] ?? ''));
+                            if ($recReason === '') {
+                                throw new RuntimeException('invalid_recommendation_reason');
                             }
-                            $score = (float) $item['match_score'];
-                            if ($score < 0.0 || $score > 100.0) {
-                                throw new RuntimeException('invalid_match_score');
-                            }
-                            $reasons = $item['reason_codes'] ?? null;
+                            $reasons = $item['reason_codes'] ?? [];
                             if (!is_array($reasons) || !array_is_list($reasons)) {
-                                throw new RuntimeException('invalid_reason_code');
+                                $reasons = [];
                             }
+                            $cleanReasons = [];
                             foreach ($reasons as $reason) {
-                                if (!is_string($reason) || !in_array($reason, $allowedReasons, true)) {
-                                    throw new RuntimeException('invalid_reason_code');
+                                if (is_string($reason) && in_array($reason, $allowedReasons, true)) {
+                                    $cleanReasons[] = $reason;
                                 }
                             }
-                            $matchLevel = trim((string) ($item['match_level'] ?? ''));
-                            if (!in_array($matchLevel, ['Rất phù hợp', 'Phù hợp', 'Có liên quan'], true)) {
-                                $matchLevel = $score >= 75.0 ? 'Rất phù hợp' : ($score >= 45.0 ? 'Phù hợp' : 'Có liên quan');
-                            }
-                            $recReason = trim((string) ($item['recommendation_reason'] ?? ''));
 
                             $items[] = [
                                 'candidate_ref' => $ref,
-                                'match_score' => $score,
-                                'match_level' => $matchLevel,
                                 'recommendation_reason' => $recReason,
-                                'reason_codes' => array_values($reasons),
+                                'reason_codes' => array_values(array_unique($cleanReasons)),
                             ];
                         }
                         $circuit->recordSuccess();
@@ -204,7 +186,7 @@ final class EnterpriseAiGeminiMatcher
             } catch (\JsonException) {
                 break;
             } catch (\Throwable $e) {
-                if (str_contains($e->getMessage(), 'invalid_candidate_ref') || str_contains($e->getMessage(), 'invalid_reason_code') || str_contains($e->getMessage(), 'invalid_match_score') || str_contains($e->getMessage(), 'invalid_items')) {
+                if (str_contains($e->getMessage(), 'invalid_candidate_ref') || str_contains($e->getMessage(), 'invalid_recommendation_reason') || str_contains($e->getMessage(), 'invalid_items')) {
                     $circuit->recordFailure();
                     throw $e;
                 }
@@ -276,7 +258,6 @@ final class EnterpriseAiGeminiMatcher
             @file_put_contents($logDir . '/gemini_response.log', $logEntry, FILE_APPEND | LOCK_EX);
             @file_put_contents($root . '/response.log', $logEntry, FILE_APPEND | LOCK_EX);
         } catch (\Throwable) {
-            // Không làm gián đoạn luồng chính nếu lỗi ghi log
         }
     }
 }

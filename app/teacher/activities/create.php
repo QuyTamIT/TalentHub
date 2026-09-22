@@ -1094,19 +1094,8 @@ $teacherAssetUrl = static function (string $relPath): string {
                                                         $cat = trim((string) ($skill['category'] ?? '')) ?: 'Khác';
                                                         $skillsByCategory[$cat][] = $skill;
                                                     }
-                                                    $selectedSkillCount = count(array_intersect(
-                                                        $selectedSkillIds,
-                                                        array_map(static fn (array $skill): string => (string) $skill['id'], $skillCatalog)
-                                                    ));
                                                     ?>
                                                     <div class="teacher-skill-tree" data-skill-tree>
-                                                        <div class="teacher-skill-tree__toolbar">
-                                                            <label class="teacher-skill-tree__search">
-                                                                <span class="teacher-visually-hidden">Tìm kỹ năng</span>
-                                                                <input type="search" data-skill-tree-search placeholder="Tìm kỹ năng..." autocomplete="off">
-                                                            </label>
-                                                            <span class="teacher-skill-tree__count" data-skill-tree-count><?= (int) $selectedSkillCount; ?> đã chọn</span>
-                                                        </div>
                                                         <div class="teacher-skill-tree__panel" role="tree" aria-label="Kỹ năng phát triển">
                                                             <?php foreach ($skillsByCategory as $category => $skills):
                                                                 $categoryKey = preg_replace('/[^a-z0-9_-]+/i', '-', strtolower($category)) ?: 'other';

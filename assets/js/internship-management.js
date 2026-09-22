@@ -333,464 +333,125 @@ function initInternshipManagementModule() {
     /* --------------------------------------------------------------------------
      * 3. Create & Edit Form Interactivity (create.php)
      * -------------------------------------------------------------------------- */
-    // Master Mapping Specifications & Mock Skills DB
-    const FIELD_TECHNICAL_SKILLS = {
-        'Công nghệ thông tin': [
-            'Python', 'Java', 'C++', 'SQL', 'Git', 'Networking', 'Linux'
-        ],
-        'AI / Machine Learning': [
-            'Python', 'Machine Learning', 'Deep Learning', 'TensorFlow', 'PyTorch', 'Computer Vision', 'NLP', 'Data Analysis'
-        ],
-        'Thiết kế UI/UX': [
-            'Figma', 'UI/UX', 'Wireframing', 'Prototyping', 'User Research', 'Design System'
-        ],
-        'Marketing Digital': [
-            'Digital Marketing', 'SEO', 'Content Writing', 'Social Media', 'Google Ads', 'Analytics'
-        ],
-        'Khoa học Dữ liệu': [
-            'Python', 'SQL', 'Pandas', 'NumPy', 'Data Analysis', 'Data Visualization', 'Power BI', 'Machine Learning', 'PyTorch'
-        ],
-        'Kỹ thuật Phần mềm': [
-            'Java', 'JavaScript', 'TypeScript', 'PHP', 'Laravel', 'React', 'Node.js', 'REST API', 'Git', 'Docker', 'SQL'
-        ]
-    };
-
-    const SOFT_SKILLS = [
-        'Communication', 'Teamwork', 'Problem Solving', 'Leadership', 'Time Management', 'Critical Thinking'
-    ];
-
-    // Master Mock Skills Database (Maps to `skills` DB table: id, name, category)
-    const MOCK_SKILLS_DB = [
-        { id: 'sk-101', name: 'Python', category: 'Công nghệ thông tin', type: 'tech' },
-        { id: 'sk-102', name: 'Java', category: 'Công nghệ thông tin', type: 'tech' },
-        { id: 'sk-103', name: 'C++', category: 'Công nghệ thông tin', type: 'tech' },
-        { id: 'sk-104', name: 'SQL', category: 'Công nghệ thông tin', type: 'tech' },
-        { id: 'sk-105', name: 'Git', category: 'Công nghệ thông tin', type: 'tech' },
-        { id: 'sk-106', name: 'Networking', category: 'Công nghệ thông tin', type: 'tech' },
-        { id: 'sk-107', name: 'Linux', category: 'Công nghệ thông tin', type: 'tech' },
-
-        { id: 'sk-201', name: 'Machine Learning', category: 'AI / Machine Learning', type: 'tech' },
-        { id: 'sk-202', name: 'Deep Learning', category: 'AI / Machine Learning', type: 'tech' },
-        { id: 'sk-203', name: 'TensorFlow', category: 'AI / Machine Learning', type: 'tech' },
-        { id: 'sk-204', name: 'PyTorch', category: 'AI / Machine Learning', type: 'tech' },
-        { id: 'sk-205', name: 'Computer Vision', category: 'AI / Machine Learning', type: 'tech' },
-        { id: 'sk-206', name: 'NLP', category: 'AI / Machine Learning', type: 'tech' },
-        { id: 'sk-207', name: 'Data Analysis', category: 'AI / Machine Learning', type: 'tech' },
-
-        { id: 'sk-301', name: 'Figma', category: 'Thiết kế UI/UX', type: 'tech' },
-        { id: 'sk-302', name: 'UI/UX', category: 'Thiết kế UI/UX', type: 'tech' },
-        { id: 'sk-303', name: 'Wireframing', category: 'Thiết kế UI/UX', type: 'tech' },
-        { id: 'sk-304', name: 'Prototyping', category: 'Thiết kế UI/UX', type: 'tech' },
-        { id: 'sk-305', name: 'User Research', category: 'Thiết kế UI/UX', type: 'tech' },
-        { id: 'sk-306', name: 'Design System', category: 'Thiết kế UI/UX', type: 'tech' },
-
-        { id: 'sk-401', name: 'Digital Marketing', category: 'Marketing Digital', type: 'tech' },
-        { id: 'sk-402', name: 'SEO', category: 'Marketing Digital', type: 'tech' },
-        { id: 'sk-403', name: 'Content Writing', category: 'Marketing Digital', type: 'tech' },
-        { id: 'sk-404', name: 'Social Media', category: 'Marketing Digital', type: 'tech' },
-        { id: 'sk-405', name: 'Google Ads', category: 'Marketing Digital', type: 'tech' },
-        { id: 'sk-406', name: 'Analytics', category: 'Marketing Digital', type: 'tech' },
-
-        { id: 'sk-501', name: 'Pandas', category: 'Khoa học Dữ liệu', type: 'tech' },
-        { id: 'sk-502', name: 'NumPy', category: 'Khoa học Dữ liệu', type: 'tech' },
-        { id: 'sk-503', name: 'Data Visualization', category: 'Khoa học Dữ liệu', type: 'tech' },
-        { id: 'sk-504', name: 'Power BI', category: 'Khoa học Dữ liệu', type: 'tech' },
-
-        { id: 'sk-601', name: 'JavaScript', category: 'Kỹ thuật Phần mềm', type: 'tech' },
-        { id: 'sk-602', name: 'TypeScript', category: 'Kỹ thuật Phần mềm', type: 'tech' },
-        { id: 'sk-603', name: 'PHP', category: 'Kỹ thuật Phần mềm', type: 'tech' },
-        { id: 'sk-604', name: 'Laravel', category: 'Kỹ thuật Phần mềm', type: 'tech' },
-        { id: 'sk-605', name: 'React', category: 'Kỹ thuật Phần mềm', type: 'tech' },
-        { id: 'sk-606', name: 'Node.js', category: 'Kỹ thuật Phần mềm', type: 'tech' },
-        { id: 'sk-607', name: 'REST API', category: 'Kỹ thuật Phần mềm', type: 'tech' },
-        { id: 'sk-608', name: 'Docker', category: 'Kỹ thuật Phần mềm', type: 'tech' },
-
-        { id: 'sk-901', name: 'Communication', category: 'Kỹ năng mềm', type: 'soft' },
-        { id: 'sk-902', name: 'Teamwork', category: 'Kỹ năng mềm', type: 'soft' },
-        { id: 'sk-903', name: 'Problem Solving', category: 'Kỹ năng mềm', type: 'soft' },
-        { id: 'sk-904', name: 'Leadership', category: 'Kỹ năng mềm', type: 'soft' },
-        { id: 'sk-905', name: 'Time Management', category: 'Kỹ năng mềm', type: 'soft' },
-        { id: 'sk-906', name: 'Critical Thinking', category: 'Kỹ năng mềm', type: 'soft' }
-    ];
-
     if (form) {
-        const fieldSelect = id('form-field');
+        const skillTree = form.querySelector('[data-skill-tree]');
         const selectedSkillsWrapper = id('form-selected-skills');
-        const skillPickerContainer = id('skill-picker-container');
-        const techSuggestionsContainer = id('tech-skills-suggestions');
-        const softSuggestionsContainer = id('soft-skills-suggestions');
-        const techFieldLabel = id('tech-skill-field-label');
         const selectedCountEl = id('selected-skills-count');
         const btnClearSkills = id('btn-clear-skills');
-        const customSkillInput = id('input-custom-skill');
-        const btnAddCustomSkill = id('btn-add-custom-skill');
-        const searchResultsContainer = id('custom-skill-search-results');
-
-        // Internal State array of selected skill objects: { name, type, category, skillId }
+        const skillsJsonInput = id('form-skills-json');
         let selectedSkills = [];
 
-        // Parse initial skills from data attribute (if editing or pre-filled)
-        let rawInitialSkills = [];
-        if (skillPickerContainer && skillPickerContainer.getAttribute('data-initial-skills')) {
-            try {
-                rawInitialSkills = JSON.parse(skillPickerContainer.getAttribute('data-initial-skills')) || [];
-            } catch (e) {
-                rawInitialSkills = [];
+        function syncSkillsHidden() {
+            if (skillsJsonInput) skillsJsonInput.value = JSON.stringify(selectedSkills.map((s) => s.name));
+            if (selectedCountEl) selectedCountEl.textContent = String(selectedSkills.length);
+            if (btnClearSkills) btnClearSkills.hidden = selectedSkills.length === 0;
+            if (selectedSkillsWrapper) {
+                if (selectedSkills.length === 0) {
+                    selectedSkillsWrapper.innerHTML = '<span class="ent-skill-empty-tip text-muted">Chưa có kỹ năng nào được chọn. Hãy chọn từ danh sách bên dưới.</span>';
+                } else {
+                    selectedSkillsWrapper.innerHTML = selectedSkills.map((sk) =>
+                        '<span class="ent-skill-tag" data-remove-skill="' + escapeHtml(sk.id) + '">' +
+                        escapeHtml(sk.name) +
+                        '<button type="button" aria-label="Bỏ ' + escapeHtml(sk.name) + '">&times;</button></span>'
+                    ).join('');
+                }
             }
         }
 
-        // Initialize Skill Picker Component
-        initSkillPicker();
-
-        function initSkillPicker() {
-            renderSoftSkillsSuggestions();
-
-            const initialField = fieldSelect ? fieldSelect.value : '';
-            if (initialField) {
-                updateTechSuggestions(initialField);
-            } else {
-                renderEmptyTechHint();
-            }
-
-            // Populate initial selected skills
-            if (rawInitialSkills && rawInitialSkills.length > 0) {
-                rawInitialSkills.forEach(skName => {
-                    addSkillObject(createSkillObject(skName, initialField));
+        function collectSelectedFromTree() {
+            selectedSkills = [];
+            if (!skillTree) return;
+            skillTree.querySelectorAll('[data-skill-tree-leaf] input[type="checkbox"]:checked').forEach((input) => {
+                const leaf = input.closest('[data-skill-tree-leaf]');
+                if (!(leaf instanceof HTMLElement)) return;
+                selectedSkills.push({
+                    id: leaf.getAttribute('data-skill-id') || input.value,
+                    name: leaf.getAttribute('data-skill-label') || input.value,
                 });
+            });
+            syncSkillsHidden();
+        }
+
+        function syncParent(node) {
+            const parent = node.querySelector('[data-skill-tree-parent]');
+            const leaves = [...node.querySelectorAll('[data-skill-tree-leaf] input[type="checkbox"]')]
+                .filter((input) => input instanceof HTMLInputElement && !input.closest('.is-filtered-out'));
+            if (!(parent instanceof HTMLInputElement)) return;
+            if (leaves.length === 0) {
+                parent.checked = false;
+                parent.indeterminate = false;
+                return;
             }
+            const checked = leaves.filter((input) => input.checked).length;
+            parent.checked = checked === leaves.length;
+            parent.indeterminate = checked > 0 && checked < leaves.length;
+        }
 
-            renderSelectedSkillTags();
-            updateChipStates();
+        function setOpen(node, open) {
+            const children = node.querySelector('.ent-skill-tree__children');
+            node.classList.toggle('is-open', open);
+            node.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (children instanceof HTMLElement) children.hidden = !open;
+        }
 
-            // Field Change Listener
-            if (fieldSelect) {
-                fieldSelect.addEventListener('change', handleFieldChange);
-            }
-
-            // Suggestion Chip Clicks (Technical & Soft)
-            if (techSuggestionsContainer) {
-                techSuggestionsContainer.addEventListener('click', (e) => {
-                    const pill = e.target.closest('.ent-chip-pill');
-                    if (pill) {
-                        const skillName = pill.getAttribute('data-skill');
-                        toggleSkill(skillName, 'tech');
-                    }
+        if (skillTree instanceof HTMLElement) {
+            skillTree.querySelectorAll('[data-skill-tree-node]').forEach((node) => {
+                if (!(node instanceof HTMLElement)) return;
+                const parent = node.querySelector('[data-skill-tree-parent]');
+                if (parent instanceof HTMLInputElement && parent.getAttribute('data-indeterminate') === '1') {
+                    parent.indeterminate = true;
+                    parent.removeAttribute('data-indeterminate');
+                }
+                syncParent(node);
+                const toggle = node.querySelector('[data-skill-tree-toggle]');
+                if (toggle instanceof HTMLButtonElement) {
+                    toggle.addEventListener('click', () => setOpen(node, !node.classList.contains('is-open')));
+                }
+                if (parent instanceof HTMLInputElement) {
+                    parent.addEventListener('change', () => {
+                        node.querySelectorAll('[data-skill-tree-leaf] input[type="checkbox"]').forEach((input) => {
+                            if (!(input instanceof HTMLInputElement) || input.closest('.is-filtered-out')) return;
+                            input.checked = parent.checked;
+                        });
+                        parent.indeterminate = false;
+                        if (parent.checked) setOpen(node, true);
+                        collectSelectedFromTree();
+                    });
+                }
+                node.querySelectorAll('[data-skill-tree-leaf] input[type="checkbox"]').forEach((input) => {
+                    if (!(input instanceof HTMLInputElement)) return;
+                    input.addEventListener('change', () => {
+                        syncParent(node);
+                        collectSelectedFromTree();
+                    });
                 });
-            }
-
-            if (softSuggestionsContainer) {
-                softSuggestionsContainer.addEventListener('click', (e) => {
-                    const pill = e.target.closest('.ent-chip-pill');
-                    if (pill) {
-                        const skillName = pill.getAttribute('data-skill');
-                        toggleSkill(skillName, 'soft');
-                    }
-                });
-            }
-
-            // Tag Removals & Clear All
+            });
             if (selectedSkillsWrapper) {
                 selectedSkillsWrapper.addEventListener('click', (e) => {
-                    const removeBtn = e.target.closest('.remove-skill-btn');
-                    if (removeBtn) {
-                        const tag = removeBtn.closest('.skill-tag');
-                        if (tag) {
-                            const skillName = tag.getAttribute('data-skill');
-                            removeSkillByName(skillName);
-                        }
+                    const btn = e.target.closest('[data-remove-skill]');
+                    if (!btn) return;
+                    const skillId = btn.getAttribute('data-remove-skill');
+                    const leafInput = [...skillTree.querySelectorAll('[data-skill-tree-leaf]')].find((el) => el.getAttribute('data-skill-id') === skillId)?.querySelector('input[type="checkbox"]');
+                    if (leafInput instanceof HTMLInputElement) {
+                        leafInput.checked = false;
+                        const node = leafInput.closest('[data-skill-tree-node]');
+                        if (node instanceof HTMLElement) syncParent(node);
                     }
+                    collectSelectedFromTree();
                 });
             }
-
             if (btnClearSkills) {
                 btnClearSkills.addEventListener('click', () => {
-                    selectedSkills = [];
-                    renderSelectedSkillTags();
-                    updateChipStates();
+                    skillTree.querySelectorAll('[data-skill-tree-leaf] input[type="checkbox"]').forEach((input) => {
+                        if (input instanceof HTMLInputElement) input.checked = false;
+                    });
+                    skillTree.querySelectorAll('[data-skill-tree-node]').forEach((node) => {
+                        if (node instanceof HTMLElement) syncParent(node);
+                    });
+                    collectSelectedFromTree();
                 });
             }
-
-            // Search / Custom Skill Input
-            if (customSkillInput) {
-                customSkillInput.addEventListener('input', handleSearchInput);
-                customSkillInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        submitCustomSkillInput();
-                    }
-                });
-            }
-
-            if (btnAddCustomSkill) {
-                btnAddCustomSkill.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    submitCustomSkillInput();
-                });
-            }
-
-            // Close search results dropdown on outside click
-            document.addEventListener('click', (e) => {
-                if (searchResultsContainer && !e.target.closest('.ent-skill-search-wrapper')) {
-                    searchResultsContainer.style.display = 'none';
-                }
-            });
-        }
-
-        // Field change handler: updates tech suggestions, validates existing tech skills, keeps soft skills
-        function handleFieldChange() {
-            const newField = fieldSelect ? fieldSelect.value : '';
-
-            if (!newField) {
-                renderEmptyTechHint();
-                renderSelectedSkillTags();
-                updateChipStates();
-                return;
-            }
-
-            updateTechSuggestions(newField);
-
-            const allowedTechList = FIELD_TECHNICAL_SKILLS[newField] || [];
-            let removedCount = 0;
-
-            // Filter out technical skills that are no longer valid for the new field
-            selectedSkills = selectedSkills.filter(s => {
-                if (s.type === 'soft') return true; // Soft skills remain intact
-                
-                // For technical or custom skills, verify if allowed in new field
-                const isAllowed = allowedTechList.includes(s.name);
-                if (!isAllowed) {
-                    removedCount++;
-                }
-                return isAllowed;
-            });
-
-            if (removedCount > 0) {
-                showToast('Một số kỹ năng không phù hợp với lĩnh vực mới đã được bỏ chọn.');
-            }
-
-            renderSelectedSkillTags();
-            updateChipStates();
-        }
-
-        function renderEmptyTechHint() {
-            if (techFieldLabel) techFieldLabel.textContent = 'Gợi ý theo lĩnh vực: Vui lòng chọn lĩnh vực ở trên';
-            if (techSuggestionsContainer) {
-                techSuggestionsContainer.innerHTML = `<span class="text-muted" style="font-size: 0.8125rem; font-style: italic;">Vui lòng chọn một Lĩnh vực chuyên môn để xem danh sách gợi ý kỹ năng phù hợp.</span>`;
-            }
-        }
-
-        function renderSoftSkillsSuggestions() {
-            if (!softSuggestionsContainer) return;
-            softSuggestionsContainer.innerHTML = SOFT_SKILLS.map(sk => `
-                <button type="button" class="ent-chip-pill ent-chip-pill--soft" data-skill="${escapeHtml(sk)}">
-                    <span class="chip-label">+ ${escapeHtml(sk)}</span>
-                </button>
-            `).join('');
-        }
-
-        function updateTechSuggestions(field) {
-            if (techFieldLabel) {
-                techFieldLabel.textContent = `Gợi ý theo lĩnh vực: ${field}`;
-            }
-
-            const techList = FIELD_TECHNICAL_SKILLS[field] || [];
-            if (techSuggestionsContainer) {
-                if (techList.length === 0) {
-                    techSuggestionsContainer.innerHTML = `<span class="text-muted" style="font-size: 0.8125rem; font-style: italic;">Chưa có gợi ý kỹ năng cho lĩnh vực này.</span>`;
-                } else {
-                    techSuggestionsContainer.innerHTML = techList.map(sk => `
-                        <button type="button" class="ent-chip-pill ent-chip-pill--tech" data-skill="${escapeHtml(sk)}">
-                            <span class="chip-label">+ ${escapeHtml(sk)}</span>
-                        </button>
-                    `).join('');
-                }
-            }
-        }
-
-        function createSkillObject(skillName, currentField) {
-            const trimmed = skillName.trim();
-            const softMatch = SOFT_SKILLS.find(s => s.toLowerCase() === trimmed.toLowerCase());
-            if (softMatch) {
-                const dbMatch = MOCK_SKILLS_DB.find(s => s.name === softMatch);
-                return {
-                    name: softMatch,
-                    type: 'soft',
-                    category: 'Kỹ năng mềm',
-                    skillId: dbMatch ? dbMatch.id : 'sk-soft-custom'
-                };
-            }
-
-            const dbMatch = MOCK_SKILLS_DB.find(s => s.name.toLowerCase() === trimmed.toLowerCase());
-            if (dbMatch) {
-                return {
-                    name: dbMatch.name,
-                    type: 'tech',
-                    category: dbMatch.category,
-                    skillId: dbMatch.id
-                };
-            }
-
-            return {
-                name: trimmed,
-                type: 'tech',
-                category: currentField || 'Khác',
-                skillId: 'sk-custom-' + Date.now()
-            };
-        }
-
-        function toggleSkill(skillName, defaultType) {
-            const existingIdx = selectedSkills.findIndex(s => s.name.toLowerCase() === skillName.toLowerCase());
-            if (existingIdx !== -1) {
-                selectedSkills.splice(existingIdx, 1);
-            } else {
-                const currentField = fieldSelect ? fieldSelect.value : '';
-                const skObj = createSkillObject(skillName, currentField);
-                if (defaultType) skObj.type = defaultType;
-                selectedSkills.push(skObj);
-            }
-            renderSelectedSkillTags();
-            updateChipStates();
-        }
-
-        function addSkillObject(skObj) {
-            if (!skObj || !skObj.name) return;
-            const exists = selectedSkills.some(s => s.name.toLowerCase() === skObj.name.toLowerCase());
-            if (!exists) {
-                selectedSkills.push(skObj);
-            }
-        }
-
-        function removeSkillByName(skillName) {
-            selectedSkills = selectedSkills.filter(s => s.name.toLowerCase() !== skillName.toLowerCase());
-            renderSelectedSkillTags();
-            updateChipStates();
-        }
-
-        function renderSelectedSkillTags() {
-            if (!selectedSkillsWrapper) return;
-
-            if (selectedSkills.length === 0) {
-                selectedSkillsWrapper.innerHTML = `<span class="ent-skill-empty-tip text-muted">Chưa có kỹ năng nào được chọn. Hãy chọn từ danh sách gợi ý bên dưới hoặc gõ để tìm kiếm.</span>`;
-                if (selectedCountEl) selectedCountEl.textContent = '0';
-                if (btnClearSkills) btnClearSkills.style.display = 'none';
-                return;
-            }
-
-            if (selectedCountEl) selectedCountEl.textContent = selectedSkills.length;
-            if (btnClearSkills) btnClearSkills.style.display = 'inline-block';
-
-            selectedSkillsWrapper.innerHTML = selectedSkills.map(sk => `
-                <span class="skill-tag skill-tag--removable" data-skill="${escapeHtml(sk.name)}">
-                    <span>${escapeHtml(sk.name)}</span>
-                    <button type="button" class="remove-skill-btn" title="Bỏ chọn">&times;</button>
-                </span>
-            `).join('');
-        }
-
-        function updateChipStates() {
-            // Update Tech Pills
-            if (techSuggestionsContainer) {
-                techSuggestionsContainer.querySelectorAll('.ent-chip-pill').forEach(pill => {
-                    const name = pill.getAttribute('data-skill');
-                    const isSelected = selectedSkills.some(s => s.name.toLowerCase() === name.toLowerCase());
-                    const labelSpan = pill.querySelector('.chip-label');
-                    if (isSelected) {
-                        pill.classList.add('is-selected');
-                        if (labelSpan) labelSpan.innerHTML = `✓ ${escapeHtml(name)}`;
-                    } else {
-                        pill.classList.remove('is-selected');
-                        if (labelSpan) labelSpan.innerHTML = `+ ${escapeHtml(name)}`;
-                    }
-                });
-            }
-
-            // Update Soft Pills
-            if (softSuggestionsContainer) {
-                softSuggestionsContainer.querySelectorAll('.ent-chip-pill').forEach(pill => {
-                    const name = pill.getAttribute('data-skill');
-                    const isSelected = selectedSkills.some(s => s.name.toLowerCase() === name.toLowerCase());
-                    const labelSpan = pill.querySelector('.chip-label');
-                    if (isSelected) {
-                        pill.classList.add('is-selected');
-                        if (labelSpan) labelSpan.innerHTML = `✓ ${escapeHtml(name)}`;
-                    } else {
-                        pill.classList.remove('is-selected');
-                        if (labelSpan) labelSpan.innerHTML = `+ ${escapeHtml(name)}`;
-                    }
-                });
-            }
-        }
-
-        // Search Input Handling
-        function handleSearchInput() {
-            if (!searchResultsContainer || !customSkillInput) return;
-            const query = customSkillInput.value.trim().toLowerCase();
-
-            if (!query) {
-                searchResultsContainer.style.display = 'none';
-                return;
-            }
-
-            const currentField = fieldSelect ? fieldSelect.value : '';
-            const fieldTechs = FIELD_TECHNICAL_SKILLS[currentField] || [];
-
-            // Prioritize skills matching query: tech skills for current field first, soft skills, then other tech skills
-            const matches = MOCK_SKILLS_DB.filter(s => {
-                const nameMatches = s.name.toLowerCase().includes(query);
-                if (!nameMatches) return false;
-                // If it's a tech skill, only show if it belongs to current field or soft skills (prioritize field)
-                if (s.type === 'tech') {
-                    return fieldTechs.includes(s.name) || s.category === currentField;
-                }
-                return true;
-            });
-
-            if (matches.length === 0) {
-                searchResultsContainer.innerHTML = `
-                    <div class="ent-skill-search-item text-muted" id="search-item-custom-add">
-                        <span>Bấm Enter hoặc "+ Thêm" để thêm "<strong>${escapeHtml(query)}</strong>"</span>
-                    </div>
-                `;
-            } else {
-                searchResultsContainer.innerHTML = matches.map(s => {
-                    const isAlready = selectedSkills.some(sel => sel.name.toLowerCase() === s.name.toLowerCase());
-                    return `
-                        <div class="ent-skill-search-item" data-skill="${escapeHtml(s.name)}" data-type="${s.type}">
-                            <span>${escapeHtml(s.name)} <small class="text-muted">(${escapeHtml(s.category)})</small></span>
-                            <span class="badge ${isAlready ? 'bg-secondary' : 'bg-primary'}">${isAlready ? 'Đã chọn' : '+ Chọn'}</span>
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            searchResultsContainer.style.display = 'block';
-
-            // Item clicks in dropdown
-            searchResultsContainer.querySelectorAll('.ent-skill-search-item[data-skill]').forEach(item => {
-                item.addEventListener('click', () => {
-                    const skName = item.getAttribute('data-skill');
-                    const skType = item.getAttribute('data-type');
-                    toggleSkill(skName, skType);
-                    customSkillInput.value = '';
-                    searchResultsContainer.style.display = 'none';
-                });
-            });
-        }
-
-        function submitCustomSkillInput() {
-            if (!customSkillInput) return;
-            const val = customSkillInput.value.trim();
-            if (!val) return;
-
-            const currentField = fieldSelect ? fieldSelect.value : '';
-            const skObj = createSkillObject(val, currentField);
-            addSkillObject(skObj);
-
-            renderSelectedSkillTags();
-            updateChipStates();
-
-            customSkillInput.value = '';
-            if (searchResultsContainer) searchResultsContainer.style.display = 'none';
+            collectSelectedFromTree();
         }
 
         // Audience & Target Schools Management

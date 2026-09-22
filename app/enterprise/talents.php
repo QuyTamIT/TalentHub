@@ -277,9 +277,9 @@ $sidebarNav = [
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                                     </svg>
-                                    AI Engine
+                                    Khớp vị trí
                                 </span>
-                                <h3 class="ent-ai-matcher-card__title">Tìm nhân tài bằng AI</h3>
+                                <h3 class="ent-ai-matcher-card__title">Tìm hồ sơ phù hợp</h3>
                             </div>
                             <div class="ent-ai-matcher-card__metadata" style="display: none;">
                                 <span>Phiên bản: <strong data-enterprise-ai-provenance>AI</strong></span>
@@ -288,7 +288,7 @@ $sidebarNav = [
                             </div>
                         </div>
                         <p class="ent-ai-matcher-card__description">
-                            Khớp nối tự động và xếp hạng ứng viên dựa trên điểm đánh giá năng lực và kỹ năng đã kiểm chứng đối chiếu với yêu cầu của vị trí thực tập.
+                            Xếp hạng hồ sơ theo kỹ năng đã chọn của vị trí. AI giải thích vì sao từng ứng viên phù hợp.
                         </p>
                         <div class="ent-ai-matcher-card__controls" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem;">
                             <div class="ent-ai-matcher-card__field" style="flex: 1 1 320px;">
@@ -305,7 +305,7 @@ $sidebarNav = [
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                                     </svg>
-                                    <span>Tìm nhân tài bằng AI</span>
+                                    <span>Tìm hồ sơ phù hợp</span>
                                 </button>
                             </div>
                         </div>
@@ -549,7 +549,7 @@ $sidebarNav = [
                                         <svg class="ent-ai-banner__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                                         </svg>
-                                        <span class="ent-ai-banner__pulse-dot" title="AI Ranking đang hoạt động"></span>
+                                        <span class="ent-ai-banner__pulse-dot" title="Đang xem hồ sơ phù hợp"></span>
                                     </div>
                                     <div class="ent-ai-banner__body">
                                         <div class="ent-ai-banner__badges">
@@ -557,18 +557,18 @@ $sidebarNav = [
                                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                                     <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
                                                 </svg>
-                                                AI Ranking Hoàn tất
+                                                Hồ sơ phù hợp
                                             </span>
                                             <span class="ent-ai-banner__badge ent-ai-banner__badge--count" id="ent-ai-count-badge">
                                                 0 ứng viên phù hợp
                                             </span>
                                         </div>
                                         <div class="ent-ai-banner__text" id="ent-ai-active-text">
-                                            Đang hiển thị danh sách ứng viên phù hợp theo đề xuất AI
+                                            Đang hiển thị danh sách hồ sơ phù hợp theo vị trí đã chọn
                                         </div>
                                     </div>
                                 </div>
-                                <button type="button" class="ent-ai-banner__reset-btn" id="ent-ai-reset-btn" title="Bỏ lọc AI và xem tất cả ứng viên">
+                                <button type="button" class="ent-ai-banner__reset-btn" id="ent-ai-reset-btn" title="Bỏ lọc và xem tất cả ứng viên">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                         <line x1="18" y1="6" x2="6" y2="18"></line>
                                         <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -705,7 +705,7 @@ $sidebarNav = [
                                                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                                                 <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                                             </svg>
-                                            <span><?= !empty($talent['contactAllowed']) ? 'Đã có quyền liên hệ' : 'Hồ sơ có consent' ?></span>
+                                            <span><?= !empty($talent['contactAllowed']) ? 'Đã có quyền liên hệ' : '' ?></span>
                                         </div>
                                         <div class="ent-talent-card-item__actions">
                                             <a href="<?= $detailUrl ?>" class="btn btn-secondary btn-sm">

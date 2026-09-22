@@ -761,7 +761,7 @@ final class EnterpriseTalentRepository
             $row = $statement->fetch(PDO::FETCH_ASSOC);
             if (is_array($row) && is_string($row['ranking_json'] ?? null)) {
                 $decoded = json_decode($row['ranking_json'], true, 64, JSON_THROW_ON_ERROR);
-                if (is_array($decoded) && ($decoded['analysis_origin'] ?? '') === 'model' && isset($decoded['items']) && is_array($decoded['items'])) {
+                if (is_array($decoded) && in_array(($decoded['analysis_origin'] ?? ''), ['model', 'rule', 'hybrid_ai', 'local_ai'], true) && isset($decoded['items']) && is_array($decoded['items'])) {
                     $decoded['updated_at'] = (string) ($row['updated_at'] ?? '');
                     return $decoded;
                 }
