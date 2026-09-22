@@ -21,7 +21,7 @@
     const provenance = root.querySelector('[data-school-ai-provenance]');
 
     try {
-      const response = await fetcher('/api/v1/schools/me/ai-insights', {
+      const response = await fetcher('/app/api/v1/index.php/schools/me/ai-insights', {
         credentials: 'same-origin',
         headers: { Accept: 'application/json' }
       });

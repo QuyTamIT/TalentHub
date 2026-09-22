@@ -229,7 +229,7 @@ function initInternshipManagementModule() {
         const bootNode = document.getElementById('enterprise-session-boot');
         let boot = {};
         try { boot = JSON.parse(bootNode?.textContent || '{}'); } catch { boot = {}; }
-        const apiBase = boot.apiBase || (window.location.pathname.includes('/TalentHub') ? '/TalentHub/api/v1' : '/api/v1');
+        const apiBase = boot.apiBase || (window.location.pathname.includes('/TalentHub') ? '/TalentHub/app/api/v1/index.php' : '/app/api/v1/index.php');
         const csrf = boot.csrfToken || document.querySelector('input[name="csrfToken"]')?.value || '';
         try {
             const response = await fetch(`${apiBase}/businesses/me/internships/${encodeURIComponent(postId)}/${action}`, {
@@ -900,7 +900,7 @@ function initInternshipManagementModule() {
                 targetSchoolIds: targetSchoolIds,
             };
             const request = async (method, path, body) => {
-                const apiBase = boot.apiBase || (window.location.pathname.includes('/TalentHub') ? '/TalentHub/api/v1' : '/api/v1');
+                const apiBase = boot.apiBase || (window.location.pathname.includes('/TalentHub') ? '/TalentHub/app/api/v1/index.php' : '/app/api/v1/index.php');
                 const csrf = boot.csrfToken || document.querySelector('input[name="csrfToken"]')?.value || '';
                 const response = await fetch(`${apiBase}${path}`, {
                     method,

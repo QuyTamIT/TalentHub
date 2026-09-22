@@ -941,7 +941,7 @@ $sidebarNav = [
         <?= json_encode([
             'csrfToken' => $csrfToken,
             'studentId' => $talentId,
-            'apiBase' => '/api/v1/businesses/me',
+            'apiBase' => app_href('/app/api/v1/index.php/businesses/me'),
             'contactAllowed' => $talent['contactAllowed'] ?? false,
             'hasPendingContactRequest' => $talent['hasPendingContactRequest'] ?? false,
         ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>

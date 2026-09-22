@@ -826,7 +826,7 @@ $sidebarNav = [
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 
     <!-- JavaScript Assets -->
-    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => app_href('/api/v1')], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
+    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => app_href('/app/api/v1/index.php')], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
     <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
     <script src="<?= app_href('/assets/js/internship-management.js'); ?>"></script>
 
@@ -838,7 +838,7 @@ $sidebarNav = [
             document.querySelector('script[data-csrf]')?.textContent || '{}'
         );
         var csrfToken = sessionBoot.csrfToken || '';
-        var apiBase   = sessionBoot.apiBase   || '/api/v1';
+        var apiBase   = sessionBoot.apiBase   || '/app/api/v1/index.php';
 
         /* ---------- DOM refs ---------- */
         var modal        = document.getElementById('modal-add-specialty');

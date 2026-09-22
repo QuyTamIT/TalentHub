@@ -233,7 +233,7 @@
 
         try {
             return global.TalentHubLearnerApi.createLearnerApiClient({
-                baseUrl: baseOverride || boot.apiBase || '/api/v1',
+                baseUrl: baseOverride || boot.apiBase || '/app/api/v1/index.php',
                 csrfToken: boot.csrfToken || '',
                 onUnauthorized: () => {
                     if (typeof global.location?.assign !== 'function') return;
@@ -1497,7 +1497,7 @@
                         if (input && input.value) csrfToken = input.value;
                     }
 
-                    const client = global.TalentHubLearnerApi.createLearnerApiClient({ baseUrl: '/api/v1', csrfToken });
+                    const client = global.TalentHubLearnerApi.createLearnerApiClient({ baseUrl: '/app/api/v1/index.php', csrfToken });
 
                     // If avatar is a local data URL (uploaded file from device), upload it first.
                     if (payload.avatarUrl && payload.avatarUrl.startsWith('data:image/')) {

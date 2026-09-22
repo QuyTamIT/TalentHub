@@ -352,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const apiBase = (window.location.pathname.includes('/TalentHub') ? '/TalentHub' : '') + '/api/v1/businesses/me';
+                const apiBase = (window.location.pathname.includes('/TalentHub') ? '/TalentHub' : '') + '/app/api/v1/index.php/businesses/me';
 
                 // If user uploaded a new logo file, send it first
                 if (pendingLogoDataUrl) {

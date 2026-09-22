@@ -19,7 +19,7 @@ function initTalentSearchModule() {
         csrfToken: '',
         enterpriseId: '',
         isVerified: true,
-        apiBase: '/api/v1/businesses/me',
+        apiBase: '/app/api/v1/index.php/businesses/me',
         initialTalents: [],
         totalTalents: 0,
         sectorType: 'tech',

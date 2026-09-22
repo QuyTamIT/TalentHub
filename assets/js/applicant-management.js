@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try { enterpriseBoot = JSON.parse(bootNode?.textContent || '{}'); } catch { enterpriseBoot = {}; }
 
     async function enterpriseRequest(method, path, body) {
-        const apiBase = enterpriseBoot.apiBase || (window.location.pathname.includes('/TalentHub') ? '/TalentHub/api/v1' : '/api/v1');
+        const apiBase = enterpriseBoot.apiBase || (window.location.pathname.includes('/TalentHub') ? '/TalentHub/app/api/v1/index.php' : '/app/api/v1/index.php');
         const csrf = enterpriseBoot.csrfToken || document.querySelector('input[name="csrfToken"]')?.value || '';
         const response = await fetch(`${apiBase}${path}`, {
             method,

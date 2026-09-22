@@ -27,8 +27,15 @@ final class Request
         if(isset($_SERVER['CONTENT_TYPE'])){$headers['content-type']=(string)$_SERVER['CONTENT_TYPE'];}
         $uri=(string)($_SERVER['REQUEST_URI']??'/');
         $path = parse_url($uri, PHP_URL_PATH) ?: '/';
-        if (($apiPos = strpos($path, '/api/')) !== false && $apiPos > 0) {
+        if (preg_match('#(/api/v1)(?:/index\.php)?(/.*)?$#', $path, $m) === 1) {
+            $path = $m[1] . ($m[2] ?? '');
+        } elseif (($apiPos = strpos($path, '/api/')) !== false && $apiPos > 0) {
             $path = substr($path, $apiPos);
+        }
+        $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+        $pathInfo = (string) ($_SERVER['PATH_INFO'] ?? '');
+        if ($pathInfo !== '' && str_ends_with($scriptName, '/api/v1/index.php')) {
+            $path = '/api/v1' . $pathInfo;
         }
         $queryString = (string) (parse_url($uri, PHP_URL_QUERY) ?? '');
         $queryParams = [];

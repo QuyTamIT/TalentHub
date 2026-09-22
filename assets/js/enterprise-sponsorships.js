@@ -687,7 +687,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 } catch(err) {}
             }
 
-            const apiBase = boot.apiBase || (window.location.pathname.includes('/TalentHub') ? '/TalentHub/api/v1' : '/api/v1');
+            const apiBase = boot.apiBase || (window.location.pathname.includes('/TalentHub') ? '/TalentHub/app/api/v1/index.php' : '/app/api/v1/index.php');
             const csrfToken = boot.csrfToken || '';
 
             const request = async (method, path, body) => {

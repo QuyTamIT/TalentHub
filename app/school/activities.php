@@ -671,7 +671,7 @@ ob_start();
                             <div class="act-tile">
                                 <span class="act-tile__label">Đơn vị tổ chức</span>
                                 <div class="act-tile__value">
-                                    <strong><?= schoolActivitiesEscape(($activity['organizerName'] ?? '') ?: 'Trường Đại học Cần Thơ'); ?></strong>
+                                    <strong><?= schoolActivitiesEscape(($activity['organizerName'] ?? '') ?: ''); ?></strong>
                                 </div>
                             </div>
 

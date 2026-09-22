@@ -849,7 +849,7 @@ $totalPledgedDisplay  = $totalPledgedAmount > 0
         window.ENTERPRISE_PROJECTS = <?= json_encode($displayProjects, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
         window.ENTERPRISE_SPONSORSHIPS = <?= json_encode($mySponsorships, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
     </script>
-    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => app_href('/api/v1')], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
+    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => app_href('/app/api/v1/index.php')], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
     <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
     <script src="<?= app_href('/assets/js/enterprise-sponsorships.js'); ?>"></script>
 </body>

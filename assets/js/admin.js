@@ -375,7 +375,8 @@
   applyOrgTabFilter();
 
   const basePath = location.pathname.includes('/app/') ? location.pathname.split('/app/')[0] : '';
-  const api = (path, options = {}) => fetch(`${basePath}/api/v1${path}`, { credentials: 'same-origin', ...options }).then(async (response) => {
+  const apiRoot = `${basePath}/app/api/v1/index.php`;
+  const api = (path, options = {}) => fetch(`${apiRoot}${path}`, { credentials: 'same-origin', ...options }).then(async (response) => {
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload?.error?.message || `HTTP ${response.status}`);
     return payload.data;

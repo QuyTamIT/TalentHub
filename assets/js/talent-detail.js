@@ -23,7 +23,7 @@ function initTalentDetailModule() {
     let sessionBoot = {
         csrfToken: '',
         studentId: '',
-        apiBase: '/api/v1/businesses/me',
+        apiBase: '/app/api/v1/index.php/businesses/me',
         contactAllowed: false,
         hasPendingContactRequest: false,
     };

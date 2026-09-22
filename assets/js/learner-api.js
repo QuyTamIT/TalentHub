@@ -4,7 +4,7 @@
 (function initLearnerApi(global) {
     'use strict';
 
-    const API_ROOT = '/api/v1';
+    const API_ROOT = '/app/api/v1/index.php';
     const LEARNER_API_ROOT = '/app/learner/api/v1';
     const ALLOWED_API_BASES = new Set([API_ROOT, LEARNER_API_ROOT]);
     const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -122,7 +122,7 @@
     }
 
     function createLearnerApiClient({
-        baseUrl = '/api/v1',
+        baseUrl = '/app/api/v1/index.php',
         csrfToken = '',
         fetchImpl = global.fetch,
         onUnauthorized = () => {},
