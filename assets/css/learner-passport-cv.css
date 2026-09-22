@@ -13,7 +13,7 @@ body {
     align-items: center;
     gap: 16px;
     padding: 0 16px;
-    font-size: 13.5px;
+    font-size: var(--text-sm, 0.875rem);
 }
 .cv-toolbar a {
     color: #1e3a8a;
@@ -31,7 +31,7 @@ body {
     color: white;
     cursor: pointer;
     font-weight: 700;
-    font-size: 13.5px;
+    font-size: var(--text-sm, 0.875rem);
     transition: background 0.15s;
 }
 .cv-toolbar button:hover { background: #172554; }
@@ -393,12 +393,21 @@ body {
     margin: 0;
 }
 
-/* Verified Skills Grid in Main Column */
-.cv-skills-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2.5mm 3.5mm;
-    margin-bottom: 0;
+.cv-skills-list {
+    margin: 0;
+    padding: 0 0 0 4.5mm;
+    list-style: disc;
+    columns: 2;
+    column-gap: 4mm;
+}
+.cv-skills-list li {
+    break-inside: avoid;
+    margin: 0 0 1.2mm;
+    padding: 0;
+    font-weight: 600;
+    font-size: 8.2pt;
+    color: #0f172a;
+    line-height: 1.35;
 }
 .cv-skill-row {
     background: #f8fafc;
@@ -410,36 +419,11 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 0.8mm;
 }
 .cv-skill-name {
     font-weight: 700;
     font-size: 8.2pt;
     color: #0f172a;
-}
-.cv-skill-score {
-    font-weight: 800;
-    font-size: 8pt;
-    color: #2563eb;
-}
-.cv-skill-score-verified {
-    font-size: 7pt;
-    color: #059669;
-    background: #ecfdf5;
-    padding: 0.5px 3.5px;
-    border-radius: 2px;
-}
-.cv-skill-bar-bg {
-    width: 100%;
-    height: 4px;
-    background: #e2e8f0;
-    border-radius: 2px;
-    overflow: hidden;
-}
-.cv-skill-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #1e3a8a 0%, #2563eb 100%);
-    border-radius: 2px;
 }
 
 /* Projects & Internships */

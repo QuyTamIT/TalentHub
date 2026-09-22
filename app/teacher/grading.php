@@ -81,10 +81,6 @@ if (!function_exists('formatRelativeDate')) {
     }
 }
 
-// Helper xác định trạng thái đánh giá chính xác dựa trên dữ liệu thực tế:
-// - 'published': Đã gửi đánh giá chính thức
-// - 'draft': Bản nháp thực sự (phải có điểm hoặc nhận xét đã lưu)
-// - 'unassessed': Chưa đánh giá (chưa có bản ghi hoặc bản ghi rỗng)
 if (!function_exists('resolveEvaluationStatus')) {
     function resolveEvaluationStatus(?string $rawStatus, ?float $overallScore, int $scoreCount, ?string $comment): string {
         if ($rawStatus === 'published') {
@@ -251,10 +247,11 @@ if ($activeActivityId !== '') {
             INNER JOIN activities act ON act.id = ar.activityId
             INNER JOIN student_profiles sp ON sp.id = ar.studentId
             INNER JOIN users u ON u.id = sp.userId
+            INNER JOIN checkins ci ON ci.registrationId = ar.id AND ci.status = 'confirmed' AND ci.confirmedAt IS NOT NULL
             LEFT JOIN classes c ON c.id = sp.classId
             LEFT JOIN assessments a ON a.studentId = sp.id AND a.teacherId = :teacherId AND a.activityId = act.id
             WHERE ar.activityId = :activityId
-              AND ar.status IN ('approved', 'attended')
+              AND ar.status = 'attended'
               AND sp.studyStatus = 'active'
             ORDER BY u.fullName ASC
         ");
@@ -345,7 +342,6 @@ if ($selectedStudent) {
         } catch (\Throwable $e) {}
     }
 
-    // Lấy dữ liệu hoạt động thực tế từ database
     try {
         $actStmt = $pdo->prepare("
             SELECT a.id, a.title, a.category, a.startAt, a.endAt, a.status AS activityStatus,
@@ -1012,7 +1008,7 @@ if (!function_exists('getStudentSingleInitial')) {
                         </div>
                     <?php elseif (empty($students)): ?>
                         <div style="text-align: center; color: #64748B; padding: 3.5rem 1.5rem; background: #FFFFFF; border-radius: 10px; border: 1px solid #E2E8F0;">
-                            <p style="margin: 0; font-size: 0.95rem;">Hoạt động “<?= htmlspecialchars($activeActivityTitle); ?>” chưa có học viên đăng ký / tham dự để chấm.</p>
+                            <p style="margin: 0; font-size: 0.95rem;">Hoạt động “<?= htmlspecialchars($activeActivityTitle); ?>” chưa có học viên điểm danh để chấm.</p>
                         </div>
                     <?php else: ?>
 

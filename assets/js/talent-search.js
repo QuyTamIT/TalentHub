@@ -674,7 +674,7 @@ function initTalentSearchModule() {
             if (Number.isFinite(talent.talent_score)) {
                 const scoreBadge = document.createElement('span');
                 scoreBadge.className = 'ent-talent-card-item__score';
-                scoreBadge.title = 'Điểm đánh giá năng lực thực tế từ giáo viên';
+                scoreBadge.title = 'Điểm đánh giá năng lực từ giáo viên';
                 scoreBadge.textContent = `★ ${Math.round(talent.talent_score)} điểm đánh giá`;
                 nameRow.appendChild(scoreBadge);
             } else {
@@ -868,7 +868,7 @@ function initTalentSearchModule() {
                     const chip = document.createElement('span');
                     const isMatched = matchedSet.has(sk.toLowerCase().trim());
                     chip.className = isMatched ? 'skill-tag skill-tag--matched' : 'skill-tag';
-                    chip.textContent = isMatched ? `✓ ${sk}` : sk;
+                    chip.textContent = sk;
                     chipsDiv.appendChild(chip);
                 });
                 if (orderedSkills.length > 5) {

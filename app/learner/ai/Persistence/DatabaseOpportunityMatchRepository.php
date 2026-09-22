@@ -211,11 +211,25 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
                 }
                 $itemId = self::uuid();
                 $this->insertItem($itemId, $runId, $match, $rank + 1, $now);
+                $linkedEvidence = [];
                 foreach ($match->evidenceRefs() as $evidenceRef) {
+                    $parts = explode(':', $evidenceRef, 2);
+                    $logicalType = count($parts) === 2 ? $parts[0] : '';
+                    $sourceId = count($parts) === 2 ? $parts[1] : $evidenceRef;
+                    $canonicalKey = EvidenceSourceTypeNormalizer::canonical($logicalType) . ':' . $sourceId;
+                    if (isset($linkedEvidence[$canonicalKey])) {
+                        continue;
+                    }
                     $snapshotEvidence = $this->snapshotEvidence($snapshotId, $evidenceRef);
                     if ($snapshotEvidence === null) {
                         throw new RuntimeException('Opportunity match evidence is not part of the run snapshot: ' . $evidenceRef);
                     }
+                    $storageKey = (string) $snapshotEvidence['sourceType'] . ':' . (string) $snapshotEvidence['sourceId'];
+                    if (isset($linkedEvidence[$storageKey])) {
+                        continue;
+                    }
+                    $linkedEvidence[$canonicalKey] = true;
+                    $linkedEvidence[$storageKey] = true;
                     $this->insertEvidence($itemId, $snapshotEvidence, $now);
                 }
             }

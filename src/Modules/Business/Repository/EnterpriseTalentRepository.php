@@ -1390,7 +1390,6 @@ final class EnterpriseTalentRepository
         foreach ($rows as $row) {
             $studentId = (string) $row['studentId'];
             $userId = (string) ($row['userId'] ?? '');
-            // $dbSkills = kỹ năng thực tế từ student_skills (dùng cho "Kỹ năng xác thực" và Talent Profile)
             $snapshot = $hasCurrentScores ? $this->discoveryScores($studentId, $enterpriseId) : null;
             if ($hasCurrentScores && $snapshot === null) continue;
             $currentSkills = $snapshot !== null ? $this->mapCurrentSkills($snapshot['skills']) : $this->skillsWithDetailsForStudent($studentId, $enterpriseId);

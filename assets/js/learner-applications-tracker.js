@@ -15,7 +15,8 @@
         const toggleIcon = tracker.querySelector('[data-toggle-icon]');
 
         const urlParams = new URLSearchParams(window.location.search);
-        const shouldAutoExpand = urlParams.get('view') === 'applications'
+        const shouldAutoExpand = urlParams.get('tab') === 'applications'
+            || urlParams.get('view') === 'applications'
             || window.location.hash === '#my-applications'
             || window.location.hash === '#applications-tracker-title'
             || tracker.dataset.hasApplications === 'true';

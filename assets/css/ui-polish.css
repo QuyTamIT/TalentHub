@@ -268,7 +268,7 @@ body {
 
 /* ── Touch Targets ── */
 @media (max-width: 768px) {
-    :where(button, .btn, a.btn, [role="button"]) {
+    :where(button, .btn, a.btn, [role="button"]):not([class*="icon-btn"]):not([class*="icon-button"]):not([class*="__control"]):not([class*="__avatar"]) {
         min-height: var(--touch-target, 44px);
     }
 }

@@ -80,8 +80,6 @@ $kpiProjectsChange = (!empty($summary['total_sponsored_formatted']) && $summary[
     ? "Tổng: {$summary['total_sponsored_formatted']}" 
     : 'Tổng: 0 VNĐ';
 
-// Tỷ lệ nhận thực tập — chỉ hiển thị % khi có đủ dữ liệu thực tế.
-// Nếu chưa có ứng viên nào, hiển thị "—" thay vì "0%" để tránh hiểu nhầm.
 $totalApplicants  = (int) ($summary['total_applicants']  ?? 0);
 $passedCandidates = (int) ($summary['passed_candidates'] ?? 0);
 

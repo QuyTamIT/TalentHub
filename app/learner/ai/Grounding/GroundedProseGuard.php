@@ -68,10 +68,28 @@ final class GroundedProseGuard
             ' missing_evidence ',
             $history,
         ) ?? $history;
-        $history = preg_replace('/\b(?:sau khi|khi|chua|khong) (?:ban |em )?(?:da )?/', ' instruction ', $history) ?? $history;
+        $history = preg_replace('/\b(?:sau khi|khi|chua|khong) (?:ban |em )?(?:da )(?=' . $historyVerb . '\b)/', ' instruction ', $history) ?? $history;
         $history = preg_replace('/\b(?:cho|tren|voi) (?:cac |nhung )?(?:api|tinh nang|chuc nang|module|ma nguon) da /', ' artifact ', $history) ?? $history;
-        if (preg_match('/\b(?:da|tung) (?:' . $historyVerb . ')\b/', $history, $m1) === 1
-            || preg_match('/\b(?:ban|em) (?:hien )?(?:co(?! (?:the|co hoi|xu huong|loi the|tiem nang|kha nang|nhiem vu|ke hoach|muc tieu|dinh huong)\b)|so huu|tich luy|dat duoc)\b.{0,90}\b(?:nam kinh nghiem|chung chi|giai thuong|bang cap|du an)\b/', $history, $m2) === 1) {
+        $history = preg_replace(
+            '/\b(?:tham gia|ung tuyen|nop don|tim hieu|theo doi) (?:vao |voi |den |toi )?(?:cac |nhung |mot )?(?:du an|co hoi|vi tri|dot thuc tap)\b/',
+            ' opportunity_action ',
+            $history,
+        ) ?? $history;
+        $history = preg_replace(
+            '/\b(?:cua|trong|cho|ve|voi|thuoc|vao) (?:cac |nhung |mot |du an nay |co hoi nay )?(?:du an|co hoi|vi tri)\b/',
+            ' opportunity_ref ',
+            $history,
+        ) ?? $history;
+        $claimedHistory = preg_match('/\b(?:da|tung) (?:' . $historyVerb . ')\b/', $history) === 1;
+        $claimedCredential = preg_match(
+            '/\b(?:ban|em) (?:hien )?(?:co(?! (?:the|co hoi|xu huong|loi the|tiem nang|kha nang|nhiem vu|ke hoach|muc tieu|dinh huong)\b)|so huu|tich luy|dat duoc)\b.{0,40}\b(?:nam kinh nghiem|chung chi|giai thuong|bang cap)\b/',
+            $history,
+        ) === 1;
+        $claimedOwnedProject = preg_match(
+            '/\b(?:ban|em) (?:hien )?(?:co(?! (?:the|co hoi|xu huong|loi the|tiem nang|kha nang|nhiem vu|ke hoach|muc tieu|dinh huong)\b)|so huu|tich luy|dat duoc)\b (?:cac |nhung |mot |nhieu )?du an\b/',
+            $history,
+        ) === 1;
+        if ($claimedHistory || $claimedCredential || $claimedOwnedProject) {
             throw new InvalidArgumentException('grounding_unsupported_personal_history');
         }
 

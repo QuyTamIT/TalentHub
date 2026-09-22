@@ -133,8 +133,12 @@ final class StudentAppContext
             ) ?: '/app/learner/index.php');
             $destination = (new LearnerOnboardingGate())->pageDestination($onboarding, $path);
             if ($destination !== null) {
-                header('Location: ' . app_href($destination));
-                exit;
+                $target = app_href($destination);
+                $current = app_href($path);
+                if (rtrim($target, '/') !== rtrim($current, '/')) {
+                    header('Location: ' . $target);
+                    exit;
+                }
             }
         } catch (\Throwable $e) {
             error_log('Learner onboarding check failed: ' . $e->getMessage());

@@ -183,11 +183,15 @@ function resolveRegistrationStatus(a){
   return a.approval_mode==='teacher_review'?'pending':'approved';
 }
 function hasScheduleConflict(activity,registrations,catalog){
-  const active=new Set(['approved','registered','pending','waitlisted','attended','checked_in']);
+  const active=new Set(['approved','registered','pending','waitlisted']);
+  const now=Date.now();
   return registrations.some(r=>{
     if(!active.has(r.status)||r.activity_id===activity.id)return false;
     const other=catalog.find(a=>a.id===r.activity_id);
-    return other&&parseDate(activity.start_at)<parseDate(other.end_at)&&parseDate(activity.end_at)>parseDate(other.start_at);
+    if(!other)return false;
+    const otherEnd=parseDate(other.end_at);
+    if(Number.isFinite(otherEnd)&&otherEnd<=now)return false;
+    return parseDate(activity.start_at)<otherEnd&&parseDate(activity.end_at)>parseDate(other.start_at);
   });
 }
 function createActivityStorage(storage=null,key=KEY){
@@ -418,7 +422,78 @@ document.addEventListener('DOMContentLoaded',()=>{
     const categoryButtons=Array.from(discovery.querySelectorAll('[data-activity-filter]'));
     const resultStatus=discovery.querySelector('[data-activity-result-status]');
     const filterEmpty=discovery.querySelector('[data-activity-filter-empty]');
+    const catalog=discovery.querySelector('#activity-catalog');
     let category='Tất cả';
+    let matchMode=null;
+    const originalOrder=cards.map((card,index)=>({card,index}));
+    const clearMatchUi=(card)=>{
+      card.classList.remove('is-match-ranked');
+      delete card.dataset.matchRank;
+      delete card.dataset.matchScore;
+      card.querySelectorAll('[data-match-reason],[data-match-rank-badge],[data-match-score-pill],[data-match-fit-row]').forEach(el=>el.remove());
+    };
+    const applyMatchChrome=(card,item)=>{
+      clearMatchUi(card);
+      if(!item)return;
+      card.classList.add('is-match-ranked');
+      const rank=Number(item.match_rank)||0;
+      const score=Math.max(0,Math.min(100,Number(item.score)||0));
+      card.dataset.matchRank=String(rank||'');
+      card.dataset.matchScore=String(score);
+      const body=card.querySelector('.learner-activity-discovery-card__body');
+      if(!body)return;
+      const title=body.querySelector('h2');
+      const fitRow=document.createElement('div');
+      fitRow.className='learner-activity-match-fit-row';
+      fitRow.setAttribute('data-match-fit-row','');
+      if(rank){
+        const badge=document.createElement('span');
+        badge.className='learner-activity-match-rank'+(rank===1?' learner-activity-match-rank--1':(rank<=3?' learner-activity-match-rank--top':'') );
+        badge.setAttribute('data-match-rank-badge','');
+        badge.textContent=`#${rank}`;
+        fitRow.appendChild(badge);
+      }
+      const scorePill=document.createElement('span');
+      scorePill.className='learner-activity-match-score'+(score>=75?' is-high':(score>=45?' is-med':' is-low'));
+      scorePill.setAttribute('data-match-score-pill','');
+      scorePill.textContent=score>=75?'Rất phù hợp':(score>=45?'Phù hợp':'Có liên quan');
+      scorePill.appendChild(document.createTextNode(` · ${score}%`));
+      fitRow.appendChild(scorePill);
+      if(title)title.before(fitRow);else body.prepend(fitRow);
+
+      let why=String(item.why_fit||item.analysis||'').trim();
+      if(!why){
+        const skills=Array.isArray(item.skills_to_develop)?item.skills_to_develop.filter(Boolean):[];
+        if(skills.length){
+          why=`Hoạt động này giúp bạn rèn các kỹ năng đang cần phát triển: ${skills.join(', ')}.`;
+        }else if(Array.isArray(item.fit_reasons)&&item.fit_reasons.length){
+          why=item.fit_reasons.join(' ');
+        }
+      }
+      if(why){
+        const box=document.createElement('div');
+        box.className='learner-activity-match-reason';
+        box.setAttribute('data-match-reason','');
+        const label=document.createElement('strong');
+        label.textContent='AI giải thích';
+        const text=document.createElement('p');
+        text.textContent=why;
+        box.append(label,text);
+        const skills=Array.isArray(item.skills_to_develop)?item.skills_to_develop.filter(Boolean):[];
+        if(skills.length){
+          const skillLine=document.createElement('p');
+          skillLine.className='learner-activity-match-reason__skills';
+          skillLine.textContent=`Kỹ năng cần phát triển: ${skills.join(', ')}`;
+          box.appendChild(skillLine);
+        }
+        const school=body.querySelector('.learner-activity-discovery-card__school');
+        const meta=body.querySelector('.learner-activity-discovery-card__meta');
+        if(school)school.after(box);
+        else if(meta)meta.before(box);
+        else if(title)title.after(box);
+        else fitRow.after(box);
+      }
+    };
     const renderDiscovery=()=>{
       const filters={
         query:search?.value||'',
@@ -427,19 +502,64 @@ document.addEventListener('DOMContentLoaded',()=>{
         onlyAvailable:true
       };
       let visible=0;
+      const matchMap=matchMode?.byId||null;
       cards.forEach(card=>{
-        const matches=activityMatchesDiscoveryFilters({
+        const id=String(card.dataset.activityId||'').trim();
+        let matches=activityMatchesDiscoveryFilters({
           search:card.dataset.activitySearch||'',
           category:card.dataset.filterCategory||'',
           startAt:card.dataset.startAt||'',
           available:card.dataset.available!=='false'
         },filters);
+        if(matchMap){
+          matches=matches&&matchMap.has(id);
+        }
         card.hidden=!matches;
         if(matches)visible+=1;
       });
       if(resultStatus)resultStatus.textContent=`${visible} hoạt động phù hợp`;
       if(filterEmpty)filterEmpty.hidden=visible!==0;
     };
+    const enterMatchMode=(items)=>{
+      const byId=new Map();
+      (Array.isArray(items)?items:[]).forEach(item=>{
+        const id=String(item.activity_id||'').trim();
+        if(id)byId.set(id,item);
+      });
+      matchMode={byId};
+      discovery.dataset.matchMode='1';
+      if(catalog){
+        const ranked=[...cards].sort((a,b)=>{
+          const ra=byId.get(String(a.dataset.activityId||'').trim())?.match_rank||9999;
+          const rb=byId.get(String(b.dataset.activityId||'').trim())?.match_rank||9999;
+          return ra-rb;
+        });
+        ranked.forEach(card=>{
+          catalog.appendChild(card);
+          const id=String(card.dataset.activityId||'').trim();
+          applyMatchChrome(card,byId.get(id)||null);
+        });
+      }
+      renderDiscovery();
+    };
+    const exitMatchMode=()=>{
+      matchMode=null;
+      delete discovery.dataset.matchMode;
+      originalOrder
+        .slice()
+        .sort((a,b)=>a.index-b.index)
+        .forEach(({card})=>{
+          clearMatchUi(card);
+          catalog?.appendChild(card);
+        });
+      renderDiscovery();
+    };
+    discovery.addEventListener('activity-match-enter',event=>{
+      enterMatchMode(event.detail?.items||[]);
+    });
+    discovery.addEventListener('activity-match-exit',()=>{
+      exitMatchMode();
+    });
     search?.addEventListener('input',renderDiscovery);
     time?.addEventListener('change',renderDiscovery);
     categoryButtons.forEach(button=>button.addEventListener('click',()=>{

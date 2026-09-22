@@ -65,7 +65,6 @@ if (!is_array($talentDistribution)) {
     $talentDistribution = [];
 }
 
-// 5 Core Aptitude Radar Dimensions - sourced from real data
 $hasRadarData = !empty($school['id']) && !empty($classes);
 $radarDimensions = $service->radarScores($userId);
 if (empty($radarDimensions)) {

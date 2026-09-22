@@ -107,7 +107,12 @@ if (!function_exists('app_pretty_path')) {
             return $dir === '' ? '/' : $dir;
         }
         if (str_ends_with($path, '.php')) {
-            return substr($path, 0, -4);
+            $withoutPhp = substr($path, 0, -4);
+            $fsCandidate = dirname(__DIR__) . str_replace('/', DIRECTORY_SEPARATOR, $withoutPhp);
+            if (is_dir($fsCandidate)) {
+                return $path;
+            }
+            return $withoutPhp;
         }
         return $path;
     }

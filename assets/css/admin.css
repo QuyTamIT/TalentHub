@@ -143,7 +143,7 @@ body,
 .nav-label {
     padding: 6px 12px 4px;
     margin: 0 0 4px;
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -381,7 +381,7 @@ body,
 
 .topbar__title {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: var(--text-xl);
     font-weight: var(--font-bold);
     color: var(--text-primary);
     letter-spacing: -0.01em;
@@ -446,7 +446,7 @@ body,
     right: -4px;
     background-color: var(--color-danger, #DC2626);
     color: #FFFFFF;
-    font-size: 0.625rem;
+    font-size: var(--text-2xs);
     font-weight: var(--font-bold);
     min-width: 1rem;
     height: 1rem;
@@ -491,7 +491,7 @@ body,
 .topbar-notif-menu__eyebrow {
     margin: 0 0 2px;
     color: var(--primary-coral, #F83F70);
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     font-weight: 750;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -499,14 +499,14 @@ body,
 
 .topbar-notif-menu__title {
     margin: 0;
-    font-size: 0.9375rem;
+    font-size: var(--text-sm);
     font-weight: var(--font-bold);
     color: var(--text-primary);
     letter-spacing: -0.01em;
 }
 
 .topbar-notif-menu__count {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     font-weight: var(--font-semibold);
     color: var(--color-danger, #DC2626);
     background: var(--color-danger-light, #FEE2E2);
@@ -530,7 +530,7 @@ body,
     gap: 0.625rem;
     padding: 1.75rem 1rem;
     color: var(--text-muted);
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     text-align: center;
 }
 
@@ -588,7 +588,7 @@ body,
 }
 
 .topbar-notif-item__title {
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     font-weight: var(--font-semibold);
     color: var(--text-primary);
     line-height: 1.35;
@@ -598,7 +598,7 @@ body,
 .topbar-notif-item__count {
     display: inline-block;
     margin-left: 6px;
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     font-weight: var(--font-bold);
     color: var(--primary-coral, #F83F70);
     background: var(--background);
@@ -609,7 +609,7 @@ body,
 }
 
 .topbar-notif-item__meta {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--text-muted);
     margin: 2px 0 0;
 }
@@ -630,7 +630,7 @@ body,
     background: var(--primary-coral, #F83F70);
     color: #FFFFFF;
     border-radius: var(--radius-sm, 8px);
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     font-weight: var(--font-semibold);
     text-decoration: none;
     transition: filter var(--transition-fast), transform var(--transition-fast);
@@ -697,7 +697,7 @@ body,
     align-items: center;
     justify-content: center;
     font-weight: var(--font-bold);
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     flex-shrink: 0;
 }
 
@@ -709,7 +709,7 @@ body,
 }
 
 .topbar__user-name {
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     font-weight: var(--font-bold);
     color: var(--text-primary);
     white-space: nowrap;
@@ -719,7 +719,7 @@ body,
 }
 
 .topbar__user-role {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary);
 }
 
@@ -784,7 +784,7 @@ body,
     align-items: center;
     justify-content: center;
     font-weight: var(--font-bold);
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     flex-shrink: 0;
 }
 
@@ -795,7 +795,7 @@ body,
 }
 
 .topbar-account-menu__name {
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     font-weight: var(--font-bold);
     color: var(--text-primary);
     white-space: nowrap;
@@ -805,7 +805,7 @@ body,
 }
 
 .topbar-account-menu__badge {
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     color: var(--text-secondary);
     margin-top: 2px;
 }
@@ -829,7 +829,7 @@ body,
     padding: 0.5rem 0.875rem;
     color: var(--text-primary);
     text-decoration: none;
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     cursor: pointer;
     background: transparent;
     border: none;
@@ -941,7 +941,7 @@ main {
 
 .page-heading h1 {
     margin: 0;
-    font-size: 1.625rem;
+    font-size: clamp(var(--text-2xl), 3vw, var(--text-3xl));
     line-height: 1.2;
     letter-spacing: -0.035em;
     color: var(--text-primary);
@@ -1241,7 +1241,7 @@ button.button.secondary:active:not(:disabled),
 .metric-card > strong {
     display: block;
     margin: 6px 0 7px;
-    font-size: 1.5625rem;
+    font-size: var(--text-2xl);
     line-height: 1.15;
     letter-spacing: -0.035em;
     font-variant-numeric: tabular-nums;
@@ -1306,7 +1306,7 @@ button.button.secondary:active:not(:disabled),
     border-radius: 999px;
     background: transparent;
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: var(--text-xs);
     font-weight: 500;
     line-height: 1;
     cursor: pointer;
@@ -1353,7 +1353,7 @@ button.button.secondary:active:not(:disabled),
     border-radius: 999px;
     background: var(--surface-muted, var(--surface));
     color: var(--text-muted);
-    font-size: 11px;
+    font-size: var(--text-2xs);
     font-weight: 600;
 }
 
@@ -1966,7 +1966,7 @@ tbody tr:last-child td { border-bottom: 0; }
 
 .module-toolbar h2 {
     margin: 0;
-    font-size: 1.375rem;
+    font-size: var(--text-xl);
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1.25;
@@ -2116,7 +2116,7 @@ dialog::backdrop {
     gap: 16px;
 }
 
-.action-dialog h2 { margin: 0; font-size: 1.25rem; color: var(--text-primary); }
+.action-dialog h2 { margin: 0; font-size: var(--text-xl); color: var(--text-primary); }
 .action-dialog p:not(.eyebrow) { color: var(--text-muted); font-size: var(--text-base); }
 
 .field-label {
@@ -2307,7 +2307,7 @@ dialog::backdrop {
     .command-trigger { max-width: 58px; }
     .command-trigger kbd { display: none; }
 
-    .page-heading h1 { font-size: 1.4375rem; }
+    .page-heading h1 { font-size: clamp(var(--text-2xl), 3vw, var(--text-3xl)); }
 
     .heading-actions .button        { flex: 1; }
     .heading-actions .primary       { flex-basis: 100%; }
@@ -2318,7 +2318,7 @@ dialog::backdrop {
     .section-kicker { align-items: flex-start; flex-wrap: wrap; }
     .health-item    { padding: 7px 0; }
 
-    .metric-card > strong { font-size: 1.375rem; }
+    .metric-card > strong { font-size: var(--text-xl); }
 
     .panel-heading           { flex-direction: column; }
     .panel-heading.compact   { flex-direction: row; }
@@ -2564,7 +2564,7 @@ tbody tr:hover { background: #f8fafc; }
     }
 
     .page-heading h1 {
-        font-size: 1.375rem;
+        font-size: clamp(var(--text-2xl), 3vw, var(--text-3xl));
     }
 }
 
@@ -2573,7 +2573,7 @@ tbody tr:hover { background: #f8fafc; }
    -------------------------------------------------------------------------- */
 .environment-card strong,
 .admin-profile strong {
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     color: var(--text-primary);
     font-weight: var(--font-semibold);
 }
@@ -2696,7 +2696,7 @@ tbody tr:hover { background: #f8fafc; }
     -webkit-text-fill-color: transparent;
     background-clip: text;
     display: block;
-    font-size: 1.75rem;
+    font-size: var(--text-3xl);
     letter-spacing: -0.04em;
 }
 
@@ -2705,7 +2705,7 @@ tbody tr:hover { background: #f8fafc; }
     border-radius: var(--radius-full);
     padding: 0.2rem 0.625rem;
     font-weight: var(--font-bold);
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
 }
 
 /* Panel: clean card */
@@ -2874,7 +2874,7 @@ main {
 .metric-card:hover::before { width: 4px; }
 .metric-card > strong {
     margin: 5px 0 6px;
-    font-size: 1.55rem;
+    font-size: var(--text-2xl);
     background: none;
     -webkit-text-fill-color: currentColor;
     color: var(--text-primary);
@@ -3032,7 +3032,7 @@ main {
 }
 
 .user-cat-number {
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     font-weight: 700;
     color: var(--text-muted, #9E968F);
     letter-spacing: 0.04em;
@@ -3042,13 +3042,13 @@ main {
 
 .user-cat-sep {
     color: var(--border, #EFE6DC);
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     flex-shrink: 0;
 }
 
 .user-cat-name {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: var(--text-sm);
     font-weight: 700;
     color: var(--text-primary, #1E1B18);
     white-space: nowrap;
@@ -3058,7 +3058,7 @@ main {
 
 .user-cat-count-pill {
     margin-left: auto;
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     font-weight: 700;
     padding: 1px 7px;
     border-radius: 10px;
@@ -3078,7 +3078,7 @@ main {
     display: flex;
     align-items: center;
     gap: 5px;
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary, #6B635B);
     white-space: nowrap;
     overflow: hidden;
@@ -3105,7 +3105,7 @@ main {
 }
 
 .cat-mini-chip {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary, #6B635B);
 }
 
@@ -3124,7 +3124,7 @@ main {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     font-weight: 700;
     color: var(--primary-coral, #F83F70);
     background: var(--primary-light, #FFF0EB);
@@ -3182,14 +3182,14 @@ main {
 
 .user-context-title {
     margin: 0;
-    font-size: 1.15rem;
+    font-size: var(--text-lg);
     font-weight: 800;
     color: var(--text-primary, #1E1B18);
     letter-spacing: -0.01em;
 }
 
 .user-context-count {
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     color: var(--text-muted, #9E968F);
 }
@@ -3208,7 +3208,7 @@ main {
     border: none;
     background: transparent;
     padding: 5px 12px;
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     font-weight: 500;
     color: var(--text-secondary, #6B635B);
     border-radius: 6px;
@@ -3234,7 +3234,7 @@ main {
 
 .user-tab-item .tab-num {
     font-weight: 700;
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--text-muted, #9E968F);
 }
 
@@ -3254,7 +3254,7 @@ main {
 .user-btn-refresh {
     min-height: 36px;
     padding: 0 12px;
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     gap: 6px;
     border: 1px solid var(--border, #EFE6DC);
@@ -3288,7 +3288,7 @@ main {
 .user-btn-create {
     min-height: 36px;
     padding: 0 14px;
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     font-weight: 700;
     gap: 6px;
     background: var(--primary-gradient, linear-gradient(135deg, #FF6B45 0%, #F83F70 100%));
@@ -3388,7 +3388,7 @@ main {
 }
 
 .user-filter-label {
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     font-weight: 500;
     color: var(--text-muted, #9E968F);
 }
@@ -3396,7 +3396,7 @@ main {
 .user-status-filter {
     min-height: 36px;
     padding: 6px 12px;
-    font-size: 0.84375rem;
+    font-size: var(--text-sm);
     border-radius: 8px;
     border: 1px solid var(--border, #EFE6DC);
     background: var(--background, #FBF8F5);
@@ -3414,7 +3414,7 @@ main {
 
 .user-filter-status-info {
     margin-left: auto;
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     color: var(--text-muted, #9E968F);
 }
 
@@ -3427,7 +3427,7 @@ main {
     padding: 3px 10px;
     border-radius: 12px;
     font-weight: 500;
-    font-size: 0.78125rem;
+    font-size: var(--text-xs);
     border: 1px solid var(--primary-light-border, #FFD2C4);
 }
 
@@ -3437,13 +3437,13 @@ main {
     text-decoration: underline;
     color: var(--primary-coral, #F83F70);
     font-weight: 700;
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     cursor: pointer;
     padding: 0 2px;
 }
 
 .user-total-info {
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     color: var(--text-muted, #9E968F);
 }
 
@@ -3478,7 +3478,7 @@ main {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    font-size: 0.875rem;
+    font-size: var(--text-sm);
     text-align: left;
 }
 
@@ -3489,7 +3489,7 @@ main {
     background: #FAF7F4;
     z-index: 2;
     padding: 12px 16px;
-    font-size: 0.71875rem;
+    font-size: var(--text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -3561,7 +3561,7 @@ main {
     background: var(--primary-light, #FFF0EB);
     color: var(--primary-coral, #F83F70);
     font-weight: 700;
-    font-size: 0.84375rem;
+    font-size: var(--text-sm);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3576,14 +3576,14 @@ main {
 }
 
 .user-fullname {
-    font-size: 0.875rem;
+    font-size: var(--text-sm);
     font-weight: 700;
     color: var(--text-primary, #1E1B18);
     line-height: 1.25;
 }
 
 .user-id-sub {
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     color: var(--text-muted, #9E968F);
     letter-spacing: 0.03em;
@@ -3591,7 +3591,7 @@ main {
 
 /* Email Cell */
 .user-email-text {
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary, #6B635B);
     word-break: break-all;
 }
@@ -3602,7 +3602,7 @@ main {
     align-items: center;
     padding: 2.5px 8px;
     border-radius: 6px;
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     border: 1px solid var(--border, #EFE6DC);
     white-space: nowrap;
@@ -3646,7 +3646,7 @@ main {
     gap: 6px;
     padding: 3px 9px;
     border-radius: 12px;
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     white-space: nowrap;
 }
@@ -3692,7 +3692,7 @@ main {
 
 /* Datetime */
 .user-datetime {
-    font-size: 0.8125rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary, #6B635B);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -3709,7 +3709,7 @@ main {
 .user-act-btn {
     min-height: 28px;
     padding: 0 10px;
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     border-radius: 6px;
     cursor: pointer;
@@ -3769,7 +3769,7 @@ main {
 }
 
 .action-note-badge {
-    font-size: 0.71875rem;
+    font-size: var(--text-2xs);
     color: var(--text-muted, #9E968F);
     background: var(--background, #FBF8F5);
     padding: 3px 8px;
@@ -3810,12 +3810,12 @@ main {
 }
 
 .user-empty-state strong {
-    font-size: 1rem;
+    font-size: var(--text-base);
     color: var(--text-primary, #1E1B18);
 }
 
 .user-empty-state p {
-    font-size: 0.84375rem;
+    font-size: var(--text-sm);
     margin: 0 0 12px;
     max-width: 440px;
     line-height: 1.5;
@@ -3838,7 +3838,7 @@ main {
         height: 36px;
     }
     .user-cat-name {
-        font-size: 0.875rem;
+        font-size: var(--text-sm);
     }
 }
 
@@ -4076,7 +4076,7 @@ main {
     gap: 5px;
     padding: 3px 8px;
     border-radius: 999px;
-    font-size: 11.5px;
+    font-size: var(--text-2xs);
     font-weight: 500;
     line-height: 1.2;
 }
@@ -4113,7 +4113,7 @@ main {
     gap: 5px;
     padding: 3px 9px;
     border-radius: 6px;
-    font-size: 11.5px;
+    font-size: var(--text-2xs);
     font-weight: 600;
     color: var(--text-secondary);
     background: var(--surface-muted);
@@ -4193,7 +4193,7 @@ main {
 }
 
 .org-section-title {
-    font-size: 16.5px;
+    font-size: var(--text-base);
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
@@ -4339,7 +4339,7 @@ main {
     font-weight: 700;
     cursor: pointer;
     text-decoration: underline;
-    font-size: 11.5px;
+    font-size: var(--text-2xs);
     margin-left: 2px;
 }
 
@@ -4370,7 +4370,7 @@ main {
 .org-data-table thead th {
     background: #f8fafc;
     padding: 11px 18px;
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     font-weight: 700;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -4431,7 +4431,7 @@ main {
 }
 
 .org-cell-title {
-    font-size: 13.5px;
+    font-size: var(--text-sm);
     font-weight: 700;
     color: var(--text-primary);
     white-space: nowrap;
@@ -4448,7 +4448,7 @@ main {
 
 .org-cell-id {
     font-family: var(--font-mono, monospace);
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     color: var(--text-muted);
     background: var(--surface-muted);
     padding: 1px 6px;
@@ -4457,7 +4457,7 @@ main {
 }
 
 .org-cell-email {
-    font-size: 11.5px;
+    font-size: var(--text-2xs);
     color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -4472,7 +4472,7 @@ main {
     gap: 6px;
     padding: 3px 10px;
     border-radius: 999px;
-    font-size: 11.5px;
+    font-size: var(--text-2xs);
     font-weight: 600;
     line-height: 1.3;
     white-space: nowrap;
@@ -4614,7 +4614,7 @@ main {
     background: rgba(248, 63, 112, 0.08);
     border: 1px solid rgba(248, 63, 112, 0.22);
     border-radius: var(--radius-full, 999px);
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -4637,7 +4637,7 @@ main {
 }
 
 .tasks-title {
-    font-size: 1.75rem;
+    font-size: var(--text-3xl);
     font-weight: 800;
     color: var(--text-primary, #322014);
     letter-spacing: -0.02em;
@@ -4748,7 +4748,7 @@ main {
     height: 20px;
     padding: 0 6px;
     border-radius: 999px;
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     font-weight: 700;
     background: var(--border, #F0E6DD);
     color: var(--text-secondary, #6B5548);
@@ -4842,7 +4842,7 @@ main {
 .tasks-select {
     height: 42px;
     padding: 0 34px 0 14px;
-    font-size: 13.5px;
+    font-size: var(--text-sm);
     font-weight: 500;
     color: var(--text-primary, #322014);
     background: var(--surface, #ffffff);
@@ -4959,7 +4959,7 @@ main {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-size: 11.5px;
+    font-size: var(--text-2xs);
     font-weight: 700;
     padding: 2.5px 9px;
     border-radius: 6px;
@@ -5015,7 +5015,7 @@ main {
     align-items: center;
     gap: 16px;
     margin-top: 4px;
-    font-size: 12.5px;
+    font-size: var(--text-xs);
     color: var(--text-muted, #9E897D);
 }
 
@@ -5336,7 +5336,7 @@ img.admin-sidebar__logo-img {
 .teacher-sidebar__role-tag,
 .school-sidebar__role-tag,
 .ent-sidebar__role-tag {
-    font-size: 0.6875rem !important;
+    font-size: var(--text-2xs) !important;
     font-weight: 600 !important;
     color: var(--primary-coral, #F83F70) !important;
     background-color: #FFF0EB !important;
@@ -5410,7 +5410,7 @@ img.admin-sidebar__logo-img {
     .teacher-sidebar__role-tag,
     .school-sidebar__role-tag,
     .ent-sidebar__role-tag {
-        font-size: 0.625rem !important;
+        font-size: var(--text-2xs) !important;
         padding: 2px 10px !important;
     }
 }

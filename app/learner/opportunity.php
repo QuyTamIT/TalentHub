@@ -125,7 +125,7 @@ $studentClass = !empty($student['class']) ? $student['class'] : 'Chưa cập nh�
                                 <span class="learner-apply-card__icon" style="background: <?= $statusBg; ?>; color: <?= $statusColor; ?>;"><?= learner_icon($isAccepted ? 'check-circle' : ($isDeclined ? 'alert-circle' : 'file-text'), 28); ?></span>
                                 <h2 id="apply-card-title"><?= $isAccepted ? 'Bạn đã trúng tuyển!' : ($isDeclined ? 'Hồ sơ chưa phù hợp' : 'Bạn đã nộp hồ sơ'); ?></h2>
                                 <p><?= $isAccepted ? 'Chúc mừng bạn đã được ' . learner_escape($opportunity['partner_name']) . ' tiếp nhận thực tập. Nhà tuyển dụng sẽ sớm liên hệ.' : 'Đơn ứng tuyển của bạn đã được chuyển tới ' . learner_escape($opportunity['partner_name']) . '. Bạn có thể theo dõi tiến độ xét duyệt tại Hồ sơ ứng tuyển.'; ?></p>
-                                <a class="learner-btn learner-btn--primary learner-btn--block" href="ecosystem.php?view=applications#applications-tracker-title"><?= learner_icon('file-text', 17); ?> Xem hồ sơ ứng tuyển</a>
+                                <a class="learner-btn learner-btn--primary learner-btn--block" href="ecosystem.php?tab=applications#applications-tracker-title"><?= learner_icon('file-text', 17); ?> Xem hồ sơ ứng tuyển</a>
                                 <div class="learner-apply-card__deadline"><span>Hạn đăng ký</span><strong><?= learner_escape($deadlineLabel); ?></strong></div>
                                 <p class="learner-apply-card__privacy"><?= learner_icon('info', 15); ?> Trạng thái: <strong style="color: <?= $statusColor; ?>;"><?= learner_escape($statusLabel); ?></strong></p>
                             <?php else: ?>
@@ -244,7 +244,7 @@ $studentClass = !empty($student['class']) ? $student['class'] : 'Chưa cập nh�
                 <div><span style="color: var(--text-secondary);">Trạng thái hồ sơ:</span> <span style="display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eff6ff; color: #2563eb; font-weight: 600; font-size: 0.75rem;">Đã nộp · Chờ xét duyệt</span></div>
             </div>
             <div style="display: flex; gap: 10px; justify-content: center;">
-                <a href="ecosystem.php?view=applications#applications-tracker-title" class="learner-btn learner-btn--primary" style="flex: 1;">
+                <a href="ecosystem.php?tab=applications#applications-tracker-title" class="learner-btn learner-btn--primary" style="flex: 1;">
                     <?= learner_icon('file-text', 17); ?> Xem hồ sơ ứng tuyển của bạn
                 </a>
                 <button type="button" class="learner-btn learner-btn--secondary" data-close-modal style="flex: 0 0 90px;">Đóng</button>

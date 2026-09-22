@@ -114,7 +114,7 @@
     }
 
     function confidenceLabel(value) {
-        return 'Định hướng tham khảo · cần đối chiếu qua thực hành';
+        return 'Tham khảo · cần đối chiếu qua thực hành';
     }
 
     function normalizeTalentScore(value) {
@@ -300,8 +300,13 @@
         const nextActions = tasks.filter((task) => task.status !== 'completed').slice(0, 3);
         const activities = tasks.filter((task) => task?.action?.type === 'register_activity');
         const evidence = payload?.evidence_summary && typeof payload.evidence_summary === 'object' ? payload.evidence_summary : {};
-        const evidenceTotal = ['assessment_count', 'skill_count', 'activity_count', 'evaluation_count']
-            .reduce((total, key) => total + integer(evidence[key]), 0);
+        const evidenceSources = Array.isArray(payload?.evidence_sources)
+            ? payload.evidence_sources.filter((item) => item && typeof item === 'object')
+            : [];
+        const evidenceTotal = evidenceSources.length > 0
+            ? evidenceSources.length
+            : ['assessment_count', 'skill_count', 'activity_count', 'evaluation_count']
+                .reduce((total, key) => total + integer(evidence[key]), 0);
         const completedTasks = integer(payload?.progress?.completed_tasks);
         const totalTasks = integer(payload?.progress?.total_tasks);
         const rawPotential = records(payload?.potential_paths);
@@ -352,6 +357,7 @@
             nextActions,
             activities,
             evidenceTotal,
+            evidenceSources,
             confidenceLabel: confidenceLabel(payload?.confidence_band),
             talentMap: assessmentTalentMap(payload),
             strengths: records(payload?.strengths),
@@ -639,6 +645,10 @@
             summaryLabel: root.querySelector('[data-roadmap-summary-label]'),
             summary: root.querySelector('[data-roadmap-summary-text]'),
             evidenceTotal: root.querySelector('[data-roadmap-evidence-total]'),
+            evidenceOpen: root.querySelector('[data-roadmap-evidence-open]'),
+            evidenceModal: doc.getElementById('roadmap-evidence-modal') || root.querySelector('[data-roadmap-evidence-modal]'),
+            evidenceModalBody: doc.querySelector('[data-roadmap-evidence-modal-body]'),
+            evidenceModalSummary: doc.querySelector('[data-roadmap-evidence-modal-summary]'),
             confidence: root.querySelector('[data-roadmap-confidence]'),
             directionLabel: root.querySelector('[data-roadmap-direction-label]'),
             directionRationale: root.querySelector('[data-roadmap-direction-rationale]'),
@@ -1073,6 +1083,10 @@
                 : state === 'stale-model' ? 'Bản AI gần nhất' : 'Tóm tắt từ AI');
             set(nodes.summary, text(model.executive_summary, 'Chưa có nội dung tóm tắt.'));
             set(nodes.evidenceTotal, `${model.evidenceTotal} nguồn dữ liệu đã cho phép`);
+            if (nodes.evidenceOpen) {
+                nodes.evidenceOpen.disabled = model.evidenceTotal <= 0;
+                nodes.evidenceOpen.setAttribute('aria-expanded', 'false');
+            }
             set(nodes.confidence, model.confidenceLabel);
             set(nodes.directionLabel, text(model?.primary_direction?.label, 'Chưa xác định'));
             set(nodes.directionRationale, text(model?.primary_direction?.rationale, 'Hướng này cần được kiểm chứng qua trải nghiệm thực tế.'));
@@ -1208,8 +1222,10 @@
                 .map((position) => integer(position))
                 .filter((position) => renderedPhasePositions.includes(position));
             expandedPhasePositions = preferred.length > 0 ? preferred : initialExpandedPhasePositions(safePhases);
-            const summaries = element('div', 'learner-roadmap-phase-summaries');
-            const panels = element('div', 'learner-roadmap-phase-panels');
+            const split = element('div', 'learner-ai-workspace__split');
+            const summaries = element('nav', 'learner-roadmap-phase-summaries learner-ai-workspace__nav');
+            summaries.setAttribute('aria-label', 'Ba chặng lộ trình');
+            const panels = element('div', 'learner-roadmap-phase-panels learner-ai-workspace__panels');
             for (const phase of safePhases) {
                 const position = integer(phase.position);
                 const status = text(phase.status, 'upcoming');
@@ -1222,28 +1238,20 @@
                 summary.dataset.roadmapPhaseToggle = String(position);
                 summary.setAttribute('aria-controls', panelId);
                 summary.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
-                summary.setAttribute('aria-label', `${isExpanded ? 'Thu gọn' : 'Mở rộng'} ${text(phase.title, `giai đoạn ${position}`)}`);
-                const number = element('span', 'learner-roadmap-phase__number', status === 'completed' ? '✓' : position);
-                const heading = element('div', 'learner-roadmap-phase__heading-wrap');
-                const titleRow = element('div', 'learner-roadmap-phase__title-row');
-                titleRow.append(
-                    element('strong', '', text(phase.title, 'Giai đoạn')),
-                    element('span', 'learner-phase-range-badge', text(phase.rangeLabel, 'Chưa xác định'))
-                );
+                summary.setAttribute('aria-label', `Chọn ${text(phase.title, `giai đoạn ${position}`)}`);
                 const phaseProgressPct = phase.progress.total_tasks > 0
                     ? Math.round((phase.progress.completed_tasks / phase.progress.total_tasks) * 100)
                     : 0;
-                const progressRow = element('div', 'learner-roadmap-phase__progress-row');
-                const progressTrack = renderPhaseProgressTrack(phaseProgressPct);
-                const progressText = element('span', 'learner-roadmap-phase__progress', `${phase.progress.completed_tasks}/${phase.progress.total_tasks} nhiệm vụ`);
-                progressRow.append(progressTrack, progressText);
+                const number = element('span', 'learner-roadmap-phase__number', status === 'completed' ? '✓' : position);
+                const heading = element('div', 'learner-roadmap-phase__heading-wrap');
                 heading.append(
-                    titleRow,
-                    element('span', `learner-roadmap-phase__status is-${status}`, status === 'current' ? 'Đang thực hiện' : status === 'completed' ? 'Đã hoàn thành' : 'Chưa bắt đầu'),
-                    element('p', 'learner-roadmap-phase__summary-goal', text(phase.goal, 'Tiếp tục phát triển năng lực theo hướng đã chọn.')),
-                    progressRow
+                    element('span', 'learner-ai-plan__day', text(phase.rangeLabel, `Ngày ${(position - 1) * 30 + 1}–${position * 30}`)),
+                    element('strong', '', text(phase.title, 'Giai đoạn')),
+                    element('span', `learner-roadmap-phase__status is-${status}`, status === 'current' ? 'Đang làm' : status === 'completed' ? 'Xong' : 'Sau'),
+                    renderPhaseProgressTrack(phaseProgressPct),
+                    element('span', 'learner-roadmap-phase__progress', `${phase.progress.completed_tasks}/${phase.progress.total_tasks}`)
                 );
-                summary.append(number, heading, element('span', 'learner-roadmap-phase__chevron', '⌄'));
+                summary.append(number, heading);
                 summaries.appendChild(summary);
 
                 const panel = element('section', `learner-roadmap-phase-panel is-${status}`);
@@ -1251,30 +1259,60 @@
                 panel.dataset.roadmapPhasePanel = String(position);
                 panel.setAttribute('aria-labelledby', summaryId);
                 panel.hidden = !isExpanded;
-                const overview = element('div', 'learner-roadmap-phase-panel__overview');
-                const goalBox = element('div', 'learner-roadmap-phase__goal-card');
-                goalBox.append(
-                    element('span', 'learner-phase-context', `Chặng ${position} · ${phase.rangeLabel}`),
-                    element('h3', 'learner-phase-goal-label', 'Mục tiêu của chặng'),
-                    element('p', 'learner-roadmap-phase__goal', text(phase.goal, 'Tiếp tục phát triển năng lực theo hướng đã chọn.')),
+
+                const toolbar = element('header', 'learner-ai-stage__toolbar');
+                const toolbarLead = element('div', 'learner-ai-stage__lead');
+                toolbarLead.append(
+                    element('span', 'learner-ai-stage__range', `Chặng ${position} · ${phase.rangeLabel}`),
+                    element('h3', 'learner-ai-stage__title', text(phase.title, 'Giai đoạn')),
                 );
-                overview.append(goalBox, renderPhaseFacts(phase));
-                const actions = element('div', 'learner-roadmap-phase-panel__actions');
-                const actionHeading = element('div', 'learner-roadmap-phase-panel__heading');
-                actionHeading.append(
-                    element('span', 'learner-roadmap-phase-panel__heading-icon', '◎'),
-                    element('h3', '', 'Nhiệm vụ cần thực hiện'),
-                    element('span', 'learner-roadmap-phase-panel__task-meta', text(phase.workloadLabel)),
+                const toolbarTrail = element('div', 'learner-ai-stage__trail');
+                if (text(phase.effort_label)) {
+                    toolbarTrail.appendChild(element('span', 'learner-ai-stage__effort', text(phase.effort_label)));
+                }
+                toolbarTrail.appendChild(element('span', 'learner-ai-stage__count', `${phase.progress.completed_tasks}/${phase.progress.total_tasks}`));
+                toolbar.append(toolbarLead, toolbarTrail);
+
+                const nextTask = (Array.isArray(phase.displayTasks) ? phase.displayTasks : [])
+                    .find((task) => task?.status !== 'completed');
+                const focus = element('div', 'learner-ai-stage__focus');
+                focus.appendChild(element('span', 'learner-ai-stage__focus-label', nextTask ? 'Việc tiếp theo' : 'Chặng này'));
+                focus.appendChild(element(
+                    'strong',
+                    'learner-ai-stage__focus-title',
+                    nextTask
+                        ? text(nextTask?.presentation?.title || nextTask?.title, 'Nhiệm vụ')
+                        : 'Đã xong mọi nhiệm vụ trong chặng',
+                ));
+                if (nextTask) {
+                    focus.appendChild(element(
+                        'span',
+                        'learner-ai-stage__focus-time',
+                        text(nextTask?.presentation?.durationLabel, formatRoadmapMinutes(nextTask?.estimated_minutes)),
+                    ));
+                }
+
+                const board = element('div', 'learner-ai-stage__board');
+                const boardHead = element('div', 'learner-ai-stage__board-head');
+                boardHead.append(
+                    element('h4', '', 'Danh sách việc'),
+                    element('span', '', text(phase.workloadLabel)),
                 );
-                actions.append(actionHeading, renderTasks(phase.displayTasks));
-                const panelBody = element('div', 'learner-roadmap-phase-panel__body');
-                panelBody.append(overview, actions);
+                board.append(boardHead, renderTasks(phase.displayTasks));
+
+                const rail = element('aside', 'learner-ai-stage__rail');
+                rail.appendChild(renderPhaseFacts(phase));
+                const goalLine = text(phase.goal);
+                if (goalLine) {
+                    const why = element('p', 'learner-ai-stage__why', goalLine);
+                    rail.appendChild(why);
+                }
+
                 const footer = element('div', 'learner-roadmap-phase-panel__footer');
                 const footerProgress = element('div', 'learner-roadmap-phase-panel__footer-progress');
                 footerProgress.append(
-                    element('span', '', `Tiến độ giai đoạn ${position}`),
+                    element('span', '', `${phase.progress.completed_tasks}/${phase.progress.total_tasks} nhiệm vụ`),
                     renderPhaseProgressTrack(phaseProgressPct),
-                    element('strong', 'learner-roadmap-phase-panel__progress', `${phase.progress.completed_tasks}/${phase.progress.total_tasks}`),
                 );
                 const isConfirmed = isRoadmapCompletedConfirmed();
                 const isLastPhase = position === renderedPhasePositions[renderedPhasePositions.length - 1];
@@ -1290,10 +1328,11 @@
                     continueButton.setAttribute('aria-disabled', 'true');
                 }
                 footer.append(footerProgress, continueButton);
-                panel.append(panelBody, footer);
+                panel.append(toolbar, focus, board, rail, footer);
                 panels.appendChild(panel);
             }
-            nodes.phases?.append(summaries, panels);
+            split.append(summaries, panels);
+            nodes.phases?.append(split);
         }
 
         function renderPhaseProgressTrack(percent) {
@@ -1305,29 +1344,27 @@
         }
 
         function renderPhaseFacts(phase) {
-            const factsWrap = element('div', 'learner-roadmap-phase__facts');
+            const factsWrap = element('dl', 'learner-ai-stage__facts');
             const facts = [
-                { label: 'Kỹ năng trọng tâm', val: phase.skill_focus, icon: '⌘' },
-                { label: 'Sản phẩm đầu ra', val: phase.deliverable, icon: '◇' },
-                { label: 'Nỗ lực dự kiến', val: phase.effort_label, icon: '☆' },
-                { label: 'Tiêu chí hoàn thành', val: phase.metric_label, icon: '▣' },
+                { label: 'Kỹ năng', val: phase.skill_focus },
+                { label: 'Đầu ra', val: phase.deliverable },
+                { label: 'Hoàn thành khi', val: phase.metric_label },
             ];
             for (const item of facts) {
                 if (!item.val) continue;
-                const pill = element('div', 'learner-phase-fact-pill');
-                pill.append(
-                    element('span', 'learner-phase-fact-icon', item.icon),
-                    element('span', 'learner-phase-fact-label', item.label),
-                    element('strong', 'learner-phase-fact-value', text(item.val, 'Chưa xác định'))
+                const row = element('div', 'learner-ai-stage__fact');
+                row.append(
+                    element('dt', '', item.label),
+                    element('dd', '', text(item.val, 'Chưa xác định')),
                 );
-                factsWrap.appendChild(pill);
+                factsWrap.appendChild(row);
             }
             return factsWrap;
         }
 
         function renderTaskList(tasks, modifier) {
             const list = element('ol', `learner-roadmap-task-list learner-roadmap-task-list--${modifier}`);
-            for (const task of tasks) {
+            for (const [index, task] of (Array.isArray(tasks) ? tasks : []).entries()) {
                 const item = element('li', `learner-roadmap-task is-${text(task?.status, 'not_started')}`);
                 const control = element('button', 'learner-roadmap-task__control');
                 control.type = 'button';
@@ -1340,15 +1377,17 @@
 
                 const presentation = task?.presentation || roadmapTaskPresentation(task);
                 const content = element('div', 'learner-roadmap-task__content');
-                const titleNode = element('strong', '', text(presentation.title, 'Nhiệm vụ'));
-                const timeBadge = element('span', 'learner-task-time-badge', text(presentation.durationLabel, '0 phút'));
-                const descNode = element('small', 'learner-task-desc', text(task?.description, 'Đầu việc thực hành'));
-
-                content.appendChild(titleNode);
+                const meta = element('div', 'learner-roadmap-task__meta');
+                meta.append(element('span', 'learner-task-index', `Bước ${index + 1}`));
                 if (text(presentation.milestoneLabel)) {
-                    content.appendChild(element('span', 'learner-task-milestone-badge', presentation.milestoneLabel));
+                    meta.appendChild(element('span', 'learner-task-milestone-badge', presentation.milestoneLabel));
                 }
-                content.append(timeBadge, descNode);
+                meta.appendChild(element('span', 'learner-task-time-badge', text(presentation.durationLabel, '0 phút')));
+                content.append(
+                    meta,
+                    element('strong', '', text(presentation.title, 'Nhiệm vụ')),
+                    element('small', 'learner-task-desc', text(task?.description, 'Đầu việc thực hành'))
+                );
                 item.append(control, content);
                 list.appendChild(item);
             }
@@ -1423,6 +1462,76 @@
             const list = element('ul', 'learner-roadmap-evidence-list');
             for (const [key, label] of labels) list.appendChild(element('li', '', `${label}: ${integer(summary?.[key])}`));
             nodes.evidence?.appendChild(list);
+        }
+
+        function openEvidenceModal() {
+            if (!nodes.evidenceModal || !renderedModel) return;
+            renderEvidenceModal(renderedModel);
+            nodes.evidenceModal.hidden = false;
+            nodes.evidenceOpen?.setAttribute('aria-expanded', 'true');
+            doc.body?.classList.add('learner-modal-open');
+            const closeBtn = nodes.evidenceModal.querySelector('[data-roadmap-evidence-close]');
+            closeBtn?.focus?.();
+        }
+
+        function closeEvidenceModal() {
+            if (!nodes.evidenceModal || nodes.evidenceModal.hidden) return;
+            nodes.evidenceModal.hidden = true;
+            nodes.evidenceOpen?.setAttribute('aria-expanded', 'false');
+            doc.body?.classList.remove('learner-modal-open');
+            nodes.evidenceOpen?.focus?.();
+        }
+
+        function renderEvidenceModal(model) {
+            clear(nodes.evidenceModalBody);
+            const sources = Array.isArray(model?.evidenceSources) ? model.evidenceSources : [];
+            set(
+                nodes.evidenceModalSummary,
+                sources.length > 0
+                    ? `${sources.length} nguồn đã được dùng để tạo lộ trình hiện tại.`
+                    : 'Chưa có chi tiết nguồn cho bản lộ trình này.',
+            );
+            if (sources.length === 0) {
+                const summary = model?.evidence_summary && typeof model.evidence_summary === 'object' ? model.evidence_summary : {};
+                const fallback = [
+                    ['assessment_count', 'Kết quả đánh giá'],
+                    ['skill_count', 'Kỹ năng đã xác minh'],
+                    ['activity_count', 'Hoạt động đã xác nhận'],
+                    ['evaluation_count', 'Đánh giá đã công bố'],
+                ];
+                const list = element('ul', 'learner-roadmap-evidence-modal__fallback');
+                for (const [key, label] of fallback) {
+                    const count = integer(summary?.[key]);
+                    if (count <= 0) continue;
+                    list.appendChild(element('li', '', `${label}: ${count}`));
+                }
+                if (!list.childElementCount) {
+                    nodes.evidenceModalBody?.appendChild(element('p', 'learner-roadmap-evidence-modal__empty', 'Chưa có nguồn dữ liệu để hiển thị.'));
+                    return;
+                }
+                nodes.evidenceModalBody?.appendChild(list);
+                return;
+            }
+            const groups = new Map();
+            for (const source of sources) {
+                const group = text(source?.group, 'Dữ liệu đã cho phép');
+                if (!groups.has(group)) groups.set(group, []);
+                groups.get(group).push(source);
+            }
+            for (const [group, items] of groups) {
+                const section = element('section', 'learner-roadmap-evidence-modal__group');
+                const heading = element('h3', 'learner-roadmap-evidence-modal__group-title', `${group} (${items.length})`);
+                const list = element('ul', 'learner-roadmap-evidence-modal__list');
+                for (const item of items) {
+                    const row = element('li', 'learner-roadmap-evidence-modal__item');
+                    row.appendChild(element('strong', '', text(item?.label, 'Nguồn dữ liệu')));
+                    const detail = text(item?.detail);
+                    if (detail) row.appendChild(element('span', '', detail));
+                    list.appendChild(row);
+                }
+                section.append(heading, list);
+                nodes.evidenceModalBody?.appendChild(section);
+            }
         }
 
         function renderEngine(engine, state) {
@@ -1528,11 +1637,9 @@
         }
 
         function togglePhase(position) {
-            applyPhaseExpansion(nextExpandedPhasePositions(
-                expandedPhasePositions,
-                { type: 'toggle', position: Number.parseInt(position, 10) },
-                renderedPhasePositions,
-            ));
+            const safePosition = integer(Number.parseInt(position, 10));
+            if (!renderedPhasePositions.includes(safePosition)) return;
+            applyPhaseExpansion([safePosition]);
         }
 
         function setAllPhasesExpanded(expanded) {
@@ -1600,7 +1707,7 @@
             render, updateTask, previewTaskCompletion, taskCompletionDelay: () => reduceMotion ? 0 : 500,
             setTaskPending, feedback, toggleAnalysis, togglePhase, setAllPhasesExpanded, continuePhase,
             openCompleteModal, closeCompleteModal, confirmCompleteRoadmap, renderCelebration, hideCelebration,
-            isRoadmapCompletedConfirmed, dispose
+            openEvidenceModal, closeEvidenceModal, isRoadmapCompletedConfirmed, dispose
         };
     }
 
@@ -1650,6 +1757,7 @@
             else if (target.matches('[data-roadmap-task-id]')) controller.updateTask(target.dataset.roadmapTaskId, target.dataset.roadmapTaskStatus).catch(() => {});
             else if (target.matches('[data-roadmap-undo-task]')) controller.updateTask(target.dataset.roadmapUndoTask, 'completed').catch(() => {});
             else if (target.matches('[data-roadmap-feedback-value]')) controller.submitFeedback('', target.dataset.roadmapFeedbackValue).catch(() => {});
+            else if (target.matches('[data-roadmap-evidence-open]')) view.openEvidenceModal?.();
         });
         global.document?.addEventListener('click', (event) => {
             const target = event.target instanceof global.Element ? event.target : null;
@@ -1658,10 +1766,13 @@
                 view.closeCompleteModal?.();
             } else if (target.closest('[data-roadmap-complete-confirm]')) {
                 view.confirmCompleteRoadmap?.();
+            } else if (target.closest('[data-roadmap-evidence-close]')) {
+                view.closeEvidenceModal?.();
             }
         });
         global.document?.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
+                view.closeEvidenceModal?.();
                 view.closeCompleteModal?.();
             }
         });

@@ -11,8 +11,9 @@ use TalentHub\Learner\Ai\Sources\Database\DatabaseActivityCandidateSource;
 
 final class ActivityMatchService
 {
-    public const VERSION = 'activity-model-v5';
+    public const VERSION = 'activity-model-v7';
     public const DEVELOPMENT_THRESHOLD = 70;
+    private const EXPLAIN_LIMIT = 20;
     public function __construct(private readonly PDO $pdo, private readonly Closure $snapshot, private readonly Closure $scopes, private readonly ?\TalentHub\Learner\Ai\Model\ModelActivityMatchEngine $engine = null, private readonly string $modelVersion = '') {}
     public function latest(string $studentId): array { return $this->resolve($studentId, false); }
     public function generate(string $studentId): array { return $this->resolve($studentId, true); }
@@ -78,12 +79,30 @@ final class ActivityMatchService
             $items[] = (new ActivityMatch($candidate, $fit, $reasons, $develop))->toArray();
         }
         usort($items, static fn ($a,$b) => ($b['score'] <=> $a['score']) ?: strcmp($a['activity_id'],$b['activity_id']));
-        $items = array_slice($items, 0, 3);
         $emptyAnalysis = [];
         if ($items !== []) {
+            $rank = 1;
+            foreach ($items as &$item) {
+                $item['match_rank'] = $rank++;
+            }
+            unset($item);
             if ($this->engine !== null) {
                 try {
-                    $items = $this->engine->generate($input, $items);
+                    $explained = $this->engine->generate($input, array_slice($items, 0, self::EXPLAIN_LIMIT));
+                    $byId = [];
+                    foreach ($explained as $row) {
+                        $id = (string) ($row['activity_id'] ?? '');
+                        if ($id !== '') {
+                            $byId[$id] = $row;
+                        }
+                    }
+                    foreach ($items as &$item) {
+                        $id = (string) ($item['activity_id'] ?? '');
+                        if ($id !== '' && isset($byId[$id])) {
+                            $item = array_replace($item, $byId[$id]);
+                        }
+                    }
+                    unset($item);
                 } catch (\Throwable $e) {
                     error_log('Activity AI Explain error: ' . $e->getMessage());
                 }

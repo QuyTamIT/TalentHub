@@ -337,7 +337,7 @@ final class RoadmapService
             'roadmap_id', 'version', 'contract_version', 'status', 'analysis_origin',
             'executive_summary', 'confidence_band', 'primary_direction',
             'confidence', 'talent_map', 'strengths', 'improvements', 'potential_paths', 'trend_signals', 'growth_hypotheses',
-            'alternative_directions', 'insights', 'evidence_summary',
+            'alternative_directions', 'insights', 'evidence_summary', 'evidence_sources',
             'generated_at', 'phases', 'progress', 'reused',
             'stale_since', 'last_refresh_error', 'next_retry_at', 'refresh_job_id',
         ] as $field) {

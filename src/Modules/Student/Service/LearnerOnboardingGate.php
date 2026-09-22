@@ -28,7 +28,7 @@ final class LearnerOnboardingGate
 
         $page = basename((string) (parse_url($path, PHP_URL_PATH) ?: ''));
         if (($progress['status'] ?? null) === 'pending') {
-            return $page === 'index.php' ? null : '/app/learner/index.php';
+            return $this->isLearnerHome($path) ? null : '/app/learner/index.php';
         }
 
         if (($progress['status'] ?? null) !== 'accepted' || in_array($page, self::ACCEPTED_PAGE_BASENAMES, true)) {
@@ -36,6 +36,15 @@ final class LearnerOnboardingGate
         }
 
         return $this->safeNextUrl($progress['next_url'] ?? null);
+    }
+
+    private function isLearnerHome(string $path): bool
+    {
+        $pathOnly = (string) (parse_url($path, PHP_URL_PATH) ?: '');
+        $normalized = rtrim($pathOnly, '/');
+
+        return $normalized === '/app/learner'
+            || $normalized === '/app/learner/index.php';
     }
 
     /** @param array<string,mixed> $progress */

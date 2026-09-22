@@ -309,7 +309,7 @@ $formatDateTime = static function (mixed $value, string $format): string {
                                 </div>
                                 <button class="learner-btn learner-btn--primary learner-btn--block <?= $isRegisteredSuccess ? 'learner-btn--registered-disabled' : '' ?>" type="button" data-register-current<?= $ctaDisabled ? ' disabled' : '' ?>><?= learner_escape($ctaLabel) ?></button>
                                 <p class="learner-registration-message" role="status" aria-live="polite" data-registration-message data-tone="outline"<?= $isRegisteredSuccess ? ' hidden' : '' ?>><?= learner_escape((string) $availability['explanation']) ?></p>
-                                <div class="learner-data-note"><?= learner_icon('info', 16) ?><p><?= $allowsLocalDemoMutation ? 'Chế độ demo: thay đổi chỉ được lưu cục bộ trên trình duyệt.' : 'Dữ liệu đăng ký từ máy chủ là nguồn chính thức.' ?></p></div>
+                                <?php if ($allowsLocalDemoMutation): ?><div class="learner-data-note"><?= learner_icon('info', 16) ?><p>Chế độ demo: thay đổi chỉ được lưu cục bộ trên trình duyệt.</p></div><?php endif; ?>
                             </section>
 
                             <section class="learner-card learner-activity-contact-card">

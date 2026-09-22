@@ -59,7 +59,11 @@ $context = new RecommendationContext(['profile', 'skills'], 'req-1', 'idem-1', '
 
 $request = JobMatchPromptRegistry::create($profile, [$candidate], ['job-1' => $match], ['job-1' => $gap], $context);
 $payload = $request->payload();
-$assert(JobMatchPromptRegistry::VERSION === 'learner-job-match-1.6.0', 'Teacher evaluation context must invalidate the previous prompt contract.');
+$assert(in_array(
+    'Trong analysis chỉ dùng tên kỹ năng từ trường label (ví dụ Phát triển API, HTML/CSS, JavaScript); tuyệt đối không viết mã kỹ năng dạng code như api_development, html_css, nodejs, ui_ux_design.',
+    $payload['instructions'] ?? [],
+    true
+), 'Prompt must require human-readable skill labels in analysis prose.');
 $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 $assert(($payload['input']['candidate_allow_list'][0]['catalog_id'] ?? '') === 'job-1', 'Prompt must contain the canonical job id.');
 $assert(($payload['input']['deterministic_scores']['job-1']['total_score'] ?? -1) === $match->score()->totalScore(), 'Prompt must carry the deterministic score breakdown.');

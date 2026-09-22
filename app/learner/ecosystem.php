@@ -10,7 +10,10 @@ $currentRoute = '/app/learner/ecosystem.php';
 $headerSearchLabel = 'Tìm doanh nghiệp hoặc dự án';
 $headerSearchPlaceholder = 'Tìm doanh nghiệp, lĩnh vực, dự án...';
 $initialTab = $_GET['tab'] ?? 'enterprises';
-$allowedTabs = ['enterprises', 'opportunities'];
+if (($initialTab === 'enterprises' || $initialTab === '') && (($_GET['view'] ?? '') === 'applications')) {
+    $initialTab = 'applications';
+}
+$allowedTabs = ['enterprises', 'opportunities', 'applications'];
 $initialTab = in_array($initialTab, $allowedTabs, true) ? $initialTab : 'enterprises';
 $allowedLifecycleFilters = ['all', 'recruiting', 'active', 'completed'];
 $initialLifecycleFilter = (string) ($_GET['filter'] ?? 'all');
@@ -131,9 +134,15 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
                         <?= learner_icon('sparkles', 19); ?> Dự án
                         <span class="learner-count-badge"><?= count($projects); ?></span>
                     </button>
+                    <button class="learner-ecosystem-tab" id="tab-applications" type="button" role="tab" aria-controls="panel-applications" aria-selected="<?= $initialTab === 'applications' ? 'true' : 'false'; ?>" data-ecosystem-tab="applications">
+                        <?= learner_icon('file-text', 19); ?> Hồ sơ ứng tuyển
+                        <?php if ($myApplicationsCount > 0): ?>
+                            <span class="learner-count-badge"><?= $myApplicationsCount; ?></span>
+                        <?php endif; ?>
+                    </button>
                 </nav>
 
-                <section class="learner-ecosystem-toolbar learner-card" aria-label="Bộ lọc tìm kiếm">
+                <section class="learner-ecosystem-toolbar learner-card" aria-label="Bộ lọc tìm kiếm" data-ecosystem-toolbar <?= $initialTab === 'applications' ? 'hidden' : ''; ?>>
                     <div class="learner-ecosystem-search">
                         <?= learner_icon('search', 19); ?>
                         <label class="learner-visually-hidden" for="ecosystem-local-search">Tìm trong hệ sinh thái</label>
@@ -168,208 +177,6 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
                 </section>
 
                 <section id="panel-enterprises" class="learner-ecosystem-panel" role="tabpanel" aria-labelledby="tab-enterprises" <?= $initialTab !== 'enterprises' ? 'hidden' : ''; ?> data-ecosystem-panel="enterprises">
-                    <!-- Bổ sung Vấn đề #06: Banner/Drawer Quản lý & Theo dõi Đơn ứng tuyển Thực tập -->
-                    <section class="learner-card learner-applications-tracker" data-applications-tracker data-has-applications="<?= $myApplicationsCount > 0 ? 'true' : 'false'; ?>" aria-labelledby="applications-tracker-title">
-                        <header class="learner-applications-tracker__header">
-                            <div class="learner-applications-tracker__title-group">
-                                <span class="learner-applications-tracker__icon" aria-hidden="true"><?= learner_icon('briefcase', 20); ?></span>
-                                <div>
-                                    <h2 id="applications-tracker-title">Hồ sơ ứng tuyển của bạn</h2>
-                                    <p>Theo dõi tiến trình xét duyệt và lịch phỏng vấn tại các doanh nghiệp đối tác.</p>
-                                </div>
-                            </div>
-                            <div class="learner-applications-tracker__header-actions">
-                                <?php if ($myApplicationsCount > 0): ?>
-                                    <?php $isTrackerExpanded = ($myApplicationsCount > 0); ?>
-                                    <span class="learner-applications-tracker__count-pill">
-                                        <?= learner_icon('briefcase', 14); ?> <?= $myApplicationsCount; ?> hồ sơ ứng tuyển
-                                    </span>
-                                    <button class="learner-applications-tracker__toggle" type="button" data-tracker-toggle aria-expanded="<?= $isTrackerExpanded ? 'true' : 'false'; ?>" aria-controls="applications-tracker-body">
-                                        <span data-toggle-label><?= $isTrackerExpanded ? 'Thu gọn' : 'Xem danh sách'; ?></span>
-                                        <span data-toggle-icon aria-hidden="true"<?= $isTrackerExpanded ? ' style="transform: rotate(180deg);"' : ''; ?>><?= learner_icon('chevron-down', 15); ?></span>
-                                    </button>
-                                <?php endif; ?>
-                            </div>
-                        </header>
-
-                        <?php if ($myApplicationsCount === 0): ?>
-                            <div class="learner-applications-tracker__empty">
-                                <p><?= learner_icon('info', 16); ?> Bạn chưa nộp hồ sơ ứng tuyển vị trí nào. Hãy khám phá danh sách doanh nghiệp và cơ hội bên dưới để ứng tuyển!</p>
-                            </div>
-                        <?php else: ?>
-                            <div class="learner-applications-tracker__summary">
-                                <?php if (($applicationSummary['submitted'] ?? 0) > 0): ?>
-                                    <span class="learner-status-chip is-reviewing"><?= learner_icon('send', 13); ?> Chờ tiếp nhận: <strong><?= $applicationSummary['submitted']; ?></strong></span>
-                                <?php endif; ?>
-                                <?php if (($applicationSummary['reviewing'] ?? 0) > 0): ?>
-                                    <span class="learner-status-chip is-reviewing"><?= learner_icon('clock', 13); ?> Đang xem xét: <strong><?= $applicationSummary['reviewing']; ?></strong></span>
-                                <?php endif; ?>
-                                <?php if (($applicationSummary['interview'] ?? 0) > 0): ?>
-                                    <span class="learner-status-chip is-interview"><?= learner_icon('calendar', 13); ?> Phỏng vấn: <strong><?= $applicationSummary['interview']; ?></strong></span>
-                                <?php endif; ?>
-                                <?php if (($applicationSummary['accepted'] ?? 0) > 0): ?>
-                                    <span class="learner-status-chip is-accepted"><?= learner_icon('check', 13); ?> Trúng tuyển: <strong><?= $applicationSummary['accepted']; ?></strong></span>
-                                <?php endif; ?>
-                                <?php if (($applicationSummary['declined'] ?? 0) > 0): ?>
-                                    <span class="learner-status-chip is-declined"><?= learner_icon('info', 13); ?> Chưa phù hợp: <strong><?= $applicationSummary['declined']; ?></strong></span>
-                                <?php endif; ?>
-                                <?php if (($applicationSummary['withdrawn'] ?? 0) > 0): ?>
-                                    <span class="learner-status-chip is-withdrawn"><?= learner_icon('x', 13); ?> Đã rút: <strong><?= $applicationSummary['withdrawn']; ?></strong></span>
-                                <?php endif; ?>
-                            </div>
-
-                            <div class="learner-applications-tracker__body" id="applications-tracker-body" data-tracker-body<?= !empty($isTrackerExpanded) ? '' : ' hidden'; ?>>
-                                <div class="learner-applications-tracker__list">
-                                    <?php foreach ($myApplications as $app): ?>
-                                        <?php
-                                        $statusNote = '';
-                                        $appStatus = (string) ($app['status'] ?? 'submitted');
-                                        if (in_array($appStatus, ['submitted', 'applied'], true)) {
-                                            $statusNote = 'Hồ sơ đã được chuyển tới bộ phận tuyển dụng doanh nghiệp. Doanh nghiệp thường xem xét và phản hồi trong 3 - 5 ngày làm việc.';
-                                        } elseif ($appStatus === 'reviewing') {
-                                            $statusNote = 'Doanh nghiệp đang xem xét năng lực và dự án mẫu trong hồ sơ của bạn.';
-                                        } elseif ($appStatus === 'interview') {
-                                            $statusNote = 'Chúc mừng! Bạn đã được chọn vào vòng phỏng vấn. Hãy kiểm tra thông báo và email để nắm lịch chi tiết.';
-                                        } elseif (in_array($appStatus, ['accepted', 'hired'], true)) {
-                                            $statusNote = 'Chúc mừng bạn đã trúng tuyển thực tập! Nhà tuyển dụng đã duyệt tiếp nhận và sẽ sớm liên hệ hướng dẫn nhận việc.';
-                                        } elseif ($appStatus === 'declined') {
-                                            $statusNote = 'Rất tiếc hồ sơ chưa phù hợp trong đợt này. Bạn có thể trau dồi thêm và ứng tuyển vị trí khác.';
-                                        } elseif ($appStatus === 'withdrawn') {
-                                            $statusNote = 'Bạn đã chủ động rút hồ sơ khỏi vị trí tuyển dụng này.';
-                                        }
-
-                                        $isAccepted = in_array($appStatus, ['accepted', 'hired'], true);
-                                        $acceptedDate = '';
-                                        if ($isAccepted) {
-                                            if (!empty($app['pipeline'])) {
-                                                $pipelineSteps = $app['pipeline'];
-                                                $lastStep = end($pipelineSteps);
-                                                $acceptedDate = $lastStep['date'] ?? '';
-                                            }
-                                            if (empty($acceptedDate)) {
-                                                $acceptedDate = $app['updated_at_formatted'] ?? '';
-                                            }
-                                        }
-                                        ?>
-                                        <article class="learner-application-card" data-app-card data-app-id="<?= learner_escape($app['id']); ?>">
-                                            <div class="learner-application-card__header">
-                                                <div class="learner-application-card__identity">
-                                                    <div class="learner-application-card__avatar" aria-hidden="true">
-                                                        <?= learner_escape($app['partner_initials'] ?? 'DN'); ?>
-                                                    </div>
-                                                    <div class="learner-application-card__details">
-                                                        <div class="learner-application-card__meta-top">
-                                                            <span class="learner-status-badge is-<?= learner_escape($app['status']); ?>" data-app-status-badge>
-                                                                <span class="dot" aria-hidden="true"></span>
-                                                                <?= learner_escape($app['status_label']); ?>
-                                                            </span>
-                                                            <span class="learner-work-type-badge">Thực tập</span>
-                                                        </div>
-                                                        <h3 class="learner-application-card__title">
-                                                            <a href="opportunity.php?type=<?= learner_escape($app['opportunity_type']); ?>&amp;id=<?= learner_escape($app['opportunity_id']); ?>">
-                                                                <?= learner_escape($app['title']); ?>
-                                                            </a>
-                                                        </h3>
-                                                        <div class="learner-application-card__submeta">
-                                                            <span class="learner-application-card__partner-name">
-                                                                <?= learner_icon('building', 14); ?>
-                                                                <?= learner_escape($app['partner_name']); ?>
-                                                            </span>
-                                                            <span>·</span>
-                                                            <span class="learner-application-card__date">
-                                                                Nộp lúc <?= learner_escape($app['submitted_at_formatted'] ?? $app['submitted_at'] ?? 'Chưa xác định'); ?>
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="learner-application-card__actions">
-                                                    <a class="learner-btn learner-btn--view-app" href="opportunity.php?type=<?= learner_escape($app['opportunity_type']); ?>&amp;id=<?= learner_escape($app['opportunity_id']); ?>">
-                                                        Chi tiết vị trí <?= learner_icon('arrow-right', 14); ?>
-                                                    </a>
-                                                    <?php if (!empty($app['can_withdraw'])): ?>
-                                                        <button class="learner-btn--danger-outline" type="button" data-withdraw-btn data-withdraw-id="<?= learner_escape($app['id']); ?>">
-                                                            Rút hồ sơ
-                                                        </button>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </div>
-
-                                            <?php if ($isAccepted): ?>
-                                                <div class="learner-app-accepted-banner" role="status">
-                                                    <div class="learner-app-accepted-banner__icon" aria-hidden="true">
-                                                        <?= learner_icon('check', 20); ?>
-                                                    </div>
-                                                    <div class="learner-app-accepted-banner__body">
-                                                        <div class="learner-app-accepted-banner__header">
-                                                            <h4 class="learner-app-accepted-banner__title">Trúng tuyển &amp; Được tiếp nhận</h4>
-                                                            <?php if (!empty($acceptedDate)): ?>
-                                                                <span class="learner-app-accepted-banner__time">Hoàn tất lúc <?= learner_escape($acceptedDate); ?></span>
-                                                            <?php endif; ?>
-                                                        </div>
-                                                        <p class="learner-app-accepted-banner__message">
-                                                            Chúc mừng bạn đã trúng tuyển thực tập! Doanh nghiệp đã duyệt tiếp nhận hồ sơ và sẽ sớm liên hệ hướng dẫn nhận việc qua email hoặc số điện thoại.
-                                                        </p>
-                                                        <?php if (!empty($app['message'])): ?>
-                                                            <div class="learner-app-accepted-banner__user-note">
-                                                                <?= learner_icon('mail', 13); ?>
-                                                                <span>Lời nhắn gửi kèm của bạn: <em>“<?= learner_escape($app['message']); ?>”</em></span>
-                                                            </div>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </div>
-                                            <?php else: ?>
-                                                <div class="learner-app-stepper" aria-label="Tiến trình xét duyệt">
-                                                    <div class="learner-app-stepper__track">
-                                                        <?php
-                                                        $steps = !empty($app['pipeline']) ? $app['pipeline'] : [];
-                                                        foreach ($steps as $idx => $step):
-                                                            $sState = $step['state'] ?? 'upcoming';
-                                                        ?>
-                                                            <div class="learner-app-step is-<?= learner_escape($sState); ?>" data-step-id="<?= learner_escape($step['id']); ?>">
-                                                                <div class="learner-app-step__node" aria-hidden="true">
-                                                                    <?php if ($sState === 'complete'): ?>
-                                                                        <?= learner_icon('check', 16); ?>
-                                                                    <?php elseif ($sState === 'declined' || $sState === 'withdrawn'): ?>
-                                                                        <?= learner_icon('x', 16); ?>
-                                                                    <?php elseif ($sState === 'current'): ?>
-                                                                        <?= learner_icon('clock', 15); ?>
-                                                                    <?php else: ?>
-                                                                        <?= $idx + 1; ?>
-                                                                    <?php endif; ?>
-                                                                </div>
-                                                                <div class="learner-app-step__content">
-                                                                    <span class="learner-app-step__title"><?= learner_escape($step['label']); ?></span>
-                                                                    <span class="learner-app-step__desc"><?= learner_escape($step['desc']); ?></span>
-                                                                    <?php if (!empty($step['date'])): ?>
-                                                                        <time class="learner-app-step__time"><?= learner_escape($step['date']); ?></time>
-                                                                    <?php endif; ?>
-                                                                </div>
-                                                            </div>
-                                                        <?php endforeach; ?>
-                                                    </div>
-                                                </div>
-
-                                                <?php if (!empty($app['message'])): ?>
-                                                    <div class="learner-app-message-preview">
-                                                        <span class="learner-app-message-label"><?= learner_icon('mail', 14); ?> Lời nhắn gửi kèm của bạn:</span>
-                                                        <p class="learner-app-message-text">“<?= learner_escape($app['message']); ?>”</p>
-                                                    </div>
-                                                <?php endif; ?>
-
-                                                <?php if (!empty($statusNote)): ?>
-                                                    <div class="learner-app-status-note">
-                                                        <?= learner_icon('info', 16); ?>
-                                                        <div><?= learner_escape($statusNote); ?></div>
-                                                    </div>
-                                                <?php endif; ?>
-                                            <?php endif; ?>
-                                        </article>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-                        <?php endif; ?>
-                    </section>
-
                     <section class="learner-job-ai learner-card" data-job-matches aria-labelledby="job-ai-title">
                         <header class="learner-job-ai__header">
                             <span class="learner-job-ai__icon" aria-hidden="true"><?= learner_icon('sparkles', 22); ?></span>
@@ -595,6 +402,207 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
                             </div>
                         </div>
                     <?php endif; ?>
+                </section>
+
+                <section id="panel-applications" class="learner-ecosystem-panel" role="tabpanel" aria-labelledby="tab-applications" <?= $initialTab !== 'applications' ? 'hidden' : ''; ?> data-ecosystem-panel="applications">
+                    <section class="learner-card learner-applications-tracker" data-applications-tracker data-has-applications="<?= $myApplicationsCount > 0 ? 'true' : 'false' ?>" aria-labelledby="applications-tracker-title">
+                        <header class="learner-applications-tracker__header">
+                            <div class="learner-applications-tracker__title-group">
+                                <span class="learner-applications-tracker__icon" aria-hidden="true"><?= learner_icon('file-text', 20); ?></span>
+                                <div>
+                                    <h2 id="applications-tracker-title">Hồ sơ ứng tuyển của bạn</h2>
+                                    <p>Theo dõi tiến trình xét duyệt và lịch phỏng vấn tại các doanh nghiệp đối tác.</p>
+                                </div>
+                            </div>
+                            <div class="learner-applications-tracker__header-actions">
+                                <?php if ($myApplicationsCount > 0): ?>
+                                    <span class="learner-applications-tracker__count-pill">
+                                        <?= learner_icon('briefcase', 14); ?> <?= $myApplicationsCount; ?> hồ sơ ứng tuyển
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                        </header>
+
+                        <?php if ($myApplicationsCount === 0): ?>
+                            <div class="learner-applications-tracker__empty">
+                                <p><?= learner_icon('info', 16); ?> Bạn chưa nộp hồ sơ ứng tuyển vị trí nào.</p>
+                                <a class="learner-btn learner-btn--primary" href="ecosystem.php?tab=enterprises">
+                                    <?= learner_icon('briefcase', 17); ?> Khám phá doanh nghiệp &amp; cơ hội
+                                </a>
+                            </div>
+                        <?php else: ?>
+                            <div class="learner-applications-tracker__summary">
+                                <?php if (($applicationSummary['submitted'] ?? 0) > 0): ?>
+                                    <span class="learner-status-chip is-reviewing"><?= learner_icon('send', 13); ?> Chờ tiếp nhận: <strong><?= $applicationSummary['submitted']; ?></strong></span>
+                                <?php endif; ?>
+                                <?php if (($applicationSummary['reviewing'] ?? 0) > 0): ?>
+                                    <span class="learner-status-chip is-reviewing"><?= learner_icon('clock', 13); ?> Đang xem xét: <strong><?= $applicationSummary['reviewing']; ?></strong></span>
+                                <?php endif; ?>
+                                <?php if (($applicationSummary['interview'] ?? 0) > 0): ?>
+                                    <span class="learner-status-chip is-interview"><?= learner_icon('calendar', 13); ?> Phỏng vấn: <strong><?= $applicationSummary['interview']; ?></strong></span>
+                                <?php endif; ?>
+                                <?php if (($applicationSummary['accepted'] ?? 0) > 0): ?>
+                                    <span class="learner-status-chip is-accepted"><?= learner_icon('check', 13); ?> Trúng tuyển: <strong><?= $applicationSummary['accepted']; ?></strong></span>
+                                <?php endif; ?>
+                                <?php if (($applicationSummary['declined'] ?? 0) > 0): ?>
+                                    <span class="learner-status-chip is-declined"><?= learner_icon('info', 13); ?> Chưa phù hợp: <strong><?= $applicationSummary['declined']; ?></strong></span>
+                                <?php endif; ?>
+                                <?php if (($applicationSummary['withdrawn'] ?? 0) > 0): ?>
+                                    <span class="learner-status-chip is-withdrawn"><?= learner_icon('x', 13); ?> Đã rút: <strong><?= $applicationSummary['withdrawn']; ?></strong></span>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="learner-applications-tracker__body" id="applications-tracker-body" data-tracker-body>
+                                <div class="learner-applications-tracker__list">
+                                    <?php foreach ($myApplications as $app): ?>
+                                        <?php
+                                        $statusNote = '';
+                                        $appStatus = (string) ($app['status'] ?? 'submitted');
+                                        if (in_array($appStatus, ['submitted', 'applied'], true)) {
+                                            $statusNote = 'Hồ sơ đã được chuyển tới bộ phận tuyển dụng doanh nghiệp. Doanh nghiệp thường xem xét và phản hồi trong 3 - 5 ngày làm việc.';
+                                        } elseif ($appStatus === 'reviewing') {
+                                            $statusNote = 'Doanh nghiệp đang xem xét năng lực và dự án mẫu trong hồ sơ của bạn.';
+                                        } elseif ($appStatus === 'interview') {
+                                            $statusNote = 'Chúc mừng! Bạn đã được chọn vào vòng phỏng vấn. Hãy kiểm tra thông báo và email để nắm lịch chi tiết.';
+                                        } elseif (in_array($appStatus, ['accepted', 'hired'], true)) {
+                                            $statusNote = 'Chúc mừng bạn đã trúng tuyển thực tập! Nhà tuyển dụng đã duyệt tiếp nhận và sẽ sớm liên hệ hướng dẫn nhận việc.';
+                                        } elseif ($appStatus === 'declined') {
+                                            $statusNote = 'Rất tiếc hồ sơ chưa phù hợp trong đợt này. Bạn có thể trau dồi thêm và ứng tuyển vị trí khác.';
+                                        } elseif ($appStatus === 'withdrawn') {
+                                            $statusNote = 'Bạn đã chủ động rút hồ sơ khỏi vị trí tuyển dụng này.';
+                                        }
+
+                                        $isAccepted = in_array($appStatus, ['accepted', 'hired'], true);
+                                        $acceptedDate = '';
+                                        if ($isAccepted) {
+                                            if (!empty($app['pipeline'])) {
+                                                $pipelineSteps = $app['pipeline'];
+                                                $lastStep = end($pipelineSteps);
+                                                $acceptedDate = $lastStep['date'] ?? '';
+                                            }
+                                            if (empty($acceptedDate)) {
+                                                $acceptedDate = $app['updated_at_formatted'] ?? '';
+                                            }
+                                        }
+                                        ?>
+                                        <article class="learner-application-card" data-app-card data-app-id="<?= learner_escape($app['id']); ?>">
+                                            <div class="learner-application-card__header">
+                                                <div class="learner-application-card__identity">
+                                                    <div class="learner-application-card__avatar" aria-hidden="true">
+                                                        <?= learner_escape($app['partner_initials'] ?? 'DN'); ?>
+                                                    </div>
+                                                    <div class="learner-application-card__details">
+                                                        <div class="learner-application-card__meta-top">
+                                                            <span class="learner-status-badge is-<?= learner_escape($app['status']); ?>" data-app-status-badge>
+                                                                <span class="dot" aria-hidden="true"></span>
+                                                                <?= learner_escape($app['status_label']); ?>
+                                                            </span>
+                                                            <span class="learner-work-type-badge">Thực tập</span>
+                                                        </div>
+                                                        <h3 class="learner-application-card__title">
+                                                            <a href="opportunity.php?type=<?= learner_escape($app['opportunity_type']); ?>&amp;id=<?= learner_escape($app['opportunity_id']); ?>">
+                                                                <?= learner_escape($app['title']); ?>
+                                                            </a>
+                                                        </h3>
+                                                        <div class="learner-application-card__submeta">
+                                                            <span class="learner-application-card__partner-name">
+                                                                <?= learner_icon('building', 14); ?>
+                                                                <?= learner_escape($app['partner_name']); ?>
+                                                            </span>
+                                                            <span>·</span>
+                                                            <span class="learner-application-card__date">
+                                                                Nộp lúc <?= learner_escape($app['submitted_at_formatted'] ?? $app['submitted_at'] ?? 'Chưa xác định'); ?>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="learner-application-card__actions">
+                                                    <a class="learner-btn learner-btn--view-app" href="opportunity.php?type=<?= learner_escape($app['opportunity_type']); ?>&amp;id=<?= learner_escape($app['opportunity_id']); ?>">
+                                                        Chi tiết vị trí <?= learner_icon('arrow-right', 14); ?>
+                                                    </a>
+                                                    <?php if (!empty($app['can_withdraw'])): ?>
+                                                        <button class="learner-btn--danger-outline" type="button" data-withdraw-btn data-withdraw-id="<?= learner_escape($app['id']); ?>">
+                                                            Rút hồ sơ
+                                                        </button>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+
+                                            <?php if ($isAccepted): ?>
+                                                <div class="learner-app-accepted-banner" role="status">
+                                                    <div class="learner-app-accepted-banner__icon" aria-hidden="true">
+                                                        <?= learner_icon('check', 20); ?>
+                                                    </div>
+                                                    <div class="learner-app-accepted-banner__body">
+                                                        <div class="learner-app-accepted-banner__header">
+                                                            <h4 class="learner-app-accepted-banner__title">Trúng tuyển &amp; Được tiếp nhận</h4>
+                                                            <?php if (!empty($acceptedDate)): ?>
+                                                                <span class="learner-app-accepted-banner__time">Hoàn tất lúc <?= learner_escape($acceptedDate); ?></span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <p class="learner-app-accepted-banner__message">
+                                                            Chúc mừng bạn đã trúng tuyển thực tập! Doanh nghiệp đã duyệt tiếp nhận hồ sơ và sẽ sớm liên hệ hướng dẫn nhận việc qua email hoặc số điện thoại.
+                                                        </p>
+                                                        <?php if (!empty($app['message'])): ?>
+                                                            <div class="learner-app-accepted-banner__user-note">
+                                                                <?= learner_icon('mail', 13); ?>
+                                                                <span>Lời nhắn gửi kèm của bạn: <em>“<?= learner_escape($app['message']); ?>”</em></span>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="learner-app-stepper" aria-label="Tiến trình xét duyệt">
+                                                    <div class="learner-app-stepper__track">
+                                                        <?php
+                                                        $steps = !empty($app['pipeline']) ? $app['pipeline'] : [];
+                                                        foreach ($steps as $idx => $step):
+                                                            $sState = $step['state'] ?? 'upcoming';
+                                                        ?>
+                                                            <div class="learner-app-step is-<?= learner_escape($sState); ?>" data-step-id="<?= learner_escape($step['id']); ?>">
+                                                                <div class="learner-app-step__node" aria-hidden="true">
+                                                                    <?php if ($sState === 'complete'): ?>
+                                                                        <?= learner_icon('check', 16); ?>
+                                                                    <?php elseif ($sState === 'declined' || $sState === 'withdrawn'): ?>
+                                                                        <?= learner_icon('x', 16); ?>
+                                                                    <?php elseif ($sState === 'current'): ?>
+                                                                        <?= learner_icon('clock', 15); ?>
+                                                                    <?php else: ?>
+                                                                        <?= $idx + 1; ?>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                                <div class="learner-app-step__content">
+                                                                    <span class="learner-app-step__title"><?= learner_escape($step['label']); ?></span>
+                                                                    <span class="learner-app-step__desc"><?= learner_escape($step['desc']); ?></span>
+                                                                    <?php if (!empty($step['date'])): ?>
+                                                                        <time class="learner-app-step__time"><?= learner_escape($step['date']); ?></time>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                            </div>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                </div>
+
+                                                <?php if (!empty($app['message'])): ?>
+                                                    <div class="learner-app-message-preview">
+                                                        <span class="learner-app-message-label"><?= learner_icon('mail', 14); ?> Lời nhắn gửi kèm của bạn:</span>
+                                                        <p class="learner-app-message-text">“<?= learner_escape($app['message']); ?>”</p>
+                                                    </div>
+                                                <?php endif; ?>
+
+                                                <?php if (!empty($statusNote)): ?>
+                                                    <div class="learner-app-status-note">
+                                                        <?= learner_icon('info', 16); ?>
+                                                        <div><?= learner_escape($statusNote); ?></div>
+                                                    </div>
+                                                <?php endif; ?>
+                                            <?php endif; ?>
+                                        </article>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </section>
                 </section>
             </main>
         </div>

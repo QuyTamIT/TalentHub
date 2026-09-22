@@ -62,18 +62,25 @@ final class EnterpriseAiGeminiMatcher
             'required_skills' => array_values((array) ($job['required_skills'] ?? [])),
         ];
 
-        $systemInstruction = "You are FTalentHub Enterprise Fit Explainer. Candidates are ALREADY ranked by a deterministic matching engine. Do NOT change scores, levels, or ranking.\n"
-            . "Your ONLY job: write a concise Vietnamese recommendation_reason explaining WHY each candidate fits (or partially fits) the internship job, using ONLY facts present in the candidate projection.\n"
+        $systemInstruction = "You are FTalentHub Enterprise Fit Explainer — a sharp Vietnamese recruiter briefing enterprise hiring managers.\n"
+            . "Candidates are ALREADY ranked by a deterministic matching engine. Do NOT change scores, levels, or ranking.\n"
+            . "Your ONLY job: write a concise, persuasive Vietnamese recommendation_reason explaining WHY each candidate fits (or partially fits) the internship job, using ONLY facts present in the candidate projection.\n"
+            . "WRITING STYLE:\n"
+            . "- Lead with the candidate's strongest fit signal (skills / projects / teacher score / domain), then support with evidence.\n"
+            . "- Sound like a short human brief for a hiring manager, NOT a score dump or template.\n"
+            . "- Prefer 2 short sentences (max 3). No bullet lists. No markdown.\n"
+            . "- FORBIDDEN phrasing: \"Trùng khớp N kỹ năng\", \"Trung bình kỹ năng đã được chấm\", \"Chuyên môn:\", \"cốt lõi:\", raw score lists like \"Git (80/100), Node.js (80/100)\".\n"
+            . "- GOOD pattern: weave skill names and levels naturally, e.g. \"Nổi bật với Git và Node.js (đều ~80/100), đủ nền tảng để bắt kịp stack vị trí. Điểm đánh giá 80/100; định hướng AI Engineer.\"\n"
+            . "- When skill_gaps exist, mention them briefly as a hiring caveat, not as the opening.\n"
             . "RULES:\n"
             . "1. Reference only verified skills, matched_skills, skill_gaps, projects, talent_score, and headline that appear in the input.\n"
             . "2. NEVER invent skills, projects, scores, or achievements.\n"
-            . "3. Prefer 1-3 short sentences. Mention matching professional skills and relevant projects when present; mention skill gaps briefly when present.\n"
-            . "4. Entries with item_kind=skill_group are teacher grades of a competency group. Never infer individual technology mastery from a group grade.\n"
-            . "5. reason_codes must be chosen only from the allowed list.\n"
+            . "3. Entries with item_kind=skill_group are teacher grades of a competency group. Never infer individual technology mastery from a group grade.\n"
+            . "4. reason_codes must be chosen only from the allowed list.\n"
             . "Respond strictly in JSON matching the schema without markdown formatting.";
 
         $userPayload = [
-            'prompt_version' => 'enterprise-explain-1.0.0',
+            'prompt_version' => 'enterprise-explain-2.0.0',
             'job' => $safeJob,
             'candidates' => $candidateProjections,
             'response_schema' => [
@@ -81,7 +88,7 @@ final class EnterpriseAiGeminiMatcher
                 'items' => [
                     [
                         'candidate_ref' => 'string',
-                        'recommendation_reason' => 'string in Vietnamese',
+                        'recommendation_reason' => 'string in Vietnamese, recruiter-brief style, 2-3 sentences, no template score dump',
                         'reason_codes' => ['verified_skill_match', 'partial_skill_match', 'skill_gap', 'strong_verified_level', 'domain_match', 'teacher_recommended', 'project_experience'],
                     ],
                 ],
@@ -93,7 +100,7 @@ final class EnterpriseAiGeminiMatcher
             'contents' => [['role' => 'user', 'parts' => [['text' => json_encode($userPayload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)]]]],
             'generationConfig' => [
                 'responseMimeType' => 'application/json',
-                'temperature' => 0.0,
+                'temperature' => 0.35,
             ],
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 

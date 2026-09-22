@@ -32,7 +32,6 @@ $renderCvSupportingSection = static function (string $section) use ($cv, $isAppl
             </button>
         <?php else: ?>
             <a href="profile.php">← Hồ sơ năng lực</a>
-            <p>CV 2 cột chọn lọc 1 trang A4. Khi lưu PDF: chọn A4, tỷ lệ 100%, bật đồ họa nền, tắt đầu/chân trang của trình duyệt.</p>
             <button type="button" data-cv-export>Lấy dữ liệu mới &amp; xuất PDF</button>
         <?php endif; ?>
     </nav>
@@ -139,26 +138,11 @@ $renderCvSupportingSection = static function (string $section) use ($cv, $isAppl
                         <?php if (!empty($cv['skills'])): ?>
                         <section class="cv-main-section">
                             <h2 class="cv-section-title">Bảng năng lực cốt lõi</h2>
-                            <div class="cv-skills-grid">
+                            <ul class="cv-skills-list">
                                 <?php foreach ($cv['skills'] as $skill): ?>
-                                    <div class="cv-skill-row">
-                                        <div class="cv-skill-header">
-                                            <span class="cv-skill-name"><?= $escapeCv($skill['name']); ?></span>
-                                            <?php if ($skill['score'] !== null): ?>
-                                                <span class="cv-skill-score"><?= $escapeCv((string)$skill['score']); ?>%</span>
-                                            <?php else: ?>
-                                                <span class="cv-skill-score cv-skill-score-verified"><?= ($skill['state'] ?? '') === 'evidence_only' ? 'Có minh chứng · Chưa chấm điểm' : (($skill['source_type'] ?? '') === 'internship_evaluation' ? 'Đã hoàn thành qua thực tập' : 'Xác thực'); ?></span>
-                                            <?php endif; ?>
-                                        </div>
-                                        <?php if ($skill['score'] !== null): ?>
-                                            <div class="cv-skill-bar-bg">
-                                                <div class="cv-skill-bar-fill" style="width: <?= max(0, min(100, (float)$skill['score'])); ?>%"></div>
-                                            </div>
-                                        <?php endif; ?>
-                                        <?php if ($isApplicationSnapshot && !empty($skill['source'])): ?><p class="cv-meta-sm"><?= $escapeCv($skill['source']); ?></p><?php endif; ?>
-                                    </div>
+                                    <li><?= $escapeCv($skill['name']); ?><?php if ($isApplicationSnapshot && !empty($skill['source'])): ?> <span class="cv-meta-sm">· <?= $escapeCv($skill['source']); ?></span><?php endif; ?></li>
                                 <?php endforeach; ?>
-                            </div>
+                            </ul>
                         </section>
                         <?php endif; ?>
 

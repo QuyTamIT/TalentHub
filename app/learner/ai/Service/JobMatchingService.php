@@ -218,6 +218,7 @@ final class JobMatchingService
             $itemSkillGap = self::sanitizeSkillGap(is_array($meta['skill_gap'] ?? null) ? $meta['skill_gap'] : []);
             $gapExplanations = self::sanitizeGapExplanations($ai['gap_explanations'] ?? [], $itemSkillGap);
             $strengthSummary = self::strengthSummary($meta);
+            $analysisText = self::humanizeAnalysisProse((string) ($ai['analysis'] ?? ''), $itemSkillGap);
             $enterprise = $candidate->enterpriseId() !== '' ? $candidate->enterpriseId() : 'provider:' . hash('sha256', $candidate->providerName());
             if (($run['state'] ?? '') === 'no_matching_jobs') {
                 $gap = $itemSkillGap;
@@ -226,9 +227,10 @@ final class JobMatchingService
                     'enterprise_id' => $candidate->enterpriseId(), 'enterprise_name' => $candidate->providerName(),
                     'catalog_id' => $id, 'title' => $candidate->title(), 'url' => $candidate->canonicalUrl(),
                     'match_score' => (int) $item['matchScore'], 'match_tier' => 'low_fit',
-                    'score_breakdown' => $meta['score_breakdown'] ?? [], 'analysis' => $ai['analysis'] ?? '',
+                    'score_breakdown' => $meta['score_breakdown'] ?? [], 'analysis' => $analysisText,
                     'strength_skill_codes' => $ai['strength_skill_codes'] ?? [], 'gap_skill_codes' => $ai['gap_skill_codes'] ?? [],
                     'gap_explanations' => $gapExplanations, 'evidence_ref_ids' => $ai['evidence_ref_ids'] ?? [],
+                    'recommended_activities' => $gap['recommended_activities'],
                 ], $strengthSummary);
                 return ['state'=>'no_matching_jobs','analysis_origin'=>'gemini','score_origin'=>'deterministic_40_35_25','enterprise_groups'=>[],'near_match'=>$nearMatch,'skill_gap'=>$gap,'run_id'=>$run['runId']??null,'freshness_status'=>$stale?'stale':'fresh'];
             }
@@ -236,9 +238,10 @@ final class JobMatchingService
             $groups[$enterprise]['positions'][] = array_merge([
                 'catalog_id'=>$id,'title'=>$candidate->title(),'url'=>$candidate->canonicalUrl(),
                 'match_score'=>(int)$item['matchScore'],'match_tier'=>$meta['score_breakdown']['tier']??'developing_fit',
-                'score_breakdown'=>$meta['score_breakdown']??[],'analysis'=>$ai['analysis']??'',
+                'score_breakdown'=>$meta['score_breakdown']??[],'analysis'=>$analysisText,
                 'strength_skill_codes'=>$ai['strength_skill_codes']??[],'gap_skill_codes'=>$ai['gap_skill_codes']??[],
                 'gap_explanations'=>$gapExplanations,'evidence_ref_ids'=>$ai['evidence_ref_ids']??[],
+                'recommended_activities'=>is_array($meta['recommended_activities']??null)?$meta['recommended_activities']:[],
             ], $strengthSummary);
             if ($topGap === null) {
                 $topGap = $itemSkillGap;
@@ -338,6 +341,37 @@ final class JobMatchingService
             ];
         }
         return $out;
+    }
+
+    /** @param array<string,mixed> $skillGap */
+    private static function humanizeAnalysisProse(string $analysis, array $skillGap): string
+    {
+        $analysis = trim($analysis);
+        if ($analysis === '') {
+            return '';
+        }
+        $labels = [];
+        foreach (['skills_met', 'skills_missing', 'unbenchmarked_skills'] as $bucket) {
+            foreach ($skillGap[$bucket] ?? [] as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $code = is_string($row['code'] ?? null) ? strtolower(trim($row['code'])) : '';
+                $label = is_string($row['label'] ?? null) ? trim($row['label']) : '';
+                if ($code === '' || $label === '' || preg_match('/\A[a-z0-9]+(?:_[a-z0-9]+)*\z/', $code) !== 1) {
+                    continue;
+                }
+                $labels[$code] = $label;
+            }
+        }
+        if ($labels === []) {
+            return $analysis;
+        }
+        uksort($labels, static fn (string $left, string $right): int => strlen($right) <=> strlen($left));
+        foreach ($labels as $code => $label) {
+            $analysis = preg_replace('/\b' . preg_quote($code, '/') . '\b/u', $label, $analysis) ?? $analysis;
+        }
+        return $analysis;
     }
 
     /** @return array<string,mixed> */

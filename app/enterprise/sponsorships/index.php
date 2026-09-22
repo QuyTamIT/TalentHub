@@ -88,7 +88,6 @@ $sidebarNav = [
     ],
 ];
 
-// Fetch real database projects and sponsorships
 $db = $context['pdo'];
 $sql = "
     SELECT p.*, 

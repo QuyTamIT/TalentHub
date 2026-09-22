@@ -102,9 +102,14 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                                     <span class="learner-activity-discovery-kpis__sub">hiện nay</span>
                                 </li>
                                 <li>
-                                    <span class="learner-activity-discovery-kpis__icon is-green"><?= learner_icon('sparkles', 22); ?></span>
-                                    <span class="learner-activity-discovery-kpis__value"><strong><?= learner_escape($newActivityCount); ?></strong> hoạt động mới</span>
-                                    <span class="learner-activity-discovery-kpis__sub">phù hợp</span>
+                                    <button type="button"
+                                            class="learner-activity-discovery-kpis__action"
+                                            data-match-kpi
+                                            aria-label="Xem danh sách hoạt động phù hợp theo kỹ năng">
+                                        <span class="learner-activity-discovery-kpis__icon is-green"><?= learner_icon('sparkles', 22); ?></span>
+                                        <span class="learner-activity-discovery-kpis__value"><strong data-match-kpi-count><?= learner_escape($newActivityCount); ?></strong> hoạt động mới</span>
+                                        <span class="learner-activity-discovery-kpis__sub">phù hợp</span>
+                                    </button>
                                 </li>
                             </ul>
                         </div>
@@ -147,25 +152,38 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                                 <?php endforeach; ?>
                             </div>
                         </div>
-
                     </section>
 
-                    <section class="learner-activity-matches" data-activity-matches aria-label="Gợi ý hoạt động để phát triển kỹ năng">
-                        <div class="learner-activity-matches__actions">
-                            <button type="button" class="learner-btn learner-btn--primary" data-generate aria-expanded="false" aria-controls="activity-matches-panel"><span data-trigger-label>Gợi ý hoạt động phù hợp</span></button>
-                        </div>
-                        <div id="activity-matches-panel" class="learner-activity-matches__panel" data-panel hidden>
-                            <div class="learner-activity-matches__header">
-                                <div><h2>Hoạt động giúp bạn phát triển</h2><p>Đối chiếu kỹ năng cần rèn luyện với các hoạt động đang mở tại trường.</p></div>
-                                <button type="button" class="learner-btn" data-toggle aria-expanded="true" aria-controls="activity-matches-body">Thu gọn</button>
+                    <section class="learner-activity-matches" data-activity-matches aria-label="Gợi ý hoạt động phù hợp">
+                        <div class="learner-activity-matches__card">
+                            <div class="learner-activity-matches__card-header">
+                                <span class="learner-activity-matches__badge">Khớp kỹ năng</span>
+                                <h2 class="learner-activity-matches__card-title">Gợi ý hoạt động phù hợp</h2>
                             </div>
-                            <div id="activity-matches-body" data-body>
+                            <p class="learner-activity-matches__card-desc">
+                                Lọc và xếp hạng hoạt động theo kỹ năng bạn cần phát triển. AI giải thích vì sao từng hoạt động phù hợp.
+                            </p>
+                            <div class="learner-activity-matches__card-actions">
+                                <button type="button" class="learner-btn learner-btn--primary" data-generate aria-expanded="false" aria-controls="activity-matches-status">
+                                    <span data-trigger-label>Gợi ý hoạt động phù hợp</span>
+                                </button>
+                            </div>
+                            <div id="activity-matches-status" class="learner-activity-matches__status-wrap" data-status-wrap hidden>
                                 <p class="learner-activity-matches__status" data-status role="status" aria-live="polite"></p>
-                                <progress max="100" value="0" aria-label="Tiến trình phân tích minh họa" hidden></progress>
-                                <div data-cards></div>
+                                <progress max="100" value="0" aria-label="Tiến trình tìm hoạt động phù hợp" hidden></progress>
+                                <div data-empty-insight hidden></div>
                             </div>
                         </div>
                     </section>
+
+                    <div class="learner-activity-match-banner" id="activity-match-banner" role="status" aria-live="polite" hidden>
+                        <div class="learner-activity-match-banner__body">
+                            <span class="learner-activity-match-banner__badge">Hoạt động phù hợp</span>
+                            <span class="learner-activity-match-banner__count" data-match-count>0 hoạt động phù hợp</span>
+                            <p class="learner-activity-match-banner__text" data-match-banner-text>Đang hiển thị hoạt động phù hợp theo kỹ năng cần phát triển</p>
+                        </div>
+                        <button type="button" class="learner-btn" data-match-reset title="Bỏ lọc và xem tất cả hoạt động">Xem tất cả hoạt động</button>
+                    </div>
 
                     <p class="learner-visually-hidden" data-activity-result-status role="status" aria-live="polite">
                         <?= learner_escape(count($activityCatalog)); ?> hoạt động phù hợp
@@ -230,6 +248,7 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                                 <article
                                     class="learner-activity-discovery-card"
                                     data-activity-card
+                                    data-activity-id="<?= learner_escape((string) ($activity['id'] ?? '')); ?>"
                                     data-activity-search="<?= learner_escape($searchText); ?>"
                                     data-filter-category="<?= learner_escape($filterCategory); ?>"
                                     data-start-at="<?= learner_escape($startAt->format(DateTimeInterface::ATOM)); ?>"

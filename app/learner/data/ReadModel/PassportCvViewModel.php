@@ -21,9 +21,8 @@ final class PassportCvViewModel
         return rtrim(mb_substr($text, 0, $limit - 1)) . '…';
     }
 
-    public static function build(array $data, string $generatedAt, bool $compact = true): array
+    public static function build(array $data, string $generatedAt, bool $compact = false): array
     {
-        // Student PDF keeps its one-page limits; application capture retains all CV content.
         $text = static fn(mixed $value, int $limit): string => self::text($value, $compact ? $limit : PHP_INT_MAX);
         // This aggregate is produced only by PortfolioRepository::verifiedForStudent,
         // never by browser input. No own declaration establishes verified competence.

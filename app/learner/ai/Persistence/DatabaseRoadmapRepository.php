@@ -525,7 +525,7 @@ SQL);
     /** @return array<string,mixed> */
     private function hydrate(string $studentId, string $roadmapId): array
     {
-        $statement = $this->pdo->prepare('SELECT roadmaps.*, runs.engineType, runs.ruleVersion, runs.provider, runs.modelVersion, runs.promptVersion, runs.fallbackReason, snapshots.contentHash AS inputHash FROM learner_ai_roadmaps AS roadmaps INNER JOIN learner_recommendation_runs AS runs ON runs.id = roadmaps.runId INNER JOIN learner_recommendation_input_snapshots AS snapshots ON snapshots.id = runs.snapshotId WHERE roadmaps.id = :roadmapId AND roadmaps.studentId = :studentId');
+        $statement = $this->pdo->prepare('SELECT roadmaps.*, runs.snapshotId AS snapshotId, runs.engineType, runs.ruleVersion, runs.provider, runs.modelVersion, runs.promptVersion, runs.fallbackReason, snapshots.contentHash AS inputHash FROM learner_ai_roadmaps AS roadmaps INNER JOIN learner_recommendation_runs AS runs ON runs.id = roadmaps.runId INNER JOIN learner_recommendation_input_snapshots AS snapshots ON snapshots.id = runs.snapshotId WHERE roadmaps.id = :roadmapId AND roadmaps.studentId = :studentId');
         $statement->execute(['roadmapId' => $roadmapId, 'studentId' => $studentId]);
         $row = $statement->fetch(PDO::FETCH_ASSOC);
         if ($row === false) throw new RuntimeException('Roadmap not found for learner');
@@ -609,7 +609,13 @@ SQL);
             sort($evidence, SORT_STRING);
         }
         $origin = $row['engineType'] === 'model' ? 'model' : 'rule_fallback';
-        return ['roadmap_id'=>$row['id'],'run_id'=>$row['runId'],'input_hash'=>$row['inputHash'],'version'=>(int)$row['versionNumber'],'contract_version'=>$row['contractVersion'],'status'=>$row['status'],'analysis_origin'=>$origin,'freshness_status'=>$row['freshness_status']??null,'stale_since'=>$row['stale_since']??null,'last_refresh_error'=>$row['last_refresh_error']??null,'next_retry_at'=>$row['next_retry_at']??null,'refresh_job_id'=>$row['refresh_job_id']??null,'executive_summary'=>$row['executiveSummary'],'confidence_band'=>$row['confidenceBand'],'confidence'=>(float)($extended['confidence'] ?? 0.0),'talent_map'=>[],'strengths'=>is_array($extended['strengths'] ?? null) ? $extended['strengths'] : [],'improvements'=>is_array($extended['improvements'] ?? null) ? $extended['improvements'] : [],'potential_paths'=>is_array($extended['potential_paths'] ?? null) ? $extended['potential_paths'] : [],'trend_signals'=>is_array($extended['trend_signals'] ?? null) ? $extended['trend_signals'] : [],'growth_hypotheses'=>is_array($extended['growth_hypotheses'] ?? null) ? $extended['growth_hypotheses'] : [],'evidence'=>$evidence,'primary_direction'=>self::decode((string)$row['primaryDirectionJson']),'alternative_directions'=>self::decode((string)$row['alternativeDirectionsJson']),'insights'=>$insights,'evidence_summary'=>self::decode((string)$row['evidenceSummaryJson']),'generated_at'=>$row['generatedAt'],'engine'=>['provider'=>$row['provider'],'model_version'=>$row['modelVersion'],'prompt_version'=>$row['promptVersion'],'rule_version'=>$row['ruleVersion'],'fallback_reason'=>$row['fallbackReason']],'phases'=>$phaseData,'progress'=>['completed_tasks'=>$completed,'total_tasks'=>$total]];
+        $snapshotId = (string) ($row['snapshotId'] ?? '');
+        $evidenceSummary = self::decode((string) $row['evidenceSummaryJson']);
+        if (!is_array($evidenceSummary)) {
+            $evidenceSummary = [];
+        }
+        $evidenceSources = $snapshotId !== '' ? $this->evidenceSources($snapshotId) : [];
+        return ['roadmap_id'=>$row['id'],'run_id'=>$row['runId'],'input_hash'=>$row['inputHash'],'version'=>(int)$row['versionNumber'],'contract_version'=>$row['contractVersion'],'status'=>$row['status'],'analysis_origin'=>$origin,'freshness_status'=>$row['freshness_status']??null,'stale_since'=>$row['stale_since']??null,'last_refresh_error'=>$row['last_refresh_error']??null,'next_retry_at'=>$row['next_retry_at']??null,'refresh_job_id'=>$row['refresh_job_id']??null,'executive_summary'=>$row['executiveSummary'],'confidence_band'=>$row['confidenceBand'],'confidence'=>(float)($extended['confidence'] ?? 0.0),'talent_map'=>[],'strengths'=>is_array($extended['strengths'] ?? null) ? $extended['strengths'] : [],'improvements'=>is_array($extended['improvements'] ?? null) ? $extended['improvements'] : [],'potential_paths'=>is_array($extended['potential_paths'] ?? null) ? $extended['potential_paths'] : [],'trend_signals'=>is_array($extended['trend_signals'] ?? null) ? $extended['trend_signals'] : [],'growth_hypotheses'=>is_array($extended['growth_hypotheses'] ?? null) ? $extended['growth_hypotheses'] : [],'evidence'=>$evidence,'primary_direction'=>self::decode((string)$row['primaryDirectionJson']),'alternative_directions'=>self::decode((string)$row['alternativeDirectionsJson']),'insights'=>$insights,'evidence_summary'=>$evidenceSummary,'evidence_sources'=>$evidenceSources,'generated_at'=>$row['generatedAt'],'engine'=>['provider'=>$row['provider'],'model_version'=>$row['modelVersion'],'prompt_version'=>$row['promptVersion'],'rule_version'=>$row['ruleVersion'],'fallback_reason'=>$row['fallbackReason']],'phases'=>$phaseData,'progress'=>['completed_tasks'=>$completed,'total_tasks'=>$total]];
     }
 
     /** @return array<string,mixed> */
@@ -666,6 +672,351 @@ SQL);
             if ($key !== null) $counts[$key] = (int) $row['total'];
         }
         return $counts;
+    }
+
+    /** @return list<array{type:string,group:string,label:string,detail:string}> */
+    private function evidenceSources(string $snapshotId): array
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT sourceType, sourceId, safeValueJson, observedAt
+             FROM learner_recommendation_snapshot_evidence
+             WHERE snapshotId = :snapshotId
+               AND sourceType IN ('assessment','skill','activity_experience','evaluation')
+             ORDER BY FIELD(sourceType,'assessment','skill','activity_experience','evaluation'), createdAt ASC, id ASC"
+        );
+        $statement->execute(['snapshotId' => $snapshotId]);
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+        $sourceIds = array_values(array_unique(array_map(
+            static fn (array $row): string => (string) ($row['sourceId'] ?? ''),
+            $rows,
+        )));
+        $badgeMap = $this->badgeLookup($sourceIds);
+        $activityTitleMap = $this->activityTitleLookup($rows);
+
+        $items = [];
+        foreach ($rows as $row) {
+            $type = (string) ($row['sourceType'] ?? '');
+            $sourceId = (string) ($row['sourceId'] ?? '');
+            $value = self::decode((string) ($row['safeValueJson'] ?? ''));
+            if (!is_array($value)) {
+                $value = [];
+            }
+            $kind = self::evidenceKind($type, $value);
+            $dedupeKey = $kind . ':' . ($sourceId !== '' ? $sourceId : md5((string) ($row['safeValueJson'] ?? '')));
+            if ($kind === 'progress' && isset($items['badge:' . $sourceId])) {
+                continue;
+            }
+            if ($kind === 'badge') {
+                unset($items['progress:' . $sourceId]);
+            }
+            if (isset($items[$dedupeKey])) {
+                continue;
+            }
+            $badge = $badgeMap[$sourceId] ?? null;
+            $activityTitle = $activityTitleMap[$sourceId] ?? null;
+            $items[$dedupeKey] = [
+                'type' => $type,
+                'group' => self::evidenceGroup($kind),
+                'label' => self::evidenceSourceLabel($kind, $value, $sourceId, $badge, $activityTitle),
+                'detail' => self::evidenceSourceDetail($kind, $value, is_string($row['observedAt'] ?? null) ? (string) $row['observedAt'] : null, $badge),
+            ];
+        }
+        return array_values($items);
+    }
+
+    private function badgeLookup(array $ids): array
+    {
+        $ids = array_values(array_filter($ids, static fn (string $id): bool => $id !== ''));
+        if ($ids === []) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        try {
+            $statement = $this->pdo->prepare("SELECT id, code, name, description FROM badges WHERE id IN ({$placeholders})");
+            $statement->execute($ids);
+        } catch (\Throwable) {
+            return [];
+        }
+        $map = [];
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $map[(string) $row['id']] = [
+                'code' => (string) ($row['code'] ?? ''),
+                'name' => (string) ($row['name'] ?? ''),
+                'description' => (string) ($row['description'] ?? ''),
+            ];
+        }
+        return $map;
+    }
+
+    private function activityTitleLookup(array $rows): array
+    {
+        $experienceIds = [];
+        $activityIds = [];
+        foreach ($rows as $row) {
+            if ((string) ($row['sourceType'] ?? '') !== 'activity_experience') {
+                continue;
+            }
+            $value = self::decode((string) ($row['safeValueJson'] ?? ''));
+            if (!is_array($value)) {
+                $value = [];
+            }
+            if (isset($value['progressPercent']) || isset($value['target']) || isset($value['current'])) {
+                continue;
+            }
+            $sourceId = (string) ($row['sourceId'] ?? '');
+            if ($sourceId !== '') {
+                $experienceIds[] = $sourceId;
+            }
+            $activityId = is_string($value['activity_id'] ?? null) ? (string) $value['activity_id'] : '';
+            if ($activityId === '' && is_string($value['activityId'] ?? null)) {
+                $activityId = (string) $value['activityId'];
+            }
+            if ($activityId !== '') {
+                $activityIds[$sourceId] = $activityId;
+            }
+        }
+        $experienceIds = array_values(array_unique(array_filter($experienceIds)));
+        if ($experienceIds !== []) {
+            $placeholders = implode(',', array_fill(0, count($experienceIds), '?'));
+            try {
+                $statement = $this->pdo->prepare("SELECT id, activityId FROM experience_logs WHERE id IN ({$placeholders})");
+                $statement->execute($experienceIds);
+                foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $log) {
+                    $logId = (string) ($log['id'] ?? '');
+                    $activityId = (string) ($log['activityId'] ?? '');
+                    if ($logId !== '' && $activityId !== '') {
+                        $activityIds[$logId] = $activityId;
+                    }
+                }
+            } catch (\Throwable) {
+            }
+        }
+        $uniqueActivityIds = array_values(array_unique(array_filter(array_values($activityIds))));
+        if ($uniqueActivityIds === []) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($uniqueActivityIds), '?'));
+        $titles = [];
+        try {
+            $statement = $this->pdo->prepare("SELECT id, title FROM activities WHERE id IN ({$placeholders})");
+            $statement->execute($uniqueActivityIds);
+            foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $activity) {
+                $titles[(string) $activity['id']] = trim((string) ($activity['title'] ?? ''));
+            }
+        } catch (\Throwable) {
+            return [];
+        }
+        $map = [];
+        foreach ($activityIds as $sourceId => $activityId) {
+            $title = $titles[$activityId] ?? '';
+            if ($title !== '') {
+                $map[$sourceId] = $title;
+            }
+        }
+        return $map;
+    }
+
+    private static function evidenceKind(string $type, array $value): string
+    {
+        if ($type === 'assessment') {
+            return 'assessment';
+        }
+        if ($type === 'evaluation') {
+            return 'evaluation';
+        }
+        if ($type === 'activity_experience') {
+            if (isset($value['progressPercent']) || isset($value['target']) || isset($value['current'])) {
+                return 'progress';
+            }
+            return 'activity';
+        }
+        if (
+            isset($value['awarded_at']) || isset($value['awardedAt'])
+            || (is_string($value['description'] ?? null) && !isset($value['level_score']))
+            || in_array((string) ($value['category'] ?? ''), ['experience', 'activity', 'assessment', 'school', 'evaluation'], true)
+        ) {
+            return 'badge';
+        }
+        return 'skill';
+    }
+
+    private static function evidenceGroup(string $kind): string
+    {
+        return match ($kind) {
+            'assessment' => 'Kết quả đánh giá',
+            'skill' => 'Kỹ năng',
+            'activity' => 'Hoạt động đã xác nhận',
+            'badge', 'progress' => 'Huy hiệu / cột mốc',
+            'evaluation' => 'Đánh giá giảng viên',
+            default => 'Dữ liệu đã cho phép',
+        };
+    }
+
+    private static function evidenceSourceLabel(string $kind, array $value, string $sourceId, ?array $badge, ?string $activityTitle = null): string
+    {
+        return match ($kind) {
+            'assessment' => self::assessmentLabel($value),
+            'skill' => self::skillLabel($value, $sourceId),
+            'activity' => self::activityLabel($value, $activityTitle),
+            'badge', 'progress' => self::badgeLabel($value, $sourceId, $badge),
+            'evaluation' => self::evaluationLabel($value),
+            default => $sourceId !== '' ? $sourceId : 'Nguồn dữ liệu',
+        };
+    }
+
+    private static function evidenceSourceDetail(string $kind, array $value, ?string $observedAt, ?array $badge): string
+    {
+        $parts = [];
+        if ($kind === 'assessment') {
+            $code = is_string($value['result_code'] ?? null) ? trim((string) $value['result_code']) : '';
+            if ($code !== '') {
+                $parts[] = 'Kết quả: ' . $code;
+            }
+        }
+        if ($kind === 'skill' && is_numeric($value['level_score'] ?? null)) {
+            $parts[] = 'Điểm ' . (int) $value['level_score'] . '/100';
+            $status = (string) ($value['verification_status'] ?? '');
+            if ($status === 'verified') {
+                $parts[] = 'Đã xác minh';
+            } elseif ($status === 'self_declared') {
+                $parts[] = 'Tự khai';
+            } elseif ($status !== '') {
+                $parts[] = 'Chưa xác minh';
+            }
+        }
+        if ($kind === 'activity' && is_numeric($value['hours'] ?? null)) {
+            $parts[] = (float) $value['hours'] . ' giờ đã xác nhận';
+        }
+        if ($kind === 'badge' || $kind === 'progress') {
+            $description = trim((string) ($badge['description'] ?? ($value['description'] ?? '')));
+            if ($description !== '') {
+                $parts[] = $description;
+            } elseif ($kind === 'progress' && is_numeric($value['target'] ?? null)) {
+                $parts[] = 'Mốc mục tiêu ' . (int) $value['target'];
+                if (($value['status'] ?? '') === 'achieved') {
+                    $parts[] = 'Đã đạt';
+                }
+            }
+        }
+        if ($kind === 'evaluation' && is_numeric($value['overall_score'] ?? null)) {
+            $parts[] = 'Điểm tổng ' . (int) $value['overall_score'] . '/100';
+        }
+        if ($observedAt !== null && $observedAt !== '') {
+            $parts[] = 'Ghi nhận ' . substr($observedAt, 0, 10);
+        }
+        return implode(' · ', $parts);
+    }
+
+    /** @param array<string,mixed> $value */
+    private static function assessmentLabel(array $value): string
+    {
+        $raw = strtolower((string) ($value['test_type'] ?? $value['assessment_type'] ?? $value['test_code'] ?? ''));
+        $raw = str_replace(['_college', '_education', '-education'], '', $raw);
+        $names = [
+            'holland' => 'Holland (RIASEC)',
+            'holland-riasec' => 'Holland (RIASEC)',
+            'mbti' => 'MBTI',
+            'disc' => 'DISC',
+            'multiple_intelligence' => 'Trí tuệ đa dạng (MI)',
+            'multiple-intelligence' => 'Trí tuệ đa dạng (MI)',
+        ];
+        foreach ($names as $key => $label) {
+            if ($raw === $key || str_starts_with($raw, $key)) {
+                return $label;
+            }
+        }
+        return $raw !== '' ? 'Bài đánh giá · ' . ucfirst(str_replace(['_', '-'], ' ', $raw)) : 'Bài đánh giá năng lực';
+    }
+
+    /** @param array<string,mixed> $value */
+    private static function skillLabel(array $value, string $sourceId): string
+    {
+        if (is_string($value['title'] ?? null) && trim((string) $value['title']) !== '') {
+            return trim((string) $value['title']);
+        }
+        if (is_string($value['name'] ?? null) && trim((string) $value['name']) !== '') {
+            return trim((string) $value['name']);
+        }
+        $code = is_string($value['code'] ?? null) ? (string) $value['code'] : '';
+        if ($code === '' && str_contains($sourceId, ':')) {
+            $code = substr($sourceId, strrpos($sourceId, ':') + 1);
+        }
+        if ($code === '') {
+            $code = $sourceId;
+        }
+        $labels = [
+            'css' => 'CSS', 'html' => 'HTML', 'html_css' => 'HTML & CSS', 'javascript' => 'JavaScript',
+            'typescript' => 'TypeScript', 'react' => 'React', 'nodejs' => 'Node.js', 'python' => 'Python',
+            'api_development' => 'Phát triển API', 'algorithms' => 'Thuật toán',
+            'database_design' => 'Thiết kế cơ sở dữ liệu', 'teamwork' => 'Làm việc nhóm',
+            'communication' => 'Giao tiếp', 'problem_solving' => 'Giải quyết vấn đề',
+            'research' => 'Nghiên cứu', 'statistical_analysis' => 'Phân tích thống kê',
+        ];
+        if (isset($labels[$code])) {
+            return $labels[$code];
+        }
+        return ucwords(str_replace(['_', '-'], ' ', $code));
+    }
+
+    private static function activityLabel(array $value, ?string $resolvedTitle = null): string
+    {
+        if ($resolvedTitle !== null && trim($resolvedTitle) !== '') {
+            return trim($resolvedTitle);
+        }
+        if (is_string($value['title'] ?? null) && trim((string) $value['title']) !== '') {
+            return trim((string) $value['title']);
+        }
+        if (is_string($value['display_category'] ?? null) && trim((string) $value['display_category']) !== '') {
+            return 'Hoạt động · ' . trim((string) $value['display_category']);
+        }
+        if (is_string($value['filter_category'] ?? null) && trim((string) $value['filter_category']) !== '') {
+            return 'Hoạt động · ' . trim((string) $value['filter_category']);
+        }
+        $category = is_string($value['activity_category'] ?? null) ? (string) $value['activity_category'] : '';
+        $names = [
+            'career_technical' => 'Kỹ thuật',
+            'career_business' => 'Kinh doanh',
+            'career_arts' => 'Nghệ thuật',
+            'career_sports_academic' => 'Thể thao / Học thuật',
+        ];
+        return 'Hoạt động · ' . ($names[$category] ?? ($category !== '' ? ucwords(str_replace('_', ' ', $category)) : 'Đã xác nhận'));
+    }
+
+    private static function badgeLabel(array $value, string $sourceId, ?array $badge): string
+    {
+        if ($badge !== null && trim($badge['name']) !== '') {
+            return 'Huy hiệu · ' . trim($badge['name']);
+        }
+        if (is_string($value['name'] ?? null) && trim((string) $value['name']) !== '') {
+            return 'Huy hiệu · ' . trim((string) $value['name']);
+        }
+        if (is_string($value['description'] ?? null) && trim((string) $value['description']) !== '') {
+            return 'Huy hiệu · ' . trim((string) $value['description']);
+        }
+        $code = is_string($value['code'] ?? null) ? (string) $value['code'] : ($badge['code'] ?? '');
+        $labels = [
+            'first_experience' => 'Khởi đầu trải nghiệm',
+            'experience_10h' => 'Hành trình tích lũy',
+            'active_participant' => 'Thành viên năng nổ',
+            'assessment_explorer' => 'Khám phá năng lực',
+            'teacher_recognition' => 'Ghi nhận từ giáo viên',
+        ];
+        if ($code !== '' && isset($labels[$code])) {
+            return 'Huy hiệu · ' . $labels[$code];
+        }
+        if ($code !== '') {
+            return 'Huy hiệu · ' . ucwords(str_replace(['_', '-'], ' ', $code));
+        }
+        return 'Cột mốc tiến độ';
+    }
+
+    /** @param array<string,mixed> $value */
+    private static function evaluationLabel(array $value): string
+    {
+        if (is_numeric($value['overall_score'] ?? null)) {
+            return 'Đánh giá giảng viên · ' . (int) $value['overall_score'] . '/100';
+        }
+        return 'Đánh giá giảng viên đã công bố';
     }
 
     /** @return array<string,mixed> */

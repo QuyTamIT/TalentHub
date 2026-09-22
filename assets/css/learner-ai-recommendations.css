@@ -1,0 +1,928 @@
+.learner-page-ai {
+    --ai-ink: var(--text-primary);
+    --ai-muted: var(--text-secondary);
+    --ai-line: var(--border);
+    --ai-surface: #fff;
+    --ai-warm: #FFF7F2;
+    --ai-coral: var(--primary-coral);
+}
+
+.learner-page-ai .learner-roadmap {
+    max-width: 1380px;
+    gap: 0;
+    background: transparent;
+}
+
+.learner-page-ai .learner-ai-shell {
+    display: grid;
+    gap: 14px;
+}
+
+.learner-page-ai .learner-ai-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 14px 20px;
+    padding: 18px 20px;
+    background: linear-gradient(120deg, #fff 0%, var(--ai-warm) 100%);
+    border: 1px solid #FFDACB;
+    border-radius: 16px;
+}
+
+.learner-page-ai .learner-ai-bar__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 4px;
+    color: var(--ai-coral);
+    font-size: var(--text-xs);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.learner-page-ai .learner-ai-bar h1 {
+    margin: 0;
+    font-size: clamp(var(--text-xl), 2.4vw, var(--text-3xl));
+    letter-spacing: -0.035em;
+}
+
+.learner-page-ai .learner-ai-bar__tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+}
+
+.learner-page-ai .learner-ai-bar__version {
+    display: grid;
+    gap: 3px;
+    color: var(--ai-muted);
+    font-size: var(--text-xs);
+    font-weight: 650;
+}
+
+.learner-page-ai .learner-ai-bar__version select {
+    min-height: 40px;
+    min-width: 180px;
+    border: 1px solid var(--ai-line);
+    border-radius: 10px;
+    background: #fff;
+    padding: 0 30px 0 10px;
+}
+
+.learner-page-ai .learner-ai-bar__freshness {
+    display: inline-flex;
+    min-height: 40px;
+    padding: 0 10px;
+    align-items: center;
+    gap: 6px;
+    color: #15803D;
+    background: #F0FDF4;
+    border: 1px solid #BBF7D0;
+    border-radius: 10px;
+    font-size: var(--text-xs);
+    font-weight: 650;
+}
+
+.learner-page-ai .learner-ai-workspace {
+    display: grid;
+    gap: 14px;
+}
+
+.learner-page-ai .learner-ai-workspace__brief {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.8fr);
+    gap: 0;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid var(--ai-line);
+    border-radius: 16px;
+}
+
+.learner-page-ai .learner-ai-workspace__brief-main {
+    padding: 16px 18px;
+}
+
+.learner-page-ai .learner-ai-workspace__brief-kicker {
+    color: var(--ai-coral);
+    font-size: var(--text-2xs);
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.learner-page-ai .learner-ai-workspace__brief-text {
+    display: -webkit-box;
+    margin: 6px 0 8px;
+    overflow: hidden;
+    color: var(--ai-ink);
+    font-size: var(--text-base);
+    font-weight: 600;
+    line-height: 1.5;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
+.learner-page-ai .learner-ai-workspace__brief-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.learner-page-ai .learner-ai-workspace__brief-meta > * {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.learner-page-ai .learner-ai-workspace__brief-meta span,
+.learner-page-ai .learner-ai-workspace__confidence {
+    padding: 5px 10px;
+    background: var(--ai-warm);
+    border: 1px solid #FFDACB;
+    border-radius: 10px;
+    color: var(--ai-muted);
+    font-size: var(--text-2xs);
+    font-weight: 650;
+    line-height: 1.35;
+    white-space: normal;
+}
+
+.learner-page-ai .learner-ai-workspace__confidence {
+    flex: 1 1 11rem;
+}
+
+.learner-page-ai .learner-ai-workspace__evidence-trigger {
+    appearance: none;
+    flex: 0 1 auto;
+    padding: 5px 10px;
+    color: inherit;
+    background: var(--ai-warm);
+    border: 1px solid #FFDACB;
+    border-radius: 10px;
+    font: inherit;
+    font-size: var(--text-2xs);
+    font-weight: 650;
+    line-height: 1.35;
+    white-space: normal;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.learner-page-ai .learner-ai-workspace__evidence-trigger:hover:not(:disabled),
+.learner-page-ai .learner-ai-workspace__evidence-trigger:focus-visible {
+    color: var(--ai-coral);
+    background: #fff;
+    border-color: var(--ai-coral);
+    outline: none;
+}
+
+.learner-page-ai .learner-ai-workspace__evidence-trigger:disabled {
+    cursor: default;
+    opacity: 0.72;
+}
+
+.learner-roadmap-evidence-modal__dialog {
+    display: grid;
+    gap: 18px;
+}
+
+.learner-roadmap-evidence-modal__body {
+    display: grid;
+    gap: 16px;
+    max-height: min(52vh, 420px);
+    overflow: auto;
+    padding-right: 4px;
+}
+
+.learner-roadmap-evidence-modal__group {
+    display: grid;
+    gap: 8px;
+}
+
+.learner-roadmap-evidence-modal__group-title {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    font-weight: 700;
+}
+
+.learner-roadmap-evidence-modal__list,
+.learner-roadmap-evidence-modal__fallback {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.learner-roadmap-evidence-modal__item {
+    display: grid;
+    gap: 2px;
+    padding: 10px 12px;
+    background: #fff7f3;
+    border: 1px solid #ffdacb;
+    border-radius: 10px;
+}
+
+.learner-roadmap-evidence-modal__item strong {
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    font-weight: 650;
+}
+
+.learner-roadmap-evidence-modal__item span,
+.learner-roadmap-evidence-modal__fallback li,
+.learner-roadmap-evidence-modal__empty {
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    line-height: 1.45;
+}
+
+.learner-roadmap-evidence-modal__fallback li {
+    padding: 10px 12px;
+    background: #fff7f3;
+    border: 1px solid #ffdacb;
+    border-radius: 10px;
+}
+
+.learner-page-ai .learner-ai-workspace__brief-side {
+    padding: 16px 18px;
+    background: var(--ai-warm);
+    border-left: 1px solid #FFDACB;
+}
+
+.learner-page-ai .learner-ai-workspace__brief-side strong {
+    display: block;
+    color: var(--ai-coral);
+    font-size: var(--text-base);
+    line-height: 1.35;
+}
+
+.learner-page-ai .learner-ai-workspace__brief-side p {
+    display: -webkit-box;
+    margin: 6px 0 0;
+    overflow: hidden;
+    color: var(--ai-muted);
+    font-size: var(--text-xs);
+    line-height: 1.45;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+}
+
+.learner-page-ai .learner-ai-workspace__brief-side [data-roadmap-direction-alternatives] {
+    display: none;
+}
+
+.learner-page-ai .learner-ai-workspace__desk {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    background: #fff;
+    border: 1px solid var(--ai-line);
+    border-radius: 16px;
+    box-shadow: 0 10px 28px rgba(50, 32, 20, 0.04);
+}
+
+.learner-page-ai .learner-ai-workspace__desk-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.learner-page-ai .learner-ai-workspace__desk-head h2 {
+    margin: 0;
+    font-size: var(--text-lg);
+    letter-spacing: -0.02em;
+}
+
+.learner-page-ai .learner-ai-workspace__desk-head p {
+    margin: 4px 0 0;
+    color: var(--ai-muted);
+    font-size: var(--text-sm);
+}
+
+.learner-page-ai .learner-ai-workspace__progress {
+    display: inline-flex;
+    min-height: 36px;
+    padding: 0 12px;
+    align-items: center;
+    color: var(--ai-coral);
+    background: var(--ai-warm);
+    border: 1px solid #FFDACB;
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    font-weight: 750;
+}
+
+.learner-page-ai .learner-ai-workspace__progress-track .learner-roadmap-progress {
+    height: 6px;
+    overflow: hidden;
+    background: #F0E6DD;
+    border-radius: 999px;
+}
+
+.learner-page-ai .learner-ai-workspace__progress-track .learner-roadmap-progress > span {
+    display: block;
+    height: 100%;
+    background: var(--primary-gradient);
+    border-radius: inherit;
+}
+
+.learner-page-ai .learner-ai-workspace__phases.learner-roadmap-phases,
+.learner-page-ai .learner-ai-workspace__phases {
+    display: block;
+    min-height: 420px;
+    grid-template-columns: none;
+}
+
+.learner-page-ai .learner-ai-workspace__split {
+    display: grid;
+    width: 100%;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+    min-height: 420px;
+}
+
+.learner-page-ai .learner-ai-workspace__nav.learner-roadmap-phase-summaries,
+.learner-page-ai .learner-ai-workspace__nav {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+}
+
+.learner-page-ai .learner-ai-workspace__nav::before {
+    content: '';
+    position: absolute;
+    top: 22px;
+    bottom: 22px;
+    left: 21px;
+    width: 2px;
+    background: linear-gradient(180deg, #FFDACB, #F0E6DD);
+}
+
+.learner-page-ai .learner-ai-workspace__nav .learner-roadmap-phase-summary {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    width: 100%;
+    min-height: 0;
+    padding: 12px;
+    text-align: left;
+    color: var(--ai-ink);
+    background: #FFFCFA;
+    border: 1px solid var(--ai-line);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.learner-page-ai .learner-ai-workspace__nav .learner-roadmap-phase-summary:hover {
+    border-color: #FFDACB;
+}
+
+.learner-page-ai .learner-ai-workspace__nav .learner-roadmap-phase-summary.is-expanded,
+.learner-page-ai .learner-ai-workspace__nav .learner-roadmap-phase-summary.is-current.is-expanded {
+    background: #fff;
+    border-color: var(--primary);
+    box-shadow: 0 8px 20px rgba(248, 63, 112, 0.12);
+}
+
+.learner-page-ai .learner-ai-workspace__nav .learner-roadmap-phase__number {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    max-width: 42px;
+    max-height: 42px;
+    place-items: center;
+    aspect-ratio: 1 / 1;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    color: var(--ai-coral);
+    background: #fff;
+    border: 2px solid #FFDACB;
+    border-radius: 50%;
+    font-weight: 800;
+}
+
+.learner-page-ai .learner-ai-workspace__nav .is-expanded .learner-roadmap-phase__number,
+.learner-page-ai .learner-ai-workspace__nav .is-current .learner-roadmap-phase__number {
+    color: #fff;
+    background: var(--primary-gradient);
+    border-color: transparent;
+}
+
+.learner-page-ai .learner-ai-workspace__nav .is-completed .learner-roadmap-phase__number {
+    color: #fff;
+    background: #16A34A;
+    border-color: transparent;
+}
+
+.learner-page-ai .learner-ai-workspace__nav .learner-roadmap-phase__heading-wrap {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.learner-page-ai .learner-ai-workspace__nav .learner-ai-plan__day {
+    color: var(--ai-coral);
+    font-size: var(--text-2xs);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.learner-page-ai .learner-ai-workspace__nav strong {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: var(--text-sm);
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.learner-page-ai .learner-ai-workspace__nav .learner-roadmap-phase__status {
+    width: fit-content;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: var(--text-2xs);
+    font-weight: 750;
+    background: #F1F5F9;
+    color: var(--ai-muted);
+}
+
+.learner-page-ai .learner-ai-workspace__nav .learner-roadmap-phase__status.is-current {
+    color: #C2410C;
+    background: #FFF0EB;
+}
+
+.learner-page-ai .learner-ai-workspace__nav .learner-phase-mini-track {
+    height: 4px;
+    overflow: hidden;
+    background: #F0E6DD;
+    border-radius: 999px;
+}
+
+.learner-page-ai .learner-ai-workspace__nav .learner-phase-mini-track span {
+    display: block;
+    height: 100%;
+    background: var(--primary-gradient);
+}
+
+.learner-page-ai .learner-ai-workspace__nav .learner-roadmap-phase__progress {
+    color: var(--ai-muted);
+    font-size: var(--text-2xs);
+    font-weight: 700;
+}
+
+.learner-page-ai .learner-ai-workspace__panels {
+    min-width: 0;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-roadmap-phase-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid #E8DDD4;
+    border-radius: 14px;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-roadmap-phase-panel[hidden] {
+    display: none !important;
+}
+
+.learner-page-ai .learner-ai-stage__toolbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid #F0E6DD;
+}
+
+.learner-page-ai .learner-ai-stage__lead {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.learner-page-ai .learner-ai-stage__range {
+    color: var(--ai-coral);
+    font-size: var(--text-2xs);
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.learner-page-ai .learner-ai-stage__title {
+    margin: 0;
+    font-size: var(--text-md);
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+}
+
+.learner-page-ai .learner-ai-stage__trail {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.learner-page-ai .learner-ai-stage__effort,
+.learner-page-ai .learner-ai-stage__count {
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: var(--text-2xs);
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.learner-page-ai .learner-ai-stage__effort {
+    color: #9A3412;
+    background: #FFF0EB;
+}
+
+.learner-page-ai .learner-ai-stage__count {
+    color: var(--ai-ink);
+    background: #FFFCFA;
+    border: 1px solid #E8DDD4;
+}
+
+.learner-page-ai .learner-ai-stage__focus {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 12px;
+    align-items: baseline;
+    margin: 0 16px;
+    padding: 12px 0;
+    border-bottom: 1px dashed #E8DDD4;
+}
+
+.learner-page-ai .learner-ai-stage__focus-label {
+    grid-column: 1 / -1;
+    color: var(--ai-muted);
+    font-size: var(--text-2xs);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.learner-page-ai .learner-ai-stage__focus-title {
+    margin: 0;
+    font-size: var(--text-base);
+    line-height: 1.35;
+}
+
+.learner-page-ai .learner-ai-stage__focus-time {
+    color: #1D4ED8;
+    font-size: var(--text-xs);
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.learner-page-ai .learner-ai-stage__board {
+    display: grid;
+    gap: 10px;
+    padding: 14px 16px 8px;
+}
+
+.learner-page-ai .learner-ai-stage__board-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.learner-page-ai .learner-ai-stage__board-head h4 {
+    margin: 0;
+    font-size: var(--text-sm);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--ai-muted);
+}
+
+.learner-page-ai .learner-ai-stage__board-head span {
+    color: var(--ai-muted);
+    font-size: var(--text-xs);
+    font-weight: 650;
+    text-align: right;
+}
+
+.learner-page-ai .learner-ai-stage__rail {
+    display: grid;
+    gap: 10px;
+    margin: 4px 16px 0;
+    padding: 12px 0 4px;
+    border-top: 1px solid #F0E6DD;
+}
+
+.learner-page-ai .learner-ai-stage__facts {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+}
+
+.learner-page-ai .learner-ai-stage__fact {
+    display: grid;
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    gap: 8px 12px;
+    align-items: baseline;
+}
+
+.learner-page-ai .learner-ai-stage__fact dt {
+    margin: 0;
+    color: var(--ai-muted);
+    font-size: var(--text-2xs);
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.learner-page-ai .learner-ai-stage__fact dd {
+    margin: 0;
+    color: var(--ai-ink);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.learner-page-ai .learner-ai-stage__why {
+    margin: 0;
+    color: var(--ai-muted);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-roadmap-task-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-roadmap-task {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    padding: 12px 14px;
+    background: #FFFCFA;
+    border: 1px solid #F0E6DD;
+    border-radius: 12px;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-roadmap-task:hover {
+    border-color: #FFDACB;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-roadmap-task.is-completed {
+    background: #F0FDF4;
+    border-color: #BBF7D0;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-roadmap-task__control {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    max-width: 40px;
+    max-height: 40px;
+    padding: 0;
+    border: 2px solid #E5D7CC;
+    border-radius: 50%;
+    background: #fff;
+    aspect-ratio: 1 / 1;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-roadmap-task.is-completed .learner-roadmap-task__control {
+    color: #fff;
+    background: #16A34A;
+    border-color: #16A34A;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-roadmap-task__content {
+    display: grid;
+    gap: 4px;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-roadmap-task__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-task-index {
+    color: var(--ai-coral);
+    font-size: var(--text-2xs);
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-task-time-badge,
+.learner-page-ai .learner-ai-workspace__panels .learner-task-milestone-badge {
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: var(--text-2xs);
+    font-weight: 750;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-task-time-badge {
+    color: #1D4ED8;
+    background: #EFF6FF;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-task-milestone-badge {
+    color: #9A3412;
+    background: #FFF0EB;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-roadmap-task strong {
+    font-size: var(--text-sm);
+    line-height: 1.35;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-task-desc {
+    color: var(--ai-muted);
+    font-size: var(--text-xs);
+    line-height: 1.45;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-roadmap-task.is-completed strong {
+    color: var(--ai-muted);
+    text-decoration: line-through;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-roadmap-phase-panel__footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: auto;
+    padding: 12px 16px 14px;
+    border-top: 1px solid #F0E6DD;
+    background: #FFFCFA;
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-roadmap-phase-panel__footer-progress {
+    display: grid;
+    min-width: min(100%, 220px);
+    gap: 6px;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    color: var(--ai-muted);
+}
+
+.learner-page-ai .learner-ai-workspace__panels .learner-roadmap-phase-panel__footer .learner-btn--primary {
+    min-height: 40px;
+    background: var(--primary-gradient);
+    border-color: transparent;
+    box-shadow: 0 8px 16px rgba(248, 63, 112, 0.2);
+}
+
+.learner-page-ai .learner-ai-workspace__more {
+    border: 1px dashed #E5D7CC;
+    border-radius: 14px;
+    background: #FFFCFA;
+    padding: 0;
+}
+
+.learner-page-ai .learner-ai-workspace__more > summary {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 2px 10px;
+    align-items: center;
+    padding: 14px 16px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.learner-page-ai .learner-ai-workspace__more > summary::-webkit-details-marker {
+    display: none;
+}
+
+.learner-page-ai .learner-ai-workspace__more > summary span {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    grid-row: 1 / span 2;
+    place-items: center;
+    color: var(--ai-coral);
+    background: #FFF0EB;
+    border-radius: 8px;
+}
+
+.learner-page-ai .learner-ai-workspace__more > summary strong {
+    font-size: var(--text-sm);
+}
+
+.learner-page-ai .learner-ai-workspace__more > summary em {
+    color: var(--ai-muted);
+    font-size: var(--text-xs);
+    font-style: normal;
+}
+
+.learner-page-ai .learner-ai-workspace__more-body {
+    display: grid;
+    gap: 14px;
+    padding: 0 16px 16px;
+}
+
+.learner-page-ai .learner-ai-workspace__more-body .learner-roadmap-analysis {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.learner-page-ai .learner-roadmap-version__changes {
+    margin: 0;
+    border-left: 3px solid var(--ai-coral);
+    border-radius: 8px;
+    background: var(--ai-warm);
+    color: #9A3412;
+    padding: 10px 12px;
+    font-size: var(--text-sm);
+}
+
+.learner-page-ai .learner-roadmap-state,
+.learner-page-ai .learner-roadmap-processing {
+    border-radius: 16px;
+}
+
+.learner-page-ai .learner-roadmap-processing {
+    border: 1px solid #FFDACB;
+    background: linear-gradient(135deg, #fff 0%, var(--ai-warm) 100%);
+}
+
+@media (max-width: 980px) {
+    .learner-page-ai .learner-ai-workspace__brief,
+    .learner-page-ai .learner-ai-workspace__split,
+    .learner-page-ai .learner-ai-workspace__more-body .learner-roadmap-analysis {
+        grid-template-columns: 1fr;
+    }
+
+    .learner-page-ai .learner-ai-workspace__brief-side {
+        border-left: 0;
+        border-top: 1px solid #FFDACB;
+    }
+
+    .learner-page-ai .learner-ai-workspace__nav {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .learner-page-ai .learner-ai-workspace__nav::before {
+        display: none;
+    }
+}
+
+@media (max-width: 720px) {
+    .learner-page-ai .learner-ai-bar,
+    .learner-page-ai .learner-ai-bar__tools {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .learner-page-ai .learner-ai-bar__version,
+    .learner-page-ai .learner-ai-bar__version select,
+    .learner-page-ai .learner-ai-bar .learner-btn {
+        width: 100%;
+    }
+
+    .learner-page-ai .learner-ai-workspace__nav {
+        grid-template-columns: 1fr;
+    }
+
+    .learner-page-ai .learner-ai-stage__toolbar {
+        flex-direction: column;
+    }
+
+    .learner-page-ai .learner-ai-stage__trail {
+        justify-content: flex-start;
+    }
+
+    .learner-page-ai .learner-ai-stage__fact {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+}

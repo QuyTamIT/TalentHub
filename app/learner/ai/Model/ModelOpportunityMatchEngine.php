@@ -77,6 +77,7 @@ final class ModelOpportunityMatchEngine
         }
 
         $items = self::stripProviderFabricatedFields($response->items(), $mode);
+        $items = self::repairCatalogIds($items, $candidateAllowList);
 
         $validator = $this->validator ?? new OpportunityMatchValidator();
         return $validator->validate($items, $candidateAllowList, $profile, $mode);
@@ -157,5 +158,74 @@ final class ModelOpportunityMatchEngine
             $cleaned[] = array_diff_key($item, array_flip($fields));
         }
         return $cleaned;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $items
+     * @param list<OpportunityCandidate> $allowList
+     * @return list<array<string,mixed>>
+     */
+    private static function repairCatalogIds(array $items, array $allowList): array
+    {
+        $exact = [];
+        foreach ($allowList as $candidate) {
+            $exact[$candidate->catalogId()] = $candidate->catalogId();
+        }
+        $repaired = [];
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                $repaired[] = $item;
+                continue;
+            }
+            $raw = isset($item['catalog_id']) && is_string($item['catalog_id']) ? trim($item['catalog_id']) : '';
+            if ($raw !== '' && isset($exact[$raw])) {
+                $item['catalog_id'] = $exact[$raw];
+                $repaired[] = $item;
+                continue;
+            }
+            $resolved = self::resolveTruncatedCatalogId($raw, array_keys($exact));
+            if ($resolved !== null) {
+                $item['catalog_id'] = $resolved;
+            }
+            $repaired[] = $item;
+        }
+        return $repaired;
+    }
+
+    /** @param list<string> $allowedIds */
+    private static function resolveTruncatedCatalogId(string $raw, array $allowedIds): ?string
+    {
+        if ($raw === '' || $allowedIds === []) {
+            return null;
+        }
+        $rawParts = explode('-', strtolower($raw));
+        $rawTail = ltrim((string) end($rawParts), '0');
+        if ($rawTail === '') {
+            $rawTail = '0';
+        }
+        $rawPrefix = count($rawParts) >= 4
+            ? implode('-', array_slice($rawParts, 0, 4))
+            : '';
+        $matches = [];
+        foreach ($allowedIds as $id) {
+            $parts = explode('-', strtolower($id));
+            $tail = ltrim((string) end($parts), '0');
+            if ($tail === '') {
+                $tail = '0';
+            }
+            if ($tail !== $rawTail) {
+                continue;
+            }
+            if ($rawPrefix !== '') {
+                $idPrefix = count($parts) >= 4
+                    ? implode('-', array_slice($parts, 0, 4))
+                    : '';
+                if ($idPrefix !== $rawPrefix) {
+                    continue;
+                }
+            }
+            $matches[] = $id;
+        }
+        return count($matches) === 1 ? $matches[0] : null;
     }
 }

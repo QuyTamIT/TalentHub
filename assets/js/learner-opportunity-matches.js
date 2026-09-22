@@ -32,7 +32,7 @@
         'no-fit-model': 'AI chưa tìm thấy cơ hội đạt ngưỡng phù hợp với hồ sơ hiện tại.',
         'source-error': 'Chưa thể hoàn tất phân tích lúc này. Bạn có thể thử lại sau.',
         'ready-model': 'Phân tích vừa xong',
-        'stale-model': 'Đang hiển thị phân tích gần nhất vì AI tạm thời chưa phản hồi.',
+        'stale-model': 'Đang dùng phân tích gần nhất — lần chạy mới chưa hoàn tất hoặc cần cập nhật lại.',
     });
 
     function mapOpportunityMatchState(state) {

@@ -248,7 +248,7 @@ $sidebarNav = [
                                 <h2 class="ent-talent-hero__title">Tìm kiếm & Đánh giá nhân tài</h2>
                             </div>
                             <p class="ent-talent-hero__desc">
-                                Khám phá hồ sơ năng lực thực tế của học sinh, sinh viên từ các trường THPT, Cao đẳng và Đại học trên toàn quốc.
+                                Khám phá hồ sơ năng lực của học sinh, sinh viên từ các trường THPT, Cao đẳng và Đại học trên toàn quốc.
                             </p>
                         </div>
                         

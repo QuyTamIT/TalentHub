@@ -1,9 +1,6 @@
 <?php
 /**
  * TalentHub Enterprise - Recruitment Analytics Data Provider
- *
- * Provides clean fallback structure when database is empty.
- * All static mockup recruitment data has been completely eradicated for production handover.
  */
 declare(strict_types=1);
 

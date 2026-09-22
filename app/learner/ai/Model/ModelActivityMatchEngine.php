@@ -106,7 +106,7 @@ final class ModelActivityMatchEngine
     /** Model explains only real, pre-ranked candidates; it cannot alter IDs, links or scores. */
     public function generate(RecommendationInput $input, array $items): array
     {
-        if ($items === [] || count($items) > 3) throw new InvalidArgumentException('Expected one to three activity matches');
+        if ($items === [] || count($items) > 20) throw new InvalidArgumentException('Expected one to twenty activity matches');
         $facts = GroundedProseGuard::skillsFromInput($input);
         $profile = LearnerOpportunityProfile::fromInput($input);
         $development = [];

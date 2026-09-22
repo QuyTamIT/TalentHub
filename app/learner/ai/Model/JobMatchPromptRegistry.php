@@ -13,7 +13,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
 
 final class JobMatchPromptRegistry
 {
-    public const VERSION = 'learner-job-match-1.6.0';
+    public const VERSION = 'learner-job-match-1.6.1';
 
     /**
      * @param list<OpportunityCandidate> $candidates
@@ -62,6 +62,7 @@ final class JobMatchPromptRegistry
                 ...\TalentHub\Learner\Ai\Grounding\GroundedProseGuard::instructions(),
                 'Trả về một phân tích riêng cho mỗi catalog_id trong candidate_allow_list.',
                 'analysis gồm 5 đến 7 câu tiếng Việt, tối đa 2400 ký tự: kết luận mức phù hợp hiện tại; đối chiếu điểm mạnh, kỹ năng và kinh nghiệm đã xác nhận với yêu cầu vị trí; nêu hạn chế hoặc dữ liệu còn thiếu; bước chuẩn bị trước khi ứng tuyển nếu cần. Có thể dùng hai đoạn văn ngắn.',
+                'Trong analysis chỉ dùng tên kỹ năng từ trường label (ví dụ Phát triển API, HTML/CSS, JavaScript); tuyệt đối không viết mã kỹ năng dạng code như api_development, html_css, nodejs, ui_ux_design.',
                 'Mục tiêu là chọn vị trí phù hợp với năng lực hiện có. Khoảng thiếu là hạn chế khi ứng tuyển, không phải lý do đề cử vị trí để rèn kỹ năng yếu. Không khuyên ứng tuyển chỉ vì vị trí giúp bù điểm yếu.',
                 'assessment_signals phân biệt từng loại bài test; không gộp các chiều trùng tên giữa DISC, MBTI, Holland và MI, không xem điểm tính cách là điểm thành thạo kỹ năng. confirmed_experience_tags chỉ chứng minh kinh nghiệm đã xác nhận, không tự gán điểm kỹ năng.',
                 'certificates chỉ là ngữ cảnh hỗ trợ với trạng thái xác minh được cung cấp. Chứng chỉ chưa xác minh không chứng minh mức thành thạo hoặc kinh nghiệm đã xác nhận, không được chuyển thành kỹ năng, không tự tăng điểm hay mức phù hợp; chỉ nhắc đến khi có evidence tương ứng.',

@@ -72,7 +72,14 @@ final class TeacherGradingRepository
              {$detailJoin}
              LEFT JOIN activity_registrations ar
                ON ar.activityId = a.id
-              AND ar.status IN ('approved', 'attended')
+              AND ar.status = 'attended'
+              AND EXISTS (
+                    SELECT 1
+                    FROM checkins ci
+                    WHERE ci.registrationId = ar.id
+                      AND ci.status = 'confirmed'
+                      AND ci.confirmedAt IS NOT NULL
+                  )
              WHERE {$scope}
                AND a.status = 'completed'
              GROUP BY a.id, a.title, a.category, a.startAt, a.endAt, a.capacity, a.status
@@ -123,13 +130,14 @@ final class TeacherGradingRepository
              {$detailJoin}
              INNER JOIN student_profiles sp ON sp.id = ar.studentId
              INNER JOIN users u ON u.id = sp.userId
+             INNER JOIN checkins ci ON ci.registrationId = ar.id AND ci.status = 'confirmed' AND ci.confirmedAt IS NOT NULL
              LEFT JOIN assessments a
                ON a.activityId = ar.activityId
               AND a.studentId = ar.studentId
               AND a.teacherId = :assessTeacherId
              WHERE activity.id = :activityId
                AND {$scope}
-               AND ar.status IN ('approved', 'attended')";
+               AND ar.status = 'attended'";
 
         if ($search !== '') {
             $sql .= ' AND (u.fullName LIKE :qName OR u.email LIKE :qEmail)';
@@ -393,7 +401,7 @@ final class TeacherGradingRepository
                 INNER JOIN teacher_profiles t ON t.id = ? AND t.schoolId = c.schoolId
                 WHERE sp.classId = ? AND sp.id = ?',
             'project' => "SELECT pm.id FROM project_members pm JOIN projects p ON p.id=pm.projectId JOIN student_profiles sp ON sp.id=pm.studentId JOIN classes c ON c.id=sp.classId AND c.schoolId=p.schoolId WHERE pm.projectId=? AND pm.studentId=? AND pm.status='active' AND pm.leftAt IS NULL",
-            'activity' => "SELECT ar.id FROM activity_registrations ar JOIN activities a ON a.id=ar.activityId JOIN student_profiles sp ON sp.id=ar.studentId JOIN classes c ON c.id=sp.classId AND c.schoolId=a.schoolId WHERE ar.activityId=? AND ar.studentId=? AND ar.status IN ('approved','attended')",
+            'activity' => "SELECT ar.id FROM activity_registrations ar JOIN activities a ON a.id=ar.activityId JOIN student_profiles sp ON sp.id=ar.studentId JOIN classes c ON c.id=sp.classId AND c.schoolId=a.schoolId JOIN checkins ci ON ci.registrationId=ar.id AND ci.status='confirmed' AND ci.confirmedAt IS NOT NULL WHERE ar.activityId=? AND ar.studentId=? AND ar.status='attended'",
         };
         $s = $this->pdo->prepare($sql . ' LIMIT 1' . $this->lockSuffix($lock));
         if ($mode === 'class') {
@@ -421,7 +429,7 @@ final class TeacherGradingRepository
         $membership = match ($mode) {
             'class' => 'JOIN classes m ON m.id=sp.classId AND m.id=?',
             'project' => "JOIN project_members m ON m.studentId=sp.id AND m.projectId=? AND m.status='active' AND m.leftAt IS NULL",
-            'activity' => "JOIN activity_registrations m ON m.studentId=sp.id AND m.activityId=? AND m.status IN ('approved','attended')",
+            'activity' => "JOIN activity_registrations m ON m.studentId=sp.id AND m.activityId=? AND m.status='attended' JOIN checkins ci ON ci.registrationId=m.id AND ci.status='confirmed' AND ci.confirmedAt IS NOT NULL",
         };
         $s = $this->pdo->prepare("SELECT sp.id AS studentId,u.fullName,u.email,
             a.id AS assessmentId,a.version AS assessmentVersion,a.overallScore,a.comment,
@@ -735,11 +743,12 @@ final class TeacherGradingRepository
             "SELECT registration.id, registration.activityId, registration.studentId, registration.status
              FROM activity_registrations registration
              INNER JOIN activities activity ON activity.id = registration.activityId
+             INNER JOIN checkins ci ON ci.registrationId = registration.id AND ci.status = 'confirmed' AND ci.confirmedAt IS NOT NULL
              {$detailJoin}
              WHERE activity.id = :activityId
                AND {$scope}
                AND registration.studentId = :studentId
-               AND registration.status IN ('approved', 'attended')
+               AND registration.status = 'attended'
              LIMIT 1";
         if ($forUpdate && $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'sqlite') {
             $sql .= ' FOR UPDATE';

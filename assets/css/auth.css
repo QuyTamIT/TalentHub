@@ -130,7 +130,7 @@
     max-width: 540px;
     margin: 0;
     color: #F8FAFC;
-    font-size: clamp(2.1rem, 4vw, 3.65rem);
+    font-size: clamp(var(--text-4xl), 4vw, var(--text-6xl));
     font-weight: var(--font-extrabold);
     line-height: 1.12;
     letter-spacing: -0.02em;
@@ -140,7 +140,7 @@
     max-width: 520px;
     margin: 28px 0 0;
     color: #CBD5E1;
-    font-size: 1rem;
+    font-size: var(--text-base);
     line-height: 1.75;
 }
 
@@ -266,7 +266,7 @@
 .auth-heading h2 {
     margin: 0;
     color: var(--text-primary);
-    font-size: clamp(1.7rem, 3vw, 2.25rem);
+    font-size: clamp(var(--text-3xl), 3vw, var(--text-4xl));
     font-weight: var(--font-extrabold);
     line-height: 1.15;
     letter-spacing: -0.02em;
@@ -533,7 +533,7 @@
     background: linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
     color: var(--text-inverse, #FFFFFF);
     font-family: var(--font-primary);
-    font-size: 1rem;
+    font-size: var(--text-base);
     font-weight: var(--font-extrabold);
     letter-spacing: 0.01em;
     cursor: pointer;
@@ -678,7 +678,7 @@
 
 .auth-demo-modal__header h2 {
     margin: 0 0 4px;
-    font-size: 1.25rem;
+    font-size: var(--text-xl);
     color: var(--text-primary, #322014);
 }
 
@@ -697,7 +697,7 @@
     border-radius: 999px;
     background: #F7EFE8;
     color: #6B5548;
-    font-size: 1.5rem;
+    font-size: var(--text-2xl);
     line-height: 1;
     cursor: pointer;
 }
@@ -736,7 +736,7 @@
     background: transparent;
     color: var(--text-secondary, #6B5548);
     font-family: inherit;
-    font-size: 0.875rem;
+    font-size: var(--text-sm);
     font-weight: 700;
     line-height: 1.2;
     cursor: pointer;
@@ -759,7 +759,7 @@
     border-radius: 999px;
     background: #F1ECE8;
     color: #7A6A60;
-    font-size: 11px;
+    font-size: var(--text-2xs);
     line-height: 1;
 }
 
@@ -848,7 +848,7 @@
     align-items: center;
     padding: 2px 8px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: var(--text-2xs);
     font-weight: 700;
     line-height: 1.4;
 }
@@ -872,7 +872,7 @@
     margin: 8px 0 0;
     padding-left: 16px;
     color: var(--text-secondary, #6B5548);
-    font-size: 12px;
+    font-size: var(--text-xs);
     line-height: 1.45;
 }
 
@@ -990,7 +990,7 @@ body.auth-demo-modal-open {
 .auth-page--register .auth-brand__content { margin: 44px 0; }
 
 .auth-page--register .auth-brand h1 {
-    font-size: clamp(2rem, 3.4vw, 3.2rem);
+    font-size: clamp(var(--text-3xl), 3.4vw, var(--text-5xl));
 }
 
 .auth-page--register .auth-form-grid { gap: 16px 18px; }
@@ -1093,7 +1093,7 @@ body.auth-demo-modal-open {
 
     .auth-field--full { grid-column: auto; }
     .auth-heading__row { align-items: center; }
-    .auth-heading h2   { font-size: 1.65rem; }
+    .auth-heading h2   { font-size: var(--text-2xl); }
     .auth-page--register .auth-panel { padding-top: 22px; }
 
     /* Prevent iOS zoom on input focus */
@@ -1130,7 +1130,7 @@ body.auth-demo-modal-open {
     }
 
     .auth-brand h1 {
-        font-size: clamp(1.75rem, 3vw, 2.8rem);
+        font-size: clamp(var(--text-3xl), 3vw, var(--text-5xl));
     }
 }
 
@@ -1216,7 +1216,7 @@ body.auth-demo-modal-open {
     }
 
     .auth-heading h2 {
-        font-size: 1.4rem;
+        font-size: var(--text-2xl);
     }
 }
 
@@ -1370,7 +1370,7 @@ body.auth-demo-modal-open {
     box-shadow:
         0 4px 14px rgba(248, 63, 112, 0.35),
         0 2px 6px rgba(255, 107, 69, 0.20);
-    font-size: 1rem;
+    font-size: var(--text-base);
     font-weight: var(--font-extrabold);
     letter-spacing: 0.01em;
     transition: all var(--transition-fast, 0.2s cubic-bezier(0.4, 0, 0.2, 1));

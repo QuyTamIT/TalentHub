@@ -84,7 +84,7 @@ $audiences = [
         'description' => 'Quản lý lớp học và các câu lạc bộ tài năng, theo dõi tiến bộ khoa học, ghi nhận thành tích và lập kế hoạch giảng dạy cá nhân hóa.',
         'benefits' => [
             'Theo dõi sát sao tiến độ phát triển của từng học viên',
-            'Đánh giá năng khiếu và kỹ năng dựa trên dữ liệu thực tế',
+            'Đánh giá năng khiếu và kỹ năng có căn cứ',
             'Tiết kiệm thời gian lập báo cáo và quản lý danh sách'
         ],
         'cta_text' => 'Khám phá công cụ Quản lý Lớp'
@@ -109,7 +109,7 @@ $audiences = [
         'subtitle' => 'Kết nối tài năng trẻ & Tuyển dụng sớm',
         'icon_class' => 'enterprise',
         'badge' => 'Dành cho Nhà tuyển dụng',
-        'description' => 'Tiếp cận nguồn nhân lực tài năng trẻ ngay từ sớm, tài trợ các cuộc thi/sân chơi phát triển và đánh giá ứng viên qua dữ liệu thực tế.',
+        'description' => 'Tiếp cận nguồn nhân lực tài năng trẻ ngay từ sớm, tài trợ các cuộc thi/sân chơi phát triển và đánh giá ứng viên qua hồ sơ năng lực.',
         'benefits' => [
             'Tiếp cận và thu hút nhân tài phù hợp ngay từ ghế nhà trường',
             'Đồng hành xây dựng thương hiệu tuyển dụng qua các sân chơi',

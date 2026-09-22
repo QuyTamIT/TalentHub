@@ -385,9 +385,20 @@ final class OpportunityMatchService
     {
         try {
             $safeCode = self::isProviderFailure($exception) ? 'provider_unavailable' : 'engine_failure';
+            @file_put_contents(
+                dirname(__DIR__, 4) . '/storage/logs/opportunity-match-errors.log',
+                sprintf(
+                    "[%s] %s run=%s student=%s msg=%s\n",
+                    gmdate('Y-m-d H:i:s'),
+                    $safeCode,
+                    (string) ($pending['runId'] ?? ''),
+                    $studentId,
+                    $exception->getMessage()
+                ),
+                FILE_APPEND
+            );
             $this->repository->failRun($studentId, (string) ($pending['runId'] ?? ''), $safeCode);
         } catch (Throwable) {
-            // The outward response remains the safe provider_unavailable state.
         }
     }
 

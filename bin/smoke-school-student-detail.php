@@ -76,7 +76,7 @@ assert(str_contains($html, 'Trần Minh Đức'), 'Must list Trần Minh Đức'
 assert(str_contains($html, 'BTEC-AI-2026A'), 'Must show class BTEC-AI-2026A');
 assert(str_contains($html, 'Python') || str_contains($html, 'Machine Learning'), 'Must contain real skills for student');
 
-echo "[PASS] Real database skills and headlines correctly bound to modal payload.\n";
+echo "[PASS] Skills and headlines correctly bound to modal payload.\n";
 
 echo "\n=======================================================\n";
 echo "ALL STUDENT DETAIL TESTS PASSED SUCCESSFULLY!\n";

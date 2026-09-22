@@ -13,12 +13,20 @@ $onboardingPending = ($onboarding['required'] ?? false) === true
 $dashboardUpcomingActivities = array_slice(learner_activity_catalog(), 0, 3);
 $dashboardActivityDateTime = static function (mixed $value): array {
     if ($value === null || (is_string($value) && trim($value) === '')) {
-        return ['date' => '--/--', 'time' => 'Chưa cập nhật'];
+        return ['day' => '--', 'month_year' => '--/--', 'time' => 'Chưa cập nhật', 'date' => '--/--/----'];
     }
     try {
-        return tz_split($value);
+        $parts = tz_split($value);
+        $date = (string) ($parts['date'] ?? '--/--/----');
+        $chunks = explode('/', $date);
+        return [
+            'day' => $chunks[0] ?? '--',
+            'month_year' => isset($chunks[1], $chunks[2]) ? ($chunks[1] . '/' . $chunks[2]) : '--/--',
+            'time' => (string) ($parts['time'] ?? 'Chưa cập nhật'),
+            'date' => $date,
+        ];
     } catch (Throwable) {
-        return ['date' => '--/--', 'time' => 'Chưa cập nhật'];
+        return ['day' => '--', 'month_year' => '--/--', 'time' => 'Chưa cập nhật', 'date' => '--/--/----'];
     }
 };
 $dashboardAssessmentCompleted = max(0, (int) ($schoolCredentialData['completed_test_count'] ?? 0));
@@ -257,8 +265,9 @@ if ($dashboardAiSummary === '') {
                                 $activityLocation = trim((string) ($activity['location'] ?? '')) ?: 'Chưa cập nhật';
                                 ?>
                                 <article class="learner-progress-activity">
-                                    <time datetime="<?= learner_escape($activity['start_at'] ?? ''); ?>">
-                                        <strong><?= learner_escape($activityWhen['date']); ?></strong>
+                                    <time datetime="<?= learner_escape($activity['start_at'] ?? ''); ?>" title="<?= learner_escape($activityWhen['date'] . ' ' . $activityWhen['time']); ?>">
+                                        <strong><?= learner_escape($activityWhen['day']); ?></strong>
+                                        <em><?= learner_escape($activityWhen['month_year']); ?></em>
                                         <span><?= learner_escape($activityWhen['time']); ?></span>
                                     </time>
                                     <div>

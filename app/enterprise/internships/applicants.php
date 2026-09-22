@@ -121,10 +121,19 @@ try {
             ia.createdAt,
             ia.updatedAt,
             sp.talentScore,
+            u.fullName AS dbFullName,
+            s.name AS dbSchoolName,
+            c.name AS dbClassName,
+            spd.location AS dbLocation,
+            spd.avatarUrl AS dbAvatarUrl,
             {$snapshotSelection['payload']} AS snapshotPayload,
             ip.title as postTitle
         FROM internship_applications ia
         JOIN student_profiles sp ON sp.id = ia.studentId
+        JOIN users u ON u.id = sp.userId
+        LEFT JOIN classes c ON c.id = sp.classId
+        LEFT JOIN schools s ON s.id = c.schoolId
+        LEFT JOIN student_profile_details spd ON spd.studentId = sp.id
         JOIN internship_posts ip ON ip.id = ia.postId
         LEFT JOIN application_profile_snapshots aps ON aps.applicationId = ia.id
         {$snapshotSelection['join']}
@@ -140,14 +149,55 @@ try {
         $post['id'] = $postId;
     }
 
+    $skillsByStudent = [];
+    $studentIdsNeedingSkills = [];
+    foreach ($dbAppRows as $row) {
+        $snapCheck = json_decode((string) ($row['snapshotPayload'] ?? ''), true);
+        $snapSkills = is_array($snapCheck['skills'] ?? null) ? $snapCheck['skills'] : [];
+        if ($snapSkills === []) {
+            $studentIdsNeedingSkills[(string) $row['studentId']] = true;
+        }
+    }
+    if ($studentIdsNeedingSkills !== []) {
+        $ids = array_keys($studentIdsNeedingSkills);
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $skillStmt = $pdo->prepare("
+            SELECT ss.studentId, sk.name AS skillName
+            FROM student_skills ss
+            INNER JOIN skills sk ON sk.id = ss.skillId AND sk.status = 'active'
+            WHERE ss.studentId IN ({$placeholders})
+            ORDER BY ss.levelScore DESC, sk.name ASC
+        ");
+        $skillStmt->execute($ids);
+        while ($sk = $skillStmt->fetch(PDO::FETCH_ASSOC)) {
+            $sid = (string) $sk['studentId'];
+            if (!isset($skillsByStudent[$sid])) {
+                $skillsByStudent[$sid] = [];
+            }
+            if (count($skillsByStudent[$sid]) < 3) {
+                $skillsByStudent[$sid][] = (string) $sk['skillName'];
+            }
+        }
+    }
+
     foreach ($dbAppRows as $row) {
         $snapshot = json_decode((string) ($row['snapshotPayload'] ?? ''), true);
         $snapshot = is_array($snapshot) ? $snapshot : [];
         $student = is_array($snapshot['student'] ?? null) ? $snapshot['student'] : [];
         $skillRows = is_array($snapshot['skills'] ?? null) ? $snapshot['skills'] : [];
-        $skillNames = array_column($skillRows, 'skillName');
+        $skillNames = array_values(array_filter(array_column($skillRows, 'skillName')));
+        $studentId = (string) $row['studentId'];
+        if ($skillNames === []) {
+            $skillNames = $skillsByStudent[$studentId] ?? [];
+        }
 
-        $name = $student['fullName'] ?? 'Ứng viên';
+        $name = trim((string) ($student['fullName'] ?? ''));
+        if ($name === '') {
+            $name = trim((string) ($row['dbFullName'] ?? ''));
+        }
+        if ($name === '') {
+            $name = 'Ứng viên';
+        }
         $parts = preg_split('/\s+/u', trim($name)) ?: [];
         if (count($parts) >= 2) {
             $initials = mb_strtoupper(mb_substr($parts[0], 0, 1) . mb_substr($parts[count($parts) - 1], 0, 1));
@@ -157,8 +207,22 @@ try {
             $initials = '';
         }
 
-        $school = $student['schoolName'] ?? '';
-        $className = $student['className'] ?? '';
+        $school = trim((string) ($student['schoolName'] ?? ''));
+        if ($school === '') {
+            $school = trim((string) ($row['dbSchoolName'] ?? ''));
+        }
+        $className = trim((string) ($student['className'] ?? ''));
+        if ($className === '') {
+            $className = trim((string) ($row['dbClassName'] ?? ''));
+        }
+        $location = trim((string) ($student['location'] ?? ''));
+        if ($location === '') {
+            $location = trim((string) ($row['dbLocation'] ?? ''));
+        }
+        $avatarUrl = $student['avatarUrl'] ?? null;
+        if ($avatarUrl === null || $avatarUrl === '') {
+            $avatarUrl = $row['dbAvatarUrl'] ?? null;
+        }
         $score = (isset($row['talentScore']) && is_numeric($row['talentScore'])) ? (int) round((float) $row['talentScore']) : null;
 
         $statusLabels = [
@@ -179,14 +243,14 @@ try {
         $applicants[] = [
             'id' => (string) $row['id'],
             'post_id' => (string) $row['postId'],
-            'student_id' => (string) $row['studentId'],
+            'student_id' => $studentId,
             'name' => $name,
             'avatar_initials' => $initials,
-            'avatar_url' => $student['avatarUrl'] ?? null,
+            'avatar_url' => $avatarUrl,
             'school' => $school,
             'class_code' => $className,
             'education_level' => '',
-            'location' => $student['location'] ?? '',
+            'location' => $location,
             'message' => (string) ($row['message'] ?? ''),
             'status' => $status,
             'status_label' => $statusLabel,
@@ -336,7 +400,7 @@ $sidebarNav = [
                             <dl class="applicants-job__facts">
                                 <div><dt>Lĩnh vực</dt><dd><?= htmlspecialchars($post['field']); ?></dd></div>
                                 <div><dt>Hình thức</dt><dd><?= htmlspecialchars($post['work_type']); ?></dd></div>
-                                <div><dt>Hạn ứng tuyển</dt><dd><?= htmlspecialchars($post['deadline']); ?></dd></div>
+                                <div><dt>Hạn ứng tuyển</dt><dd><?= htmlspecialchars(!empty($post['deadline']) ? date('d/m/Y', strtotime((string) $post['deadline'])) : 'Không giới hạn'); ?></dd></div>
                                 <div><dt>Chỉ tiêu</dt><dd><?= htmlspecialchars($post['slots']); ?></dd></div>
                             </dl>
                         </section>

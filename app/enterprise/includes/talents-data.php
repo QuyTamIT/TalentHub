@@ -1,10 +1,6 @@
 <?php
 /**
- * TalentHub Enterprise - Talent Data Bridge (Pure Database Connection)
- *
- * All talent data is queried directly from the database (student_profiles, users,
- * student_skills, skills, assessments, student_profile_details).
- * Static mockup data is completely eradicated.
+ * TalentHub Enterprise - Talent Data Bridge
  */
 declare(strict_types=1);
 

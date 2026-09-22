@@ -522,7 +522,12 @@
                 if (resultCount) resultCount.textContent = String(visibleCount);
                 const url = new URL(window.location.href);
                 url.searchParams.set('tab', activePanel.dataset.ecosystemPanel || 'enterprises');
-                url.searchParams.set('filter', filters.status || 'all');
+                if (activePanel.dataset.ecosystemPanel === 'applications') {
+                    url.searchParams.delete('filter');
+                    url.searchParams.delete('view');
+                } else {
+                    url.searchParams.set('filter', filters.status || 'all');
+                }
                 window.history.replaceState(null, '', url.toString());
             };
 
@@ -539,8 +544,16 @@
                 });
                 syncEcosystemAiTrigger(ecosystemAiTrigger, nextTab.dataset.ecosystemTab);
                 syncEcosystemJobAiTrigger(ecosystemJobAiTrigger, nextTab.dataset.ecosystemTab);
+                const ecosystemToolbar = document.querySelector('[data-ecosystem-toolbar]');
+                if (ecosystemToolbar) {
+                    ecosystemToolbar.hidden = nextTab.dataset.ecosystemTab === 'applications';
+                }
                 const nextUrl = new URL(global.location.href);
                 nextUrl.searchParams.set('tab', nextTab.dataset.ecosystemTab);
+                if (nextTab.dataset.ecosystemTab === 'applications') {
+                    nextUrl.searchParams.delete('filter');
+                    nextUrl.searchParams.delete('view');
+                }
                 global.history.replaceState({}, '', nextUrl);
                 updateEcosystemResults();
                 if (focusTab) nextTab.focus();
@@ -711,7 +724,7 @@
                 if (applyCard) {
                     const applyBtn = applyCard.querySelector('[data-open-modal="learner-application-modal"]');
                     if (applyBtn) {
-                        applyBtn.outerHTML = '<a class="learner-btn learner-btn--primary learner-btn--block" href="ecosystem.php?view=applications#applications-tracker-title"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>Xem hồ sơ ứng tuyển</a>';
+                        applyBtn.outerHTML = '<a class="learner-btn learner-btn--primary learner-btn--block" href="ecosystem.php?tab=applications#applications-tracker-title"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>Xem hồ sơ ứng tuyển</a>';
                     }
                     const titleEl = applyCard.querySelector('#apply-card-title');
                     if (titleEl) titleEl.textContent = 'Bạn đã nộp hồ sơ';

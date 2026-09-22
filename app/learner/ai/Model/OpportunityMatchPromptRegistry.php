@@ -19,7 +19,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
  */
 final class OpportunityMatchPromptRegistry
 {
-    public const VERSION = 'learner-opportunity-match-1.6.1';
+    public const VERSION = 'learner-opportunity-match-1.6.3';
 
     public const MAX_CANDIDATES = 10;
 
@@ -103,7 +103,13 @@ final class OpportunityMatchPromptRegistry
                     'idempotency_key' => $context->idempotencyKey(),
                 ],
             ],
-            'output_schema' => self::outputSchema($mode),
+            'output_schema' => self::outputSchema(
+                $mode,
+                array_values(array_map(static fn (OpportunityCandidate $c): string => $c->catalogId(), $sliced)),
+                array_values(array_keys($evidenceRefs)),
+                array_values(array_keys($skillCodes)),
+                array_values(array_keys($outcomeCodes)),
+            ),
         ];
 
         $evidenceByReference = [];
@@ -146,6 +152,8 @@ final class OpportunityMatchPromptRegistry
             'Không hiển thị mã kỹ năng hoặc mã điều kiện trong headline, explanation, why_fit, why_not_fit_yet, main_gaps, next_steps hay improvement_steps; hãy diễn đạt chúng thành tên tiếng Việt dễ hiểu.',
             'Các trường có hậu tố _codes và evidence_ref_ids vẫn phải giữ đúng mã trong allow-list để hệ thống kiểm chứng.',
             'Mỗi phân tích phải viện dẫn evidence của chính cơ hội và evidence hồ sơ người học đã dùng để đối chiếu, khi có dữ liệu hồ sơ. Không chỉ viện dẫn catalog khi nhận xét điểm của người học.',
+            'Khi nêu điểm hoặc thẻ kinh nghiệm đã xác nhận: viết theo hồ sơ ("hồ sơ ghi nhận điểm X = N", "thẻ kinh nghiệm đã xác nhận về Y"), không viết tiểu sử ("bạn đã làm/thực tập/hoàn thành dự án", "bạn sở hữu chứng chỉ", "bạn có N năm kinh nghiệm").',
+            'Cụm "tham gia dự án/cơ hội/vị trí" chỉ được dùng cho cơ hội đang phân tích hoặc bước đề xuất tương lai, không mô tả thành tích đã xảy ra.',
         ];
         if ($mode === 'no_fit') {
             return [...$locale, ...[
@@ -198,9 +206,30 @@ final class OpportunityMatchPromptRegistry
         ]];
     }
 
-    /** @return array<string,mixed> */
-    private static function outputSchema(string $mode): array
-    {
+    /**
+     * @param list<string> $catalogIds
+     * @param list<string> $evidenceRefs
+     * @param list<string> $skillCodes
+     * @param list<string> $outcomeCodes
+     * @return array<string,mixed>
+     */
+    private static function outputSchema(
+        string $mode,
+        array $catalogIds = [],
+        array $evidenceRefs = [],
+        array $skillCodes = [],
+        array $outcomeCodes = [],
+    ): array {
+        $evidenceItems = $evidenceRefs === []
+            ? ['type' => 'string']
+            : ['type' => 'string', 'enum' => $evidenceRefs];
+        $skillItems = $skillCodes === []
+            ? ['type' => 'string']
+            : ['type' => 'string', 'enum' => $skillCodes];
+        $outcomeItems = $outcomeCodes === []
+            ? ['type' => 'string']
+            : ['type' => 'string', 'enum' => $outcomeCodes];
+
         if ($mode === 'no_fit') {
             return [
                 'type' => 'object',
@@ -222,7 +251,7 @@ final class OpportunityMatchPromptRegistry
                                 'catalog_demands' => ['type' => 'array', 'items' => ['type' => 'string']],
                                 'main_gaps' => ['type' => 'array', 'items' => ['type' => 'string']],
                                 'next_steps' => ['type' => 'array', 'minItems' => 1, 'items' => ['type' => 'string']],
-                                'evidence_ref_ids' => ['type' => 'array', 'minItems' => 1, 'items' => ['type' => 'string']],
+                                'evidence_ref_ids' => ['type' => 'array', 'minItems' => 1, 'items' => $evidenceItems],
                             ],
                         ],
                     ],
@@ -230,6 +259,9 @@ final class OpportunityMatchPromptRegistry
             ];
         }
         $lowFit = $mode === 'low_fit';
+        $catalogIdSchema = $catalogIds === []
+            ? ['type' => 'string']
+            : ['type' => 'string', 'enum' => $catalogIds];
         return [
             'type' => 'object',
             'additionalProperties' => false,
@@ -250,19 +282,19 @@ final class OpportunityMatchPromptRegistry
                             'evidence_ref_ids',
                         ],
                         'properties' => [
-                            'catalog_id' => ['type' => 'string'],
+                            'catalog_id' => $catalogIdSchema,
                             'gemini_score' => ['type' => 'integer', 'minimum' => 0, 'maximum' => 100],
                             'why_fit' => ['type' => 'string', 'minLength' => 160, 'maxLength' => 2400],
                             'why_not_fit_yet' => ['type' => 'string', 'minLength' => 160, 'maxLength' => 2400],
                             'fit_reasons' => ['type' => 'array', 'minItems' => 1, 'maxItems' => 6, 'items' => ['type' => 'string', 'minLength' => 12]],
                             'gap_reasons' => ['type' => 'array', 'minItems' => 1, 'maxItems' => 6, 'items' => ['type' => 'string', 'minLength' => 12]],
                             'skills_to_develop' => ['type' => 'array', 'minItems' => 1, 'maxItems' => 6, 'items' => ['type' => 'string', 'minLength' => 2]],
-                            'matched_skill_codes' => ['type' => 'array', 'items' => ['type' => 'string']],
-                            'missing_skill_codes' => ['type' => 'array', 'items' => ['type' => 'string']],
+                            'matched_skill_codes' => ['type' => 'array', 'items' => $skillItems],
+                            'missing_skill_codes' => ['type' => 'array', 'items' => $skillItems],
                             'missing_conditions' => ['type' => 'array', 'items' => ['type' => 'string']],
                             'improvement_steps' => ['type' => 'array', 'minItems' => 1, 'items' => ['type' => 'string']],
-                            'expected_outcome_codes' => ['type' => 'array', 'items' => ['type' => 'string']],
-                            'evidence_ref_ids' => ['type' => 'array', 'minItems' => 1, 'items' => ['type' => 'string']],
+                            'expected_outcome_codes' => ['type' => 'array', 'items' => $outcomeItems],
+                            'evidence_ref_ids' => ['type' => 'array', 'minItems' => 1, 'items' => $evidenceItems],
                         ],
                     ],
                 ],

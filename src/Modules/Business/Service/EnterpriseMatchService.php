@@ -190,7 +190,7 @@ final class EnterpriseMatchService
         }
 
         $jobHash = hash('sha256', json_encode([
-            'schema' => 'enterprise-match-explain-1',
+            'schema' => 'enterprise-match-explain-2',
             'job' => $normalized,
             'candidate_ids' => array_column($candidates, 'student_id'),
             'candidates' => array_values($candidateProjections),
@@ -833,36 +833,22 @@ final class EnterpriseMatchService
             }
 
             $recReason = trim((string) ($rawItem['recommendation_reason'] ?? ''));
-            // Ensure factual recommendation reason based on real candidate data
             if ($recReason === '' || $profCount === 0) {
-                $reasonsParts = [];
-                if ($profCount > 0) {
-                    $details = [];
-                    foreach ($matchedProf as $info) {
-                        $details[] = "{$info['actual']} (" . round($info['level']) . "/100)";
-                    }
-                    $reasonsParts[] = "Trùng khớp {$profCount} kỹ năng chuyên môn cốt lõi: " . implode(', ', $details);
-                } else {
-                    $reasonsParts[] = "Chưa ghi nhận kỹ năng chuyên môn trực tiếp (" . implode(', ', array_slice(array_keys($reqProfSkills), 0, 3)) . ")";
+                if (!empty($matchedProjects) && !in_array('project_experience', $reasons, true)) {
+                    $reasons[] = 'project_experience';
                 }
-                if (!empty($matchedProjects)) {
-                    $pTitles = array_column($matchedProjects, 'title');
-                    $reasonsParts[] = "Kinh nghiệm thực tế từ dự án: \"" . implode('", "', $pTitles) . "\"";
-                    if (!in_array('project_experience', $reasons, true)) {
-                        $reasons[] = 'project_experience';
-                    }
-                }
-                if ($softCount > 0) {
-                    $sNames = array_map(static fn(array $i): string => $i['actual'], $matchedSoft);
-                    $reasonsParts[] = "Kỹ năng bổ trợ: " . implode(', ', $sNames);
-                }
-                if (isset($candidate['talent_score']) && is_numeric($candidate['talent_score'])) {
-                    $reasonsParts[] = "Trung bình kỹ năng đã được chấm: " . round((float) $candidate['talent_score']) . "/100";
-                }
-                if (!empty($candidate['headline'])) {
-                    $reasonsParts[] = "Chuyên môn: " . $candidate['headline'];
-                }
-                $recReason = implode('. ', $reasonsParts) . '.';
+                $talentScoreVal = isset($candidate['talent_score']) && is_numeric($candidate['talent_score'])
+                    ? (float) $candidate['talent_score']
+                    : null;
+                $recReason = $this->composeRecommendationReason(
+                    $matchedProf,
+                    $matchedSoft,
+                    $matchedProjects,
+                    $reqProfSkills,
+                    $talentScoreVal,
+                    (string) ($candidate['headline'] ?? ''),
+                    true
+                );
             }
 
             $candSkillNames = [];
@@ -1194,37 +1180,15 @@ final class EnterpriseMatchService
                 $reasonCodes[] = 'project_experience';
             }
 
-            // Accurate recommendation reason based strictly on REAL candidate data
-            $reasonParts = [];
-            if ($profCount > 0) {
-                $details = [];
-                foreach ($matchedProf as $info) {
-                    $details[] = "{$info['actual']} (" . round($info['level']) . "/100)";
-                }
-                $reasonParts[] = "Trùng khớp {$profCount} kỹ năng chuyên môn cốt lõi: " . implode(', ', $details);
-            } else {
-                $reasonParts[] = "Chưa ghi nhận kỹ năng chuyên môn trực tiếp (" . implode(', ', array_slice(array_keys($reqProfSkills), 0, 3)) . ")";
-            }
-
-            if (!empty($matchedProjects)) {
-                $pTitles = array_column($matchedProjects, 'title');
-                $reasonParts[] = "Kinh nghiệm thực tế từ dự án: \"" . implode('", "', $pTitles) . "\"";
-            }
-
-            if ($softCount > 0) {
-                $sNames = array_map(static fn(array $i): string => $i['actual'], $matchedSoft);
-                $reasonParts[] = "Kỹ năng bổ trợ: " . implode(', ', $sNames);
-            }
-
-            if ($talentScore !== null) {
-                $reasonParts[] = "Trung bình kỹ năng đã được chấm: " . round($talentScore) . "/100";
-            }
-
-            if ($domainMatch && !empty($candidate['headline'])) {
-                $reasonParts[] = "Chuyên môn: " . $candidate['headline'];
-            }
-
-            $recReason = implode('. ', $reasonParts) . '.';
+            $recReason = $this->composeRecommendationReason(
+                $matchedProf,
+                $matchedSoft,
+                $matchedProjects,
+                $reqProfSkills,
+                $talentScore,
+                (string) ($candidate['headline'] ?? ''),
+                $domainMatch
+            );
 
             $candSkillNames = [];
             $verifiedSkillNames = [];
@@ -1467,5 +1431,74 @@ final class EnterpriseMatchService
             $seenStudents[$studentId] = true;
         }
         return array_values($rawItems);
+    }
+
+    /**
+     * @param array<string,array{actual:string,level:float|int}> $matchedProf
+     * @param array<string,array{actual:string,level?:float|int}> $matchedSoft
+     * @param list<array<string,mixed>> $matchedProjects
+     * @param array<string,string> $reqProfSkills
+     */
+    private function composeRecommendationReason(
+        array $matchedProf,
+        array $matchedSoft,
+        array $matchedProjects,
+        array $reqProfSkills,
+        ?float $talentScore,
+        string $headline,
+        bool $includeHeadline
+    ): string {
+        $parts = [];
+        $profCount = count($matchedProf);
+
+        if ($profCount > 0) {
+            $details = [];
+            foreach ($matchedProf as $info) {
+                $details[] = $info['actual'] . ' ' . round((float) $info['level']) . '/100';
+            }
+            $skillList = implode(', ', $details);
+            $parts[] = $profCount === 1
+                ? "Nổi bật với {$skillList} — đúng trọng tâm yêu cầu vị trí"
+                : "Khớp {$profCount} kỹ năng chuyên môn trọng tâm ({$skillList}), đủ nền tảng để bắt kịp công việc thực tế";
+        } else {
+            $needed = array_slice(array_keys($reqProfSkills), 0, 3);
+            $parts[] = $needed !== []
+                ? 'Chưa có kỹ năng chuyên môn trực tiếp trùng yêu cầu (' . implode(', ', $needed) . ')'
+                : 'Chưa có kỹ năng chuyên môn trực tiếp trùng yêu cầu';
+        }
+
+        if ($matchedProjects !== []) {
+            $titles = array_values(array_filter(array_map(
+                static fn(array $p): string => trim((string) ($p['title'] ?? '')),
+                $matchedProjects
+            )));
+            if ($titles !== []) {
+                $parts[] = 'Đã thể hiện qua dự án "' . implode('", "', $titles) . '"';
+            }
+        }
+
+        if ($matchedSoft !== []) {
+            $softNames = array_values(array_filter(array_map(
+                static fn(array $i): string => trim((string) ($i['actual'] ?? '')),
+                $matchedSoft
+            )));
+            if ($softNames !== []) {
+                $parts[] = 'Bổ trợ thêm ' . implode(', ', $softNames);
+            }
+        }
+
+        if ($talentScore !== null) {
+            $score = (int) round($talentScore);
+            $parts[] = $score >= 80
+                ? "Điểm đánh giá năng lực {$score}/100 — mức giảng viên ghi nhận tốt"
+                : "Điểm đánh giá năng lực {$score}/100";
+        }
+
+        $headline = trim($headline);
+        if ($includeHeadline && $headline !== '') {
+            $parts[] = 'Định hướng chuyên môn: ' . $headline;
+        }
+
+        return implode('. ', $parts) . '.';
     }
 }

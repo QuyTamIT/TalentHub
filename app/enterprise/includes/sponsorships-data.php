@@ -1,9 +1,6 @@
 <?php
 /**
  * TalentHub Enterprise - Project Sponsorships Data Provider
- *
- * Provides real dataset structure when database is empty.
- * All static mockup projects and sponsorships have been completely eradicated for production handover.
  */
 declare(strict_types=1);
 

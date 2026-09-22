@@ -150,7 +150,7 @@ final class RoadmapCustomizationService
     private function publicRoadmap(string $studentId, array $roadmap): array
     {
         $response = [];
-        foreach (['roadmap_id','version','contract_version','status','analysis_origin','executive_summary','confidence_band','confidence','talent_map','strengths','improvements','potential_paths','trend_signals','growth_hypotheses','primary_direction','alternative_directions','insights','evidence_summary','generated_at','phases','progress','reused'] as $field) {
+        foreach (['roadmap_id','version','contract_version','status','analysis_origin','executive_summary','confidence_band','confidence','talent_map','strengths','improvements','potential_paths','trend_signals','growth_hypotheses','primary_direction','alternative_directions','insights','evidence_summary','evidence_sources','generated_at','phases','progress','reused'] as $field) {
             if (array_key_exists($field, $roadmap)) $response[$field] = $roadmap[$field];
         }
         $response['state'] = 'roadmap_customized';

@@ -1,9 +1,6 @@
 <?php
 /**
  * TalentHub Enterprise - Internship Applicants Data Provider
- *
- * Provides real dataset structure when database is empty.
- * All static mockup candidates have been completely eradicated for production handover.
  */
 declare(strict_types=1);
 

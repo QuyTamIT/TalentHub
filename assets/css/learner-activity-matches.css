@@ -1,34 +1,183 @@
-.learner-activity-matches { margin: 0 0 24px; color: #172554; }
-.learner-activity-matches__actions { display: flex; justify-content: flex-end; margin-bottom: 16px; }
-.learner-activity-matches__panel { border: 1px solid #c7d2fe; border-radius: 20px; padding: 24px; background: linear-gradient(120deg, #f5f3ff, #fff 65%); }
-.learner-activity-matches__header { display: flex; align-items: center; gap: 16px; }
-.learner-activity-matches__header h2 { margin: 0 0 6px; font-size: 1.375rem; }
-.learner-activity-matches__header p { margin: 0; color: #64748b; }
-.learner-activity-matches__header [data-toggle] { margin-left: auto; flex-shrink: 0; }
-.learner-activity-matches__icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; background: #ede9fe; color: #7c3aed; flex-shrink: 0; }
-.learner-activity-matches__status { padding: 16px; border-radius: 12px; background: #f1f5f9; line-height: 1.6; }
-.learner-activity-matches__score { display: inline-block; padding: 6px 12px; border-radius: 20px; background: #ede9fe; color: #6d28d9; font-weight: 700; }
+.learner-activity-matches { margin: 0 0 20px; color: #0f172a; }
+.learner-activity-matches__card {
+    border: 1px solid #cbd5e1;
+    border-radius: 16px;
+    padding: 20px 22px;
+    background: linear-gradient(135deg, #f8fafc 0%, #fff 55%, #eff6ff 100%);
+}
+.learner-activity-matches__card-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 12px;
+    margin-bottom: 8px;
+}
+.learner-activity-matches__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #334155;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+.learner-activity-matches__card-title {
+    margin: 0;
+    font-size: var(--text-xl);
+    font-weight: 700;
+}
+.learner-activity-matches__card-desc {
+    margin: 0 0 14px;
+    color: #64748b;
+    line-height: 1.55;
+    max-width: 62ch;
+}
+.learner-activity-matches__card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.learner-activity-matches__status-wrap { margin-top: 14px; }
+.learner-activity-matches__status {
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    line-height: 1.55;
+    color: #334155;
+}
+.learner-activity-matches progress { width: 100%; margin-top: 10px; }
 .learner-activity-matches button:disabled { cursor: wait; opacity: .65; }
-.learner-activity-matches [data-cards] { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 16px; }
-.learner-activity-matches article { padding: 16px; border: 1px solid #c7d2fe; border-radius: 12px; background: white; overflow-wrap: anywhere; }
-.learner-activity-matches progress { width: 100%; }
 .learner-activity-matches [hidden] { display: none !important; }
-.learner-activity-matches article { line-height: 1.6; }
-.learner-activity-matches article h3 { margin: 0; font-size: var(--text-xl); }
-.learner-activity-matches article a { color: #6d28d9; font-weight: 700; }
-.learner-activity-matches article.learner-activity-matches__insight { grid-column: 1 / -1; padding: 24px; border-left: 4px solid #8b5cf6; background: linear-gradient(120deg, #faf5ff, #fff 75%); }
-.learner-activity-matches__analysis { white-space: pre-line; line-height: 1.8; margin: 14px 0; }
-.learner-activity-matches__invitation { padding: 14px 16px; background: #f1f5f9; border-radius: 10px; color: #475569; }
-.learner-activity-matches__insight a { display: inline-block; padding: 8px 0; text-underline-offset: 4px; }
+.learner-activity-matches__insight {
+    margin-top: 12px;
+    padding: 16px 18px;
+    border: 1px solid #bfdbfe;
+    border-left: 4px solid #2563eb;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+.learner-activity-matches__insight h3 { margin: 0 0 8px; font-size: var(--text-md); }
+.learner-activity-matches__analysis { white-space: pre-line; line-height: 1.7; margin: 0 0 10px; }
+.learner-activity-matches__invitation {
+    margin: 0;
+    padding: 10px 12px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    color: #475569;
+}
+
+.learner-activity-match-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 16px;
+    margin: 0 0 18px;
+    padding: 14px 16px;
+    border: 1px solid #93c5fd;
+    border-radius: 14px;
+    background: linear-gradient(90deg, #eff6ff, #fff);
+}
+.learner-activity-match-banner[hidden] { display: none !important; }
+.learner-activity-match-banner__body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    min-width: 0;
+}
+.learner-activity-match-banner__badge,
+.learner-activity-match-banner__count {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    font-weight: 700;
+}
+.learner-activity-match-banner__badge { background: #dbeafe; color: #1d4ed8; }
+.learner-activity-match-banner__count { background: #e2e8f0; color: #0f172a; }
+.learner-activity-match-banner__text { margin: 0; color: #334155; line-height: 1.45; }
+
+.learner-activities-shell .learner-activity-discovery-card.is-match-ranked {
+    outline: 1px solid #93c5fd;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.08);
+}
+.learner-activities-shell .learner-activity-match-fit-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 8px;
+}
+.learner-activities-shell .learner-activity-match-rank {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 8px;
+    background: #e2e8f0;
+    color: #1e293b;
+    font-size: var(--text-xs);
+    font-weight: 800;
+}
+.learner-activities-shell .learner-activity-match-rank--1 { background: #dcfce7; color: #166534; }
+.learner-activities-shell .learner-activity-match-rank--top { background: #dbeafe; color: #1d4ed8; }
+.learner-activities-shell .learner-activity-match-score {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    background: #f1f5f9;
+    color: #334155;
+}
+.learner-activities-shell .learner-activity-match-score.is-high { background: #dcfce7; color: #166534; }
+.learner-activities-shell .learner-activity-match-score.is-med { background: #ffedd5; color: #9a3412; }
+.learner-activities-shell .learner-activity-match-score.is-low { background: #e2e8f0; color: #475569; }
+.learner-activities-shell .learner-activity-match-reason {
+    display: grid;
+    gap: 6px;
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border-left: 3px solid #2563eb;
+    background: #eff6ff;
+    color: #1e3a8a;
+    line-height: 1.5;
+    font-size: var(--text-sm);
+}
+.learner-activities-shell .learner-activity-match-reason strong {
+    display: block;
+    color: #1d4ed8;
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.learner-activities-shell .learner-activity-match-reason p { margin: 0; }
+.learner-activities-shell .learner-activity-match-reason__skills {
+    margin: 0;
+    color: #334155;
+    font-size: var(--text-xs);
+}
+
 #activity-catalog { scroll-margin-top: 24px; }
+
 @media (max-width: 1100px) {
-    /* The entrance animation retains transform: none and otherwise covers the analysis with the closed drawer. */
     .learner-page-activities .learner-sidebar { animation: none; }
 }
 @media (max-width: 640px) {
-    .learner-activity-matches__panel { padding: 16px; }
-    .learner-activity-matches article.learner-activity-matches__insight { padding: 18px; }
-    .learner-activity-matches__header { flex-wrap: wrap; }
-    .learner-activity-matches__header h2 { font-size: 1.1875rem; }
-    .learner-activity-matches__actions .learner-btn { width: 100%; justify-content: center; white-space: normal; }
+    .learner-activity-matches__card { padding: 16px; }
+    .learner-activity-matches__card-actions .learner-btn {
+        width: 100%;
+        justify-content: center;
+        white-space: normal;
+    }
+    .learner-activity-match-banner { align-items: stretch; }
+    .learner-activity-match-banner .learner-btn { width: 100%; justify-content: center; }
 }

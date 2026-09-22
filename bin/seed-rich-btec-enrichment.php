@@ -25,6 +25,76 @@ function phaseOk(?string $only, string $phase): bool
     return $only === null || $only === 'all' || $only === $phase;
 }
 
+function richConfirmAttendance(
+    PDO $pdo,
+    string $registrationId,
+    string $studentId,
+    string $activityId,
+    string $teacherProfileId,
+    float $confirmedHours,
+    string $now
+): void {
+    $hours = number_format(min(24.0, max(0.0, $confirmedHours)), 2, '.', '');
+    $pdo->prepare(
+        "INSERT INTO activity_experience_policies (activityId, confirmedHours, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE confirmedHours = VALUES(confirmedHours), updatedAt = VALUES(updatedAt)"
+    )->execute([$activityId, $hours, $now, $now]);
+
+    $qrSuffix = 7500000 + (int) substr($activityId, -4);
+    $qrId = richId((string) $qrSuffix);
+    $tokenHash = hash('sha256', 'rich-seed-qr:' . $activityId);
+    $pdo->prepare(
+        "INSERT INTO activity_qr_sessions
+            (id, activityId, createdByTeacherId, tokenHash, status, expiresAt, maxScans, usedScans, revokedAt, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, 'active', ?, 200, 0, NULL, ?, ?)
+         ON DUPLICATE KEY UPDATE status = 'active', revokedAt = NULL, updatedAt = VALUES(updatedAt)"
+    )->execute([
+        $qrId,
+        $activityId,
+        $teacherProfileId,
+        $tokenHash,
+        (new DateTimeImmutable('+365 days', new DateTimeZone('UTC')))->format('Y-m-d H:i:s.u'),
+        $now,
+        $now,
+    ]);
+
+    $existingCheckin = $pdo->prepare('SELECT id FROM checkins WHERE registrationId = ? LIMIT 1');
+    $existingCheckin->execute([$registrationId]);
+    $checkinId = $existingCheckin->fetchColumn();
+    if (!is_string($checkinId) || $checkinId === '') {
+        $checkinId = Uuid::v4();
+        $pdo->prepare(
+            "INSERT INTO checkins (id, registrationId, qrSessionId, status, checkedInAt, confirmedAt, createdAt)
+             VALUES (?, ?, ?, 'confirmed', ?, ?, ?)"
+        )->execute([$checkinId, $registrationId, $qrId, $now, $now, $now]);
+        $pdo->prepare(
+            'UPDATE activity_qr_sessions SET usedScans = LEAST(maxScans, usedScans + 1), updatedAt = ? WHERE id = ?'
+        )->execute([$now, $qrId]);
+    } else {
+        $pdo->prepare(
+            "UPDATE checkins SET status = 'confirmed', confirmedAt = COALESCE(confirmedAt, ?), checkedInAt = COALESCE(checkedInAt, ?) WHERE id = ?"
+        )->execute([$now, $now, $checkinId]);
+    }
+
+    $existingExp = $pdo->prepare('SELECT id FROM experience_logs WHERE checkinId = ? LIMIT 1');
+    $existingExp->execute([$checkinId]);
+    $expId = $existingExp->fetchColumn();
+    if (!is_string($expId) || $expId === '') {
+        $pdo->prepare(
+            "INSERT INTO experience_logs (id, studentId, activityId, checkinId, hours, status, auditReason, confirmedAt, createdAt)
+             VALUES (?, ?, ?, ?, ?, 'confirmed', 'rich_seed_attendance', ?, ?)"
+        )->execute([Uuid::v4(), $studentId, $activityId, $checkinId, $hours, $now, $now]);
+        return;
+    }
+
+    $pdo->prepare(
+        "UPDATE experience_logs
+         SET hours = ?, status = 'confirmed', confirmedAt = COALESCE(confirmedAt, ?), auditReason = 'rich_seed_attendance'
+         WHERE id = ?"
+    )->execute([$hours, $now, $expId]);
+}
+
 function buildBiasedAnswers(string $code, array $questions, array $bias): array
 {
     $answers = [];
@@ -259,13 +329,13 @@ try {
             ['id' => richId('7001'), 'title' => 'BTEC Hackathon AI vì cộng đồng', 'cat' => 'career_technical', 'display' => 'Kỹ thuật', 'status' => 'completed', 'start' => '-45 days', 'hours' => 48, 'skills' => ['Python', 'AI', 'Làm việc nhóm'], 'loc' => 'Innovation Lab BTEC'],
             ['id' => richId('7002'), 'title' => 'Workshop Fullstack Web thực chiến', 'cat' => 'career_technical', 'display' => 'Kỹ thuật', 'status' => 'ongoing', 'start' => '-1 days', 'hours' => 8, 'skills' => ['React', 'API', 'Git'], 'loc' => 'Phòng máy A201'],
             ['id' => richId('7003'), 'title' => 'UX Design Challenge BTEC', 'cat' => 'career_arts', 'display' => 'Sáng tạo', 'status' => 'ongoing', 'start' => '-2 days', 'hours' => 12, 'skills' => ['Figma', 'UI/UX', 'Research'], 'loc' => 'Design Studio'],
-            ['id' => richId('7004'), 'title' => 'Brand Identity Sprint', 'cat' => 'career_arts', 'display' => 'Sáng tạo', 'status' => 'published', 'start' => '+10 days', 'hours' => 6, 'skills' => ['Photoshop', 'Illustrator', 'Brand'], 'loc' => 'Xưởng sáng tạo'],
+            ['id' => richId('7004'), 'title' => 'Brand Identity Sprint', 'cat' => 'career_arts', 'display' => 'Sáng tạo', 'status' => 'published', 'start' => '+10 days', 'hours' => 6, 'skills' => ['Photoshop', 'Illustrator', 'Brand'], 'skillCodes' => ['photoshop', 'illustrator', 'brand_management'], 'loc' => 'Xưởng sáng tạo'],
             ['id' => richId('7005'), 'title' => 'Digital Marketing Bootcamp', 'cat' => 'career_business', 'display' => 'Kinh doanh', 'status' => 'completed', 'start' => '-30 days', 'hours' => 16, 'skills' => ['SEO', 'Ads', 'Content'], 'loc' => 'Hội trường B'],
             ['id' => richId('7006'), 'title' => 'Startup Demo Day Cần Thơ', 'cat' => 'career_business', 'display' => 'Kinh doanh', 'status' => 'published', 'start' => '+21 days', 'hours' => 5, 'skills' => ['Pitching', 'Khởi nghiệp'], 'loc' => 'Hội trường lớn'],
             ['id' => richId('7007'), 'title' => 'Power BI Dashboard Marathon', 'cat' => 'career_technical', 'display' => 'Dữ liệu', 'status' => 'ongoing', 'start' => '-1 days', 'hours' => 10, 'skills' => ['Power BI', 'Excel', 'Analytics'], 'loc' => 'Data Lab'],
             ['id' => richId('7008'), 'title' => 'Chuỗi cung ứng xanh Mekong', 'cat' => 'career_sports_academic', 'display' => 'Logistics', 'status' => 'published', 'start' => '+14 days', 'hours' => 8, 'skills' => ['Logistics', 'Ops', 'Bền vững'], 'loc' => 'Green Hub'],
             ['id' => richId('7009'), 'title' => 'CLB Tranh biện học thuật', 'cat' => 'career_sports_academic', 'display' => 'Kỹ năng mềm', 'status' => 'ongoing', 'start' => '-3 days', 'hours' => 3, 'skills' => ['Thuyết trình', 'Phản biện'], 'loc' => 'Phòng đa năng'],
-            ['id' => richId('7010'), 'title' => 'Ngày hội việc làm BTEC × DN', 'cat' => 'career_business', 'display' => 'Kết nối DN', 'status' => 'published', 'start' => '+7 days', 'hours' => 6, 'skills' => ['Networking', 'CV', 'Interview'], 'loc' => 'Sân thể thao'],
+            ['id' => richId('7010'), 'title' => 'Ngày hội việc làm BTEC × DN', 'cat' => 'career_business', 'display' => 'Kết nối DN', 'status' => 'published', 'start' => '+7 days', 'hours' => 6, 'skills' => ['Giao tiếp', 'Thuyết trình', 'Làm việc nhóm'], 'skillCodes' => ['communication', 'presentation_skills', 'teamwork'], 'loc' => 'Sân thể thao'],
             ['id' => richId('7011'), 'title' => 'Motion Design Showcase', 'cat' => 'career_arts', 'display' => 'Sáng tạo', 'status' => 'completed', 'start' => '-20 days', 'hours' => 4, 'skills' => ['Video', 'Storytelling'], 'loc' => 'Media Lab'],
             ['id' => richId('7012'), 'title' => 'Python & Data Wrangling Lab', 'cat' => 'career_technical', 'display' => 'Dữ liệu', 'status' => 'completed', 'start' => '-55 days', 'hours' => 8, 'skills' => ['Python', 'Pandas'], 'loc' => 'Phòng máy B102'],
             ['id' => richId('7013'), 'title' => 'Warehouse Simulation Game', 'cat' => 'career_business', 'display' => 'Logistics', 'status' => 'completed', 'start' => '-40 days', 'hours' => 6, 'skills' => ['Kho vận', 'Tối ưu'], 'loc' => 'Logistics Lab'],
@@ -283,8 +353,25 @@ try {
         $insDetail = $pdo->prepare(
             "INSERT INTO activity_details (activityId, responsibleTeacherId, audienceScope, displayCategory, filterCategory, summary, description, experienceHighlights, skillTags, eligibilityRules, benefitItems, locationName, locationAddress, deliveryMode, onlineMeetingUrl, organizerName, organizerContact, organizerEmail, organizerPhone, coverImageUrl, coverImageAlt, feeAmount, currency, targetAudience, certificateLabel, createdAt, updatedAt)
              VALUES (?, ?, 'school_only', ?, ?, ?, ?, ?, ?, ?, ?, ?, '160 Nguyễn Văn Cừ nối dài, Cần Thơ', 'in_person', NULL, 'BTEC FPT Cần Thơ', 'Ban Công tác Sinh viên', 'btec.cantho@talenthub.local', '0292 7300 558', '/app/learner/assets/activities/covers/default.webp', ?, 0, 'VND', 'Sinh viên BTEC FPT Cần Thơ', ?, ?, ?)
-             ON DUPLICATE KEY UPDATE summary = VALUES(summary), description = VALUES(description), displayCategory = VALUES(displayCategory), updatedAt = VALUES(updatedAt)"
+             ON DUPLICATE KEY UPDATE summary = VALUES(summary), description = VALUES(description), displayCategory = VALUES(displayCategory), skillTags = VALUES(skillTags), updatedAt = VALUES(updatedAt)"
         );
+
+        $skillIdByCode = [];
+        $skillNameByCode = [];
+        $hasActivitySkillTags = (int) $pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'activity_skill_tags'")->fetchColumn() === 1;
+        if ($hasActivitySkillTags) {
+            foreach ($pdo->query("SELECT id, code, name FROM skills WHERE status = 'active'")->fetchAll(PDO::FETCH_ASSOC) as $skillRow) {
+                $code = strtolower(trim((string) $skillRow['code']));
+                $skillIdByCode[$code] = (string) $skillRow['id'];
+                $skillNameByCode[$code] = (string) $skillRow['name'];
+            }
+        }
+        $delActSkills = $hasActivitySkillTags
+            ? $pdo->prepare('DELETE FROM activity_skill_tags WHERE activityId = ?')
+            : null;
+        $insActSkill = $hasActivitySkillTags
+            ? $pdo->prepare('INSERT INTO activity_skill_tags (id, activityId, skillId, createdAt) VALUES (?, ?, ?, ?)')
+            : null;
 
         foreach ($activityDefs as $a) {
             $start = (new DateTimeImmutable($a['start'], new DateTimeZone('UTC')))->setTime(8, 0);
@@ -296,8 +383,21 @@ try {
                 $regDead->format('Y-m-d H:i:s.u'), $regDead->format('Y-m-d H:i:s.u'),
                 $a['status'], $now, $now, $schoolAdminUserId !== '' ? $schoolAdminUserId : null, $now, $now,
             ]);
+            $resolvedNames = [];
+            $linkedSkillIds = [];
+            foreach (($a['skillCodes'] ?? []) as $code) {
+                $code = strtolower(trim((string) $code));
+                if ($code === '' || !isset($skillIdByCode[$code])) {
+                    continue;
+                }
+                $linkedSkillIds[$skillIdByCode[$code]] = true;
+                $resolvedNames[] = $skillNameByCode[$code] ?? $code;
+            }
+            if ($resolvedNames === []) {
+                $resolvedNames = $a['skills'];
+            }
             $highlights = json_encode(['Thực hành trực tiếp', 'Mentor hỗ trợ', 'Nhận minh chứng trên TalentHub'], JSON_UNESCAPED_UNICODE);
-            $skills = json_encode($a['skills'], JSON_UNESCAPED_UNICODE);
+            $skills = json_encode(array_values($resolvedNames), JSON_UNESCAPED_UNICODE);
             $rules = json_encode(['Sinh viên đang học tại BTEC FPT Cần Thơ'], JSON_UNESCAPED_UNICODE);
             $benefits = json_encode(['Giờ trải nghiệm', 'Chứng nhận tham gia', 'Kết nối doanh nghiệp'], JSON_UNESCAPED_UNICODE);
             $insDetail->execute([
@@ -306,13 +406,24 @@ try {
                 "Chương trình {$a['title']} giúp sinh viên rèn kỹ năng đa ngành và tích lũy minh chứng nghề nghiệp.",
                 $highlights, $skills, $rules, $benefits, $a['loc'], $a['title'], "Chứng nhận {$a['title']}", $now, $now,
             ]);
+            if ($delActSkills !== null && $insActSkill !== null && ($a['skillCodes'] ?? []) !== []) {
+                $delActSkills->execute([$a['id']]);
+                foreach (array_keys($linkedSkillIds) as $skillId) {
+                    $insActSkill->execute([Uuid::v4(), $a['id'], $skillId, $now]);
+                }
+            }
+            $pdo->prepare(
+                "INSERT INTO activity_experience_policies (activityId, confirmedHours, createdAt, updatedAt)
+                 VALUES (?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE confirmedHours = VALUES(confirmedHours), updatedAt = VALUES(updatedAt)"
+            )->execute([$a['id'], number_format(min(24.0, (float) $a['hours']), 2, '.', ''), $now, $now]);
             echo "  Activity: {$a['title']} ({$a['status']})\n";
         }
 
         $insReg = $pdo->prepare(
             "INSERT INTO activity_registrations (id, activityId, studentId, status, registeredAt, updatedAt, cancelledAt, cancellationReason, attendanceResolvedAt, attendanceResolutionReason)
              VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)
-             ON DUPLICATE KEY UPDATE status = VALUES(status), updatedAt = VALUES(updatedAt), attendanceResolvedAt = VALUES(attendanceResolvedAt)"
+             ON DUPLICATE KEY UPDATE status = VALUES(status), updatedAt = VALUES(updatedAt), attendanceResolvedAt = VALUES(attendanceResolvedAt), attendanceResolutionReason = VALUES(attendanceResolutionReason)"
         );
         $statusesByTrack = [
             'it' => ['attended', 'approved', 'attended'],
@@ -323,18 +434,44 @@ try {
             'logistics' => ['attended', 'approved', 'no_show'],
             'ai' => ['attended', 'attended', 'approved'],
         ];
+        $actEndById = [];
+        $actHoursById = [];
+        foreach ($activityDefs as $a) {
+            $start = (new DateTimeImmutable($a['start'], new DateTimeZone('UTC')))->setTime(8, 0);
+            $actEndById[$a['id']] = $start->modify('+' . (int) $a['hours'] . ' hours');
+            $actHoursById[$a['id']] = (float) $a['hours'];
+        }
         $actIds = array_column($activityDefs, 'id');
+        $nowDt = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $confirmedAttendance = 0;
         foreach ($studentIds as $n => $st) {
             $track = (string) $st['track'];
             $want = $statusesByTrack[$track] ?? ['approved', 'attended'];
             foreach ($want as $i => $status) {
                 $actId = $actIds[($n + $i) % count($actIds)];
+                $actEnd = $actEndById[$actId] ?? null;
+                if (in_array($status, ['attended', 'no_show'], true) && ($actEnd === null || $actEnd > $nowDt)) {
+                    $status = 'approved';
+                }
                 $resolved = in_array($status, ['attended', 'no_show'], true) ? $now : null;
                 $reason = $status === 'attended' ? 'confirmed_attendance' : ($status === 'no_show' ? 'no_show' : null);
-                $insReg->execute([richId((string) (8000 + $n * 10 + $i)), $actId, $st['id'], $status, $now, $now, $resolved, $reason]);
+                $regId = richId((string) (8000 + $n * 10 + $i));
+                $insReg->execute([$regId, $actId, $st['id'], $status, $now, $now, $resolved, $reason]);
+                if ($status === 'attended') {
+                    richConfirmAttendance(
+                        $pdo,
+                        $regId,
+                        (string) $st['id'],
+                        $actId,
+                        (string) $primaryTeacher,
+                        min(24.0, $actHoursById[$actId] ?? 1.0),
+                        $now
+                    );
+                    $confirmedAttendance++;
+                }
             }
         }
-        echo "  Registrations seeded for all students\n";
+        echo "  Registrations seeded; confirmed attendance+hours: {$confirmedAttendance}\n";
     }
 
     if (phaseOk($only, 'portfolio')) {
@@ -416,59 +553,41 @@ try {
              VALUES (?, ?, ?, 'issued', ?, ?, 'manual', ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE status = 'issued', reason = VALUES(reason), evidenceContext = VALUES(evidenceContext), updatedAt = VALUES(updatedAt)"
         );
+        $certEligible = array_flip([1, 2, 4, 5, 7, 8, 10, 11, 13, 14, 16, 19, 20]);
         $certAssign = [
-            1 => 0, 2 => 0, 19 => 0, 4 => 1, 5 => 1, 20 => 1, 7 => 2, 8 => 2, 13 => 3, 14 => 3, 16 => 4, 17 => 4,
+            1 => 0, 2 => 0, 19 => 0, 4 => 1, 5 => 1, 20 => 1, 7 => 2, 8 => 2, 13 => 3, 14 => 3, 16 => 4,
         ];
+        $pdo->exec(
+            "DELETE FROM student_certificates
+             WHERE JSON_UNQUOTE(JSON_EXTRACT(evidenceContext, '$.source')) = 'rich_seed'"
+        );
         foreach ($certAssign as $sn => $ci) {
-            if (!isset($studentIds[$sn])) {
+            if (!isset($studentIds[$sn]) || !isset($certEligible[$sn])) {
                 continue;
             }
             $insStuCert->execute([
                 richId((string) (9300 + $sn)), $studentIds[$sn]['id'], $certCatalog[$ci]['id'], $now,
                 $schoolAdminUserId !== '' ? $schoolAdminUserId : $primaryTeacher,
-                'Hoàn thành chương trình và đánh giá năng lực tương ứng.',
+                'Hoàn thành chương trình và bộ đánh giá năng lực 4/4.',
                 $certCatalog[$ci]['name'],
-                json_encode(['source' => 'rich_seed'], JSON_UNESCAPED_UNICODE),
+                json_encode(['source' => 'rich_seed', 'requires' => 'assessment_4_of_4'], JSON_UNESCAPED_UNICODE),
                 $now, $now,
             ]);
         }
 
-        $badgeCodes = ['first_experience', 'experience_10h', 'active_participant', 'assessment_explorer'];
-        $badgeMap = [];
-        foreach ($pdo->query('SELECT id, code FROM badges WHERE status = \'active\'') as $b) {
-            $badgeMap[(string) $b['code']] = (string) $b['id'];
-        }
-        $ruleMap = [];
-        foreach ($pdo->query('SELECT id, badgeId FROM badge_rule_definitions WHERE isActive = 1') as $r) {
-            $ruleMap[(string) $r['badgeId']] = (string) $r['id'];
-        }
-        $insBadge = $pdo->prepare(
-            "INSERT INTO student_badges (id, studentId, badgeId, ruleDefinitionId, awardedAt, awardedBy, awardContext)
-             VALUES (?, ?, ?, ?, ?, 'system', ?)"
+        $pdo->exec(
+            "DELETE FROM student_badges
+             WHERE JSON_UNQUOTE(JSON_EXTRACT(awardContext, '$.source')) = 'rich_seed'"
         );
-        $delBadge = $pdo->prepare('DELETE FROM student_badges WHERE studentId = ? AND badgeId = ?');
-        foreach ($studentIds as $n => $st) {
-            $codes = $n % 2 === 0 ? $badgeCodes : array_slice($badgeCodes, 0, 2);
-            if (in_array((int) $n, [1, 4, 7, 10, 13, 16, 19, 20], true)) {
-                $codes = $badgeCodes;
-            }
-            foreach ($codes as $bi => $code) {
-                if (!isset($badgeMap[$code])) {
-                    continue;
-                }
-                $bid = $badgeMap[$code];
-                $delBadge->execute([$st['id'], $bid]);
-                $insBadge->execute([
-                    richId((string) (9400 + $n * 10 + $bi)),
-                    $st['id'],
-                    $bid,
-                    $ruleMap[$bid] ?? null,
-                    $now,
-                    json_encode(['source' => 'rich_seed', 'code' => $code], JSON_UNESCAPED_UNICODE),
-                ]);
-            }
+        require_once dirname(__DIR__) . '/app/learner/data/bootstrap.php';
+        $badgeAward = (new \TalentHub\Learner\Data\RepositoryFactory('database', $pdo))->badgeAwardService();
+        $badgeTotal = 0;
+        foreach ($studentIds as $st) {
+            $awarded = $badgeAward->evaluateAndAward((string) $st['id'], 'system');
+            $badgeTotal += count($awarded);
+            echo '  Badges rule-awarded ' . $st['name'] . ': ' . count($awarded) . "\n";
         }
-        echo "  Certificates + badges awarded\n";
+        echo "  Certificates (4/4 only) + rule-based badges: {$badgeTotal}\n";
     }
 
     if (phaseOk($only, 'enterprise')) {

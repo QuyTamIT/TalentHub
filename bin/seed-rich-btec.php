@@ -335,7 +335,7 @@ try {
             };
             $upsertUser->execute([$userId, $roles['student'], $s['email'], $passwordHash, $s['name'], $now, $now]);
             $upsertStudent->execute([$studentId, $userId, $classId, $s['dob'], $s['phone'], $talent, $now, $now]);
-            $bio = "Sinh viên {$s['headline']} tại Cao đẳng Quốc tế BTEC FPT Cần Thơ. Hồ sơ demo đa ngành để thể hiện tiềm năng matching & AI roadmap.";
+            $bio = "{$s['headline']} tại Cao đẳng Quốc tế BTEC FPT Cần Thơ.";
             $upsertDetails->execute([$studentId, $bio, $s['headline'], $now, $now]);
             $upsertMember->execute([$memberId, $schoolId, $userId, $now, $now]);
             $delSkills->execute([$studentId]);

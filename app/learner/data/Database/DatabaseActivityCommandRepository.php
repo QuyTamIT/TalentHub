@@ -378,9 +378,10 @@ final class DatabaseActivityCommandRepository implements ActivityCommandReposito
             FROM activity_registrations registration
             INNER JOIN activities existing ON existing.id = registration.activityId
             WHERE registration.studentId = :studentId
-              AND registration.status IN ('pending','approved','waitlisted','attended')
+              AND registration.status IN ('pending','approved','waitlisted')
               AND existing.startAt < :candidateEnd
               AND COALESCE(existing.endAt, existing.startAt) > :candidateStart
+              AND COALESCE(existing.endAt, existing.startAt) > :now
             LIMIT 1
         SQL
         );
@@ -388,6 +389,7 @@ final class DatabaseActivityCommandRepository implements ActivityCommandReposito
             'studentId' => $studentId,
             'candidateEnd' => $candidateEnd,
             'candidateStart' => (string) $activity['startAt'],
+            'now' => $this->timestamp(new DateTimeImmutable('now', new DateTimeZone('UTC'))),
         ]);
         return $statement->fetchColumn() !== false;
     }
