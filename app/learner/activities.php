@@ -35,25 +35,6 @@ $headerSearchLabel = 'Tìm hoạt động';
 $headerSearchPlaceholder = 'Tìm hoạt động, kỹ năng...';
 $activityNavigationActive = 'discover';
 $activityCatalog = learner_activity_catalog();
-$participantCount = array_sum(array_map(
-    static fn (array $activity): int => (int) ($activity['participants'] ?? 0),
-    $activityCatalog
-));
-$newActivityThreshold = new DateTimeImmutable('-30 days', new DateTimeZone('UTC'));
-$newActivityCount = count(array_filter(
-    $activityCatalog,
-    static function (array $activity) use ($newActivityThreshold): bool {
-        $openedAt = trim((string) ($activity['registration_opens_at'] ?? ''));
-        if ($openedAt === '') {
-            return false;
-        }
-        try {
-            return new DateTimeImmutable($openedAt, new DateTimeZone('UTC')) >= $newActivityThreshold;
-        } catch (Throwable) {
-            return false;
-        }
-    }
-));
 $discoveryCategories = ['Tất cả', 'Kỹ thuật', 'Kinh doanh', 'Sáng tạo', 'Cộng đồng'];
 $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
 ?>
@@ -82,36 +63,11 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
 
             <main class="learner-content" id="main-content" data-activity-discovery-page>
                 <div class="learner-activities-shell">
-                    <?php include __DIR__ . '/includes/activity-navigation.php'; ?>
-
                     <section class="learner-activity-discovery-hero" aria-labelledby="learner-activity-discovery-title">
                         <div class="learner-activity-discovery-hero__content">
                             <p class="learner-activity-discovery-hero__eyebrow">TRẢI NGHIỆM ĐỂ TRƯỞNG THÀNH</p>
                             <h1 id="learner-activity-discovery-title">Khám phá hoạt động</h1>
                             <p class="learner-activity-discovery-hero__description">Tìm cơ hội phù hợp để học hỏi, trải nghiệm và kết nối ngay trong cộng đồng trường bạn.</p>
-
-                            <ul class="learner-activity-discovery-kpis" aria-label="Tổng quan hoạt động đang mở">
-                                <li>
-                                    <span class="learner-activity-discovery-kpis__icon is-orange"><?= learner_icon('calendar', 22); ?></span>
-                                    <span class="learner-activity-discovery-kpis__value"><strong><?= learner_escape(count($activityCatalog)); ?></strong> hoạt động</span>
-                                    <span class="learner-activity-discovery-kpis__sub">đang mở</span>
-                                </li>
-                                <li>
-                                    <span class="learner-activity-discovery-kpis__icon is-blue"><?= learner_icon('users', 22); ?></span>
-                                    <span class="learner-activity-discovery-kpis__value"><strong><?= learner_escape($participantCount); ?></strong> lượt tham gia</span>
-                                    <span class="learner-activity-discovery-kpis__sub">hiện nay</span>
-                                </li>
-                                <li>
-                                    <button type="button"
-                                            class="learner-activity-discovery-kpis__action"
-                                            data-match-kpi
-                                            aria-label="Xem danh sách hoạt động phù hợp theo kỹ năng">
-                                        <span class="learner-activity-discovery-kpis__icon is-green"><?= learner_icon('sparkles', 22); ?></span>
-                                        <span class="learner-activity-discovery-kpis__value"><strong data-match-kpi-count><?= learner_escape($newActivityCount); ?></strong> hoạt động mới</span>
-                                        <span class="learner-activity-discovery-kpis__sub">phù hợp</span>
-                                    </button>
-                                </li>
-                            </ul>
                         </div>
                         <img
                             class="learner-activity-discovery-hero__illustration"
@@ -121,6 +77,8 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                             height="250"
                         >
                     </section>
+
+                    <?php include __DIR__ . '/includes/activity-navigation.php'; ?>
 
                     <section class="learner-activity-discovery-toolbar" aria-label="Tìm kiếm và lọc hoạt động">
                         <div class="learner-activity-discovery-toolbar__primary">
