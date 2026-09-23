@@ -109,23 +109,44 @@ $studentClass = !empty($student['class']) ? $student['class'] : 'Chưa cập nh�
                             <?php if ($hasApplied): ?>
                                 <?php
                                 $appStatus = (string) ($opportunity['application_status'] ?? 'submitted');
+                                $isInvited = ($appStatus === 'invited');
                                 $isAccepted = in_array($appStatus, ['accepted', 'hired'], true);
                                 $isDeclined = ($appStatus === 'declined');
                                 $statusLabel = match ($appStatus) {
+                                    'invited' => 'Được mời thực tập',
                                     'accepted', 'hired' => 'Đã nhận / Trúng tuyển',
                                     'reviewing' => 'Đang xem xét',
                                     'interview' => 'Mời phỏng vấn',
                                     'declined' => 'Chưa phù hợp',
                                     'withdrawn' => 'Đã rút hồ sơ',
+                                    'submitted' => 'Đang chờ xét duyệt',
                                     default => 'Đang chờ xét duyệt',
                                 };
-                                $statusColor = $isAccepted ? '#16a34a' : ($isDeclined ? '#dc2626' : '#2563eb');
-                                $statusBg = $isAccepted ? '#ecfdf5' : ($isDeclined ? '#fef2f2' : '#eff6ff');
+                                $statusColor = $isAccepted ? '#16a34a' : ($isDeclined ? '#dc2626' : ($isInvited ? '#d97706' : '#2563eb'));
+                                $statusBg = $isAccepted ? '#ecfdf5' : ($isDeclined ? '#fef2f2' : ($isInvited ? '#fffbeb' : '#eff6ff'));
+                                $cardTitle = $isAccepted
+                                    ? 'Bạn đã trúng tuyển!'
+                                    : ($isDeclined
+                                        ? 'Hồ sơ chưa phù hợp'
+                                        : ($isInvited
+                                            ? 'Bạn nhận được lời mời thực tập'
+                                            : 'Bạn đã nộp hồ sơ'));
+                                $cardMessage = $isAccepted
+                                    ? 'Chúc mừng bạn đã được ' . learner_escape($opportunity['partner_name']) . ' tiếp nhận thực tập. Nhà tuyển dụng sẽ sớm liên hệ.'
+                                    : ($isDeclined
+                                        ? 'Đơn ứng tuyển của bạn đã được ' . learner_escape($opportunity['partner_name']) . ' phản hồi là chưa phù hợp.'
+                                        : ($isInvited
+                                            ? learner_escape($opportunity['partner_name']) . ' đã gửi lời mời bạn tham gia thực tập vị trí này. Hãy phản hồi tại trang Thông báo.'
+                                            : 'Đơn ứng tuyển của bạn đã được chuyển tới ' . learner_escape($opportunity['partner_name']) . '. Bạn có thể theo dõi tiến độ xét duyệt tại Hồ sơ ứng tuyển.'));
+                                $cardIcon = $isAccepted ? 'check-circle' : ($isDeclined ? 'alert-circle' : ($isInvited ? 'sparkles' : 'file-text'));
+                                $primaryHref = $isInvited ? 'notifications.php' : 'ecosystem.php?tab=applications#applications-tracker-title';
+                                $primaryLabel = $isInvited ? 'Phản hồi lời mời' : 'Xem hồ sơ ứng tuyển';
+                                $primaryIcon = $isInvited ? 'bell' : 'file-text';
                                 ?>
-                                <span class="learner-apply-card__icon" style="background: <?= $statusBg; ?>; color: <?= $statusColor; ?>;"><?= learner_icon($isAccepted ? 'check-circle' : ($isDeclined ? 'alert-circle' : 'file-text'), 28); ?></span>
-                                <h2 id="apply-card-title"><?= $isAccepted ? 'Bạn đã trúng tuyển!' : ($isDeclined ? 'Hồ sơ chưa phù hợp' : 'Bạn đã nộp hồ sơ'); ?></h2>
-                                <p><?= $isAccepted ? 'Chúc mừng bạn đã được ' . learner_escape($opportunity['partner_name']) . ' tiếp nhận thực tập. Nhà tuyển dụng sẽ sớm liên hệ.' : 'Đơn ứng tuyển của bạn đã được chuyển tới ' . learner_escape($opportunity['partner_name']) . '. Bạn có thể theo dõi tiến độ xét duyệt tại Hồ sơ ứng tuyển.'; ?></p>
-                                <a class="learner-btn learner-btn--primary learner-btn--block" href="ecosystem.php?tab=applications#applications-tracker-title"><?= learner_icon('file-text', 17); ?> Xem hồ sơ ứng tuyển</a>
+                                <span class="learner-apply-card__icon" style="background: <?= $statusBg; ?>; color: <?= $statusColor; ?>;"><?= learner_icon($cardIcon, 28); ?></span>
+                                <h2 id="apply-card-title"><?= $cardTitle; ?></h2>
+                                <p><?= $cardMessage; ?></p>
+                                <a class="learner-btn learner-btn--primary learner-btn--block" href="<?= learner_escape($primaryHref); ?>"><?= learner_icon($primaryIcon, 17); ?> <?= learner_escape($primaryLabel); ?></a>
                                 <div class="learner-apply-card__deadline"><span>Hạn đăng ký</span><strong><?= learner_escape($deadlineLabel); ?></strong></div>
                                 <p class="learner-apply-card__privacy"><?= learner_icon('info', 15); ?> Trạng thái: <strong style="color: <?= $statusColor; ?>;"><?= learner_escape($statusLabel); ?></strong></p>
                             <?php else: ?>
