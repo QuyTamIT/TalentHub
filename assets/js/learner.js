@@ -667,6 +667,80 @@
         applicationMessage?.addEventListener('input', () => {
             if (applicationMessageCount) applicationMessageCount.textContent = String(applicationMessage.value.length);
         });
+
+        const inviteRespond = document.querySelector('[data-invite-respond]');
+        inviteRespond?.querySelectorAll('[data-invite-decision]').forEach((button) => {
+            button.addEventListener('click', async () => {
+                const decision = button.getAttribute('data-invite-decision');
+                const applicationId = inviteRespond.getAttribute('data-application-id') || '';
+                const enterpriseName = inviteRespond.getAttribute('data-enterprise-name') || 'doanh nghiệp';
+                const errorEl = inviteRespond.querySelector('[data-invite-error]');
+                if (!applicationApiClient || !applicationId || (decision !== 'accept' && decision !== 'decline')) {
+                    if (errorEl) {
+                        errorEl.hidden = false;
+                        errorEl.textContent = 'Không thể phản hồi lời mời lúc này.';
+                    }
+                    return;
+                }
+
+                inviteRespond.querySelectorAll('[data-invite-decision]').forEach((btn) => {
+                    btn.disabled = true;
+                });
+                if (errorEl) errorEl.hidden = true;
+
+                try {
+                    const response = await applicationApiClient.send('PATCH', '/notifications.php', {
+                        action: 'respond-invitation',
+                        applicationId,
+                        decision,
+                    });
+                    const status = response?.status || (decision === 'accept' ? 'accepted' : 'declined');
+                    const applyCard = document.querySelector('[data-apply-card]');
+                    const titleEl = applyCard?.querySelector('#apply-card-title');
+                    const descEl = applyCard?.querySelector('p');
+                    const statusLabel = applyCard?.querySelector('[data-invite-status-label]');
+                    const iconEl = applyCard?.querySelector('.learner-apply-card__icon');
+
+                    if (status === 'accepted') {
+                        if (titleEl) titleEl.textContent = 'Bạn đã trúng tuyển!';
+                        if (descEl) descEl.textContent = `Chúc mừng bạn đã được ${enterpriseName} tiếp nhận thực tập. Nhà tuyển dụng sẽ sớm liên hệ.`;
+                        if (statusLabel) {
+                            statusLabel.textContent = 'Đã nhận / Trúng tuyển';
+                            statusLabel.style.color = '#16a34a';
+                        }
+                        if (iconEl) {
+                            iconEl.style.background = '#ecfdf5';
+                            iconEl.style.color = '#16a34a';
+                        }
+                        showToast(response?.message || `Bạn đã chấp nhận lời mời thực tập từ ${enterpriseName}!`, 'success');
+                    } else {
+                        if (titleEl) titleEl.textContent = 'Bạn đã từ chối lời mời';
+                        if (descEl) descEl.textContent = `Bạn đã từ chối lời mời thực tập từ ${enterpriseName}.`;
+                        if (statusLabel) {
+                            statusLabel.textContent = 'Đã từ chối lời mời';
+                            statusLabel.style.color = '#dc2626';
+                        }
+                        if (iconEl) {
+                            iconEl.style.background = '#fef2f2';
+                            iconEl.style.color = '#dc2626';
+                        }
+                        showToast(response?.message || 'Bạn đã từ chối lời mời thực tập.', 'warning');
+                    }
+
+                    inviteRespond.outerHTML = '<a class="learner-btn learner-btn--primary learner-btn--block" href="ecosystem.php?tab=applications#applications-tracker-title">Xem hồ sơ ứng tuyển</a>';
+                } catch (error) {
+                    inviteRespond.querySelectorAll('[data-invite-decision]').forEach((btn) => {
+                        btn.disabled = false;
+                    });
+                    if (errorEl) {
+                        errorEl.hidden = false;
+                        errorEl.textContent = error?.message || 'Không thể phản hồi lời mời.';
+                    }
+                    showToast(error?.message || 'Không thể phản hồi lời mời.', 'error');
+                }
+            });
+        });
+
         applicationForm?.addEventListener('submit', async (event) => {
             event.preventDefault();
             const consent = applicationForm.querySelector('[data-application-consent]');

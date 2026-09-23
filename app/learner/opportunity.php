@@ -136,19 +136,25 @@ $studentClass = !empty($student['class']) ? $student['class'] : 'Chưa cập nh�
                                     : ($isDeclined
                                         ? 'Đơn ứng tuyển của bạn đã được ' . learner_escape($opportunity['partner_name']) . ' phản hồi là chưa phù hợp.'
                                         : ($isInvited
-                                            ? learner_escape($opportunity['partner_name']) . ' đã gửi lời mời bạn tham gia thực tập vị trí này. Hãy phản hồi tại trang Thông báo.'
+                                            ? learner_escape($opportunity['partner_name']) . ' đã gửi lời mời bạn tham gia thực tập vị trí này. Hãy chấp nhận hoặc từ chối lời mời.'
                                             : 'Đơn ứng tuyển của bạn đã được chuyển tới ' . learner_escape($opportunity['partner_name']) . '. Bạn có thể theo dõi tiến độ xét duyệt tại Hồ sơ ứng tuyển.'));
                                 $cardIcon = $isAccepted ? 'check-circle' : ($isDeclined ? 'alert-circle' : ($isInvited ? 'sparkles' : 'file-text'));
-                                $primaryHref = $isInvited ? 'notifications.php' : 'ecosystem.php?tab=applications#applications-tracker-title';
-                                $primaryLabel = $isInvited ? 'Phản hồi lời mời' : 'Xem hồ sơ ứng tuyển';
-                                $primaryIcon = $isInvited ? 'bell' : 'file-text';
+                                $applicationId = (string) ($opportunity['application_id'] ?? '');
                                 ?>
                                 <span class="learner-apply-card__icon" style="background: <?= $statusBg; ?>; color: <?= $statusColor; ?>;"><?= learner_icon($cardIcon, 28); ?></span>
                                 <h2 id="apply-card-title"><?= $cardTitle; ?></h2>
                                 <p><?= $cardMessage; ?></p>
-                                <a class="learner-btn learner-btn--primary learner-btn--block" href="<?= learner_escape($primaryHref); ?>"><?= learner_icon($primaryIcon, 17); ?> <?= learner_escape($primaryLabel); ?></a>
+                                <?php if ($isInvited && $applicationId !== ''): ?>
+                                    <div class="learner-invite-respond" data-invite-respond data-application-id="<?= learner_escape($applicationId); ?>" data-enterprise-name="<?= learner_escape((string) $opportunity['partner_name']); ?>" style="display:grid;gap:10px;margin-bottom:12px;">
+                                        <button type="button" class="learner-btn learner-btn--primary learner-btn--block" data-invite-decision="accept"><?= learner_icon('check', 17); ?> Chấp nhận lời mời</button>
+                                        <button type="button" class="learner-btn learner-btn--outline learner-btn--block" data-invite-decision="decline"><?= learner_icon('x', 17); ?> Từ chối</button>
+                                        <p class="learner-form-error" role="alert" hidden data-invite-error style="margin:0;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;color:#dc2626;font-size:0.78rem;"></p>
+                                    </div>
+                                <?php else: ?>
+                                    <a class="learner-btn learner-btn--primary learner-btn--block" href="ecosystem.php?tab=applications#applications-tracker-title"><?= learner_icon('file-text', 17); ?> Xem hồ sơ ứng tuyển</a>
+                                <?php endif; ?>
                                 <div class="learner-apply-card__deadline"><span>Hạn đăng ký</span><strong><?= learner_escape($deadlineLabel); ?></strong></div>
-                                <p class="learner-apply-card__privacy"><?= learner_icon('info', 15); ?> Trạng thái: <strong style="color: <?= $statusColor; ?>;"><?= learner_escape($statusLabel); ?></strong></p>
+                                <p class="learner-apply-card__privacy"><?= learner_icon('info', 15); ?> Trạng thái: <strong style="color: <?= $statusColor; ?>;" data-invite-status-label><?= learner_escape($statusLabel); ?></strong></p>
                             <?php else: ?>
                                 <span class="learner-apply-card__icon"><?= learner_icon('file-text', 24); ?></span>
                                 <h2 id="apply-card-title"><?= learner_escape($canApply ? 'Sẵn sàng ứng tuyển?' : 'Cơ hội đã đóng'); ?></h2>

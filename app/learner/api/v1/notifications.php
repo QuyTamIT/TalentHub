@@ -85,8 +85,9 @@ try {
 
         if ($action === 'respond-invitation' || $action === 'accept-invitation' || $action === 'decline-invitation') {
             $identity = $context->studentIdentityForPermissions(['notification.mark_read_own']);
-            $input = $context->allowedInput($raw, ['action', 'notificationId', 'decision']);
+            $input = $context->allowedInput($raw, ['action', 'notificationId', 'applicationId', 'decision']);
             $notificationId = trim((string) ($input['notificationId'] ?? ''));
+            $applicationId = trim((string) ($input['applicationId'] ?? ''));
             $decision = ($action === 'accept-invitation') ? 'accept' : (($action === 'decline-invitation') ? 'decline' : strtolower(trim((string) ($raw['decision'] ?? 'accept'))));
             $response = (new InternshipInvitationResponseService($context->pdo()))->respond(
                 $identity['student_id'],
@@ -94,6 +95,7 @@ try {
                 $notificationId,
                 $decision,
                 $context->requestId(),
+                $applicationId !== '' ? $applicationId : null,
             );
             $successMsg = ($response['status'] === 'accepted')
                 ? "Bạn đã chấp nhận lời mời thực tập từ {$response['enterpriseName']}!"

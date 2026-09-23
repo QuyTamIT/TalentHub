@@ -22,10 +22,22 @@ final class InternshipInvitationResponseService
         string $notificationId,
         string $decision,
         string $requestId,
+        ?string $applicationId = null,
     ): array {
         $studentId = $this->uuid($studentId, 'studentId');
         $userId = $this->uuid($userId, 'userId');
-        $notificationId = $this->uuid($notificationId, 'notificationId');
+        $notificationId = trim($notificationId);
+        $applicationId = $applicationId !== null ? trim($applicationId) : '';
+        if ($notificationId !== '') {
+            $notificationId = $this->uuid($notificationId, 'notificationId');
+        }
+        if ($applicationId !== '') {
+            $applicationId = $this->uuid($applicationId, 'applicationId');
+        }
+        if ($notificationId === '' && $applicationId === '') {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Thiếu ID lời mời hoặc hồ sơ thực tập.');
+        }
+
         $decision = strtolower(trim($decision));
         if (!in_array($decision, ['accept', 'decline'], true)) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Phản hồi lời mời không hợp lệ.');
@@ -34,27 +46,43 @@ final class InternshipInvitationResponseService
 
         $this->pdo->beginTransaction();
         try {
-            $notification = $this->lockNotification($notificationId, $userId);
-            if ($notification === null || (string) ($notification['notificationType'] ?? '') !== 'internship_invitation') {
-                throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy lời mời thực tập thuộc tài khoản của bạn.');
+            $resolvedNotificationId = $notificationId;
+            if ($notificationId !== '') {
+                $notification = $this->lockNotification($notificationId, $userId);
+                if ($notification === null || (string) ($notification['notificationType'] ?? '') !== 'internship_invitation') {
+                    throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy lời mời thực tập thuộc tài khoản của bạn.');
+                }
+                $application = $this->lockApplicationForNotification($notification, $studentId, $userId);
+            } else {
+                $application = $this->lockApplicationById($applicationId, $studentId, $userId);
             }
 
-            $application = $this->lockApplicationForNotification($notification, $studentId, $userId);
             if ($application === null) {
                 throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hồ sơ thực tập của lời mời này.');
             }
 
-            $applicationId = (string) $application['id'];
+            if ($notificationId === '') {
+                $resolvedNotificationId = $this->findRelatedInvitationNotificationId(
+                    $userId,
+                    (string) $application['id'],
+                    (string) $application['postId']
+                );
+            }
+
+            $lockedApplicationId = (string) $application['id'];
             $currentStatus = (string) $application['status'];
             if ($currentStatus === $targetStatus) {
-                $this->markNotificationRead($notificationId, $userId);
+                if ($resolvedNotificationId !== '') {
+                    $this->markNotificationRead($resolvedNotificationId, $userId);
+                }
+                $this->markRelatedInvitationNotificationsRead($userId, $lockedApplicationId, (string) $application['postId']);
                 $this->pdo->commit();
-                return $this->result($notificationId, $application, $targetStatus, $userId);
+                return $this->result($resolvedNotificationId, $application, $targetStatus, $userId);
             }
             if ($currentStatus !== 'invited') {
                 throw new ApiException(409, 'ILLEGAL_STATUS_TRANSITION', 'Lời mời đã được xử lý hoặc không còn hiệu lực.');
             }
-            if ($targetStatus === 'accepted' && $this->hasOtherAcceptedPlacement($studentId, $applicationId)) {
+            if ($targetStatus === 'accepted' && $this->hasOtherAcceptedPlacement($studentId, $lockedApplicationId)) {
                 throw new ApiException(409, 'INTERNSHIP_PLACEMENT_LOCKED', 'Bạn đã xác nhận một vị trí thực tập khác.');
             }
 
@@ -66,7 +94,7 @@ final class InternshipInvitationResponseService
             $update->execute([
                 'status' => $targetStatus,
                 'updatedAt' => $now,
-                'id' => $applicationId,
+                'id' => $lockedApplicationId,
                 'studentId' => $studentId,
                 'userId' => $userId,
             ]);
@@ -82,18 +110,21 @@ final class InternshipInvitationResponseService
             SQL);
             $history->execute([
                 'id' => Uuid::v4(),
-                'applicationId' => $applicationId,
+                'applicationId' => $lockedApplicationId,
                 'toStatus' => $targetStatus,
                 'userId' => $userId,
                 'note' => $targetStatus === 'accepted' ? 'Học viên chấp nhận lời mời thực tập' : 'Học viên từ chối lời mời thực tập',
                 'createdAt' => $now,
             ]);
-            $this->markNotificationRead($notificationId, $userId, $now);
-            $this->audit($userId, $applicationId, $requestId, $targetStatus, $now);
+            if ($resolvedNotificationId !== '') {
+                $this->markNotificationRead($resolvedNotificationId, $userId, $now);
+            }
+            $this->markRelatedInvitationNotificationsRead($userId, $lockedApplicationId, (string) $application['postId'], $now);
+            $this->audit($userId, $lockedApplicationId, $requestId, $targetStatus, $now);
             $application['status'] = $targetStatus;
 
             $this->pdo->commit();
-            return $this->result($notificationId, $application, $targetStatus, $userId);
+            return $this->result($resolvedNotificationId, $application, $targetStatus, $userId);
         } catch (Throwable $exception) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
@@ -118,7 +149,6 @@ final class InternshipInvitationResponseService
         $eventKey = (string) ($notification['eventKey'] ?? '');
         $deepLink = (string) ($notification['deepLink'] ?? '');
 
-        // 1. Direct regex match on standard eventKey format: internship_invitation:{appId}
         if (preg_match('/\Ainternship_invitation:([0-9a-f-]{36})(?::[A-Za-z0-9_-]+)?\z/i', $eventKey, $matches) === 1) {
             $app = $this->lockApplicationById($matches[1], $studentId, $userId);
             if ($app !== null) {
@@ -126,7 +156,6 @@ final class InternshipInvitationResponseService
             }
         }
 
-        // 2. Extract any candidate UUIDs from eventKey and deepLink
         $candidateUuids = [];
         if (preg_match_all('/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i', $eventKey . ' ' . $deepLink, $matches)) {
             $candidateUuids = array_unique(array_map('strtolower', $matches[1]));
@@ -143,7 +172,6 @@ final class InternshipInvitationResponseService
             }
         }
 
-        // 3. Fallback: match most recent invited application for this student
         return $this->lockLatestInvitedApplication($studentId, $userId);
     }
 
@@ -199,6 +227,41 @@ final class InternshipInvitationResponseService
         $statement->execute(['studentId' => $studentId, 'userId' => $userId]);
         $row = $statement->fetch(PDO::FETCH_ASSOC);
         return is_array($row) ? $row : null;
+    }
+
+    private function findRelatedInvitationNotificationId(string $userId, string $applicationId, string $postId): string
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT id FROM notifications WHERE userId = :userId AND notificationType = 'internship_invitation' "
+            . 'AND (eventKey LIKE :appKey OR deepLink LIKE :postKey) '
+            . 'ORDER BY createdAt DESC LIMIT 1'
+        );
+        $statement->execute([
+            'userId' => $userId,
+            'appKey' => 'internship_invitation:' . $applicationId . '%',
+            'postKey' => '%' . $postId . '%',
+        ]);
+        $id = $statement->fetchColumn();
+        return is_string($id) ? $id : '';
+    }
+
+    private function markRelatedInvitationNotificationsRead(
+        string $userId,
+        string $applicationId,
+        string $postId,
+        ?string $now = null
+    ): void {
+        $statement = $this->pdo->prepare(
+            "UPDATE notifications SET readAt = COALESCE(readAt, :readAt) "
+            . "WHERE userId = :userId AND notificationType = 'internship_invitation' "
+            . 'AND readAt IS NULL AND (eventKey LIKE :appKey OR deepLink LIKE :postKey)'
+        );
+        $statement->execute([
+            'readAt' => $now ?? gmdate('Y-m-d H:i:s.u'),
+            'userId' => $userId,
+            'appKey' => 'internship_invitation:' . $applicationId . '%',
+            'postKey' => '%' . $postId . '%',
+        ]);
     }
 
     private function hasOtherAcceptedPlacement(string $studentId, string $applicationId): bool
