@@ -1900,7 +1900,7 @@ final class EnterpriseTalentRepository
                 'internship_application_status_changed',
                 'Yêu cầu kết nối từ doanh nghiệp',
                 "Doanh nghiệp {$enterpriseName} muốn kết nối và xem thông tin liên hệ của bạn.",
-                '/app/learner/ecosystem.php',
+                '/app/learner/partner.php?type=enterprise&id=' . rawurlencode($enterpriseId),
                 'enterprise_contact_request:' . $id,
                 $studentId
             );

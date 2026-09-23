@@ -77,14 +77,31 @@ final class DatabaseNotificationRepository implements NotificationRepository
                     } catch (\Throwable $e) {}
                 }
 
+                $deepLink = $row['deepLink'] !== null ? (string) $row['deepLink'] : null;
+                $eventKey = $row['eventKey'] !== null ? (string) $row['eventKey'] : null;
+                if ($eventKey !== null && str_starts_with($eventKey, 'enterprise_contact_request:')) {
+                    $requestId = substr($eventKey, strlen('enterprise_contact_request:'));
+                    if ($requestId !== '') {
+                        try {
+                            $ecrStmt = $this->pdo->prepare('SELECT enterpriseId FROM enterprise_contact_requests WHERE id = ? LIMIT 1');
+                            $ecrStmt->execute([$requestId]);
+                            $enterpriseId = $ecrStmt->fetchColumn();
+                            if (is_string($enterpriseId) && $enterpriseId !== '') {
+                                $deepLink = '/app/learner/partner.php?type=enterprise&id=' . rawurlencode($enterpriseId);
+                            }
+                        } catch (\Throwable $e) {
+                        }
+                    }
+                }
+
                 return [
                     'id' => (string) $row['id'],
                     'userId' => (string) $row['userId'],
-                    'eventKey' => $row['eventKey'] !== null ? (string) $row['eventKey'] : null,
+                    'eventKey' => $eventKey,
                     'notificationType' => (string) $row['notificationType'],
                     'title' => (string) $row['title'],
                     'message' => (string) $row['message'],
-                    'deepLink' => $row['deepLink'] !== null ? (string) $row['deepLink'] : null,
+                    'deepLink' => $deepLink,
                     'readAt' => $row['readAt'] !== null ? (string) $row['readAt'] : null,
                     'createdAt' => (string) $row['createdAt'],
                     'invitation' => $invitationData,

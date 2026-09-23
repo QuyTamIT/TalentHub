@@ -53,6 +53,7 @@ final class NotificationService
         '/app/learner/assessment-result.php',
         '/app/learner/evaluation.php',
         '/app/learner/ecosystem.php',
+        '/app/learner/partner.php',
         '/app/learner/badges.php',
         '/app/learner/talent-passport.php',
         '/app/teacher/projects/index.php',

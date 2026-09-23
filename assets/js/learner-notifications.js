@@ -10,6 +10,7 @@
         '/app/learner/checkin.php',
         '/app/learner/assessment-result.php',
         '/app/learner/ecosystem.php',
+        '/app/learner/partner.php',
         '/app/learner/badges.php',
         '/app/learner/activity-history.php',
         '/app/learner/talent-passport.php',
@@ -17,7 +18,15 @@
     ];
 
     function isSafeDeepLink(url) {
-        return typeof url === 'string' && ALLOWED_DEEP_LINKS.includes(url);
+        if (typeof url !== 'string' || url === '') return false;
+        try {
+            const parsed = new URL(url, window.location.origin);
+            if (parsed.origin !== window.location.origin || parsed.username || parsed.password) return false;
+            if (parsed.pathname.includes('..')) return false;
+            return ALLOWED_DEEP_LINKS.includes(parsed.pathname);
+        } catch (_) {
+            return false;
+        }
     }
 
     function normalizePreferences(preferences) {
