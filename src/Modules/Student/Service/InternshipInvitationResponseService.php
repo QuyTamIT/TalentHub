@@ -79,17 +79,34 @@ final class InternshipInvitationResponseService
                 $this->pdo->commit();
                 return $this->result($resolvedNotificationId, $application, $targetStatus, $userId);
             }
-            if ($currentStatus !== 'invited') {
+
+            $canCancelAccepted = $currentStatus === 'accepted' && $targetStatus === 'declined';
+            if ($currentStatus !== 'invited' && !$canCancelAccepted) {
                 throw new ApiException(409, 'ILLEGAL_STATUS_TRANSITION', 'Lời mời đã được xử lý hoặc không còn hiệu lực.');
             }
-            if ($targetStatus === 'accepted' && $this->hasOtherAcceptedPlacement($studentId, $lockedApplicationId)) {
-                throw new ApiException(409, 'INTERNSHIP_PLACEMENT_LOCKED', 'Bạn đã xác nhận một vị trí thực tập khác.');
+            if ($targetStatus === 'accepted') {
+                $blocking = $this->findOtherAcceptedPlacement($studentId, $lockedApplicationId);
+                if ($blocking !== null) {
+                    throw new ApiException(
+                        409,
+                        'INTERNSHIP_PLACEMENT_LOCKED',
+                        'Bạn đã xác nhận vị trí "' . $blocking['postTitle'] . '" tại ' . $blocking['enterpriseName'] . '. Hãy hủy xác nhận vị trí đó trước khi chấp nhận lời mời mới.',
+                        [
+                            'blockingApplicationId' => $blocking['id'],
+                            'blockingPostId' => $blocking['postId'],
+                            'blockingPostTitle' => $blocking['postTitle'],
+                            'blockingEnterpriseName' => $blocking['enterpriseName'],
+                            'blockingOpportunityUrl' => '/app/learner/opportunity.php?type=internship&id=' . rawurlencode($blocking['postId']),
+                        ]
+                    );
+                }
             }
 
+            $fromStatus = $currentStatus;
             $now = gmdate('Y-m-d H:i:s.u');
             $update = $this->pdo->prepare(
                 'UPDATE internship_applications SET status = :status, updatedAt = :updatedAt '
-                . "WHERE id = :id AND (studentId = :studentId OR studentId IN (SELECT id FROM student_profiles WHERE userId = :userId)) AND status = 'invited'"
+                . 'WHERE id = :id AND (studentId = :studentId OR studentId IN (SELECT id FROM student_profiles WHERE userId = :userId)) AND status = :expectedStatus'
             );
             $update->execute([
                 'status' => $targetStatus,
@@ -97,6 +114,7 @@ final class InternshipInvitationResponseService
                 'id' => $lockedApplicationId,
                 'studentId' => $studentId,
                 'userId' => $userId,
+                'expectedStatus' => $fromStatus,
             ]);
             if ($update->rowCount() !== 1) {
                 throw new ApiException(409, 'CONCURRENT_MODIFICATION', 'Trạng thái lời mời đã thay đổi.');
@@ -106,16 +124,25 @@ final class InternshipInvitationResponseService
                 INSERT INTO application_status_history
                     (id, applicationId, fromStatus, toStatus, changedByUserId, changedByRole, note, createdAt)
                 VALUES
-                    (:id, :applicationId, 'invited', :toStatus, :userId, 'student', :note, :createdAt)
+                    (:id, :applicationId, :fromStatus, :toStatus, :userId, 'student', :note, :createdAt)
             SQL);
+            $historyNote = match (true) {
+                $canCancelAccepted => 'Học viên hủy xác nhận vị trí thực tập đã chấp nhận',
+                $targetStatus === 'accepted' => 'Học viên chấp nhận lời mời thực tập',
+                default => 'Học viên từ chối lời mời thực tập',
+            };
             $history->execute([
                 'id' => Uuid::v4(),
                 'applicationId' => $lockedApplicationId,
+                'fromStatus' => $fromStatus,
                 'toStatus' => $targetStatus,
                 'userId' => $userId,
-                'note' => $targetStatus === 'accepted' ? 'Học viên chấp nhận lời mời thực tập' : 'Học viên từ chối lời mời thực tập',
+                'note' => $historyNote,
                 'createdAt' => $now,
             ]);
+            if ($canCancelAccepted) {
+                $this->clearPlacementLocks($lockedApplicationId);
+            }
             if ($resolvedNotificationId !== '') {
                 $this->markNotificationRead($resolvedNotificationId, $userId, $now);
             }
@@ -264,14 +291,42 @@ final class InternshipInvitationResponseService
         ]);
     }
 
-    private function hasOtherAcceptedPlacement(string $studentId, string $applicationId): bool
+    /** @return array{id:string,postId:string,postTitle:string,enterpriseName:string}|null */
+    private function findOtherAcceptedPlacement(string $studentId, string $applicationId): ?array
     {
-        $statement = $this->pdo->prepare(
-            "SELECT id FROM internship_applications WHERE studentId = :studentId "
-            . "AND id <> :applicationId AND status = 'accepted' LIMIT 1" . $this->lockSuffix()
-        );
+        $statement = $this->pdo->prepare(<<<SQL
+            SELECT ia.id, ia.postId, ip.title AS postTitle, e.name AS enterpriseName
+            FROM internship_applications ia
+            INNER JOIN internship_posts ip ON ip.id = ia.postId
+            INNER JOIN enterprises e ON e.id = ip.enterpriseId
+            WHERE ia.studentId = :studentId AND ia.id <> :applicationId AND ia.status = 'accepted'
+            LIMIT 1{$this->lockSuffix()}
+        SQL);
         $statement->execute(['studentId' => $studentId, 'applicationId' => $applicationId]);
-        return $statement->fetchColumn() !== false;
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            return null;
+        }
+        return [
+            'id' => (string) $row['id'],
+            'postId' => (string) $row['postId'],
+            'postTitle' => (string) $row['postTitle'],
+            'enterpriseName' => (string) $row['enterpriseName'],
+        ];
+    }
+
+    private function clearPlacementLocks(string $placementApplicationId): void
+    {
+        try {
+            $statement = $this->pdo->prepare(
+                'DELETE FROM internship_application_locks WHERE lockedByApplicationId = :placementId OR applicationId = :applicationId'
+            );
+            $statement->execute([
+                'placementId' => $placementApplicationId,
+                'applicationId' => $placementApplicationId,
+            ]);
+        } catch (\Throwable) {
+        }
     }
 
     private function markNotificationRead(string $notificationId, string $userId, ?string $now = null): void

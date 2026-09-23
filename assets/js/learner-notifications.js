@@ -616,7 +616,8 @@
                 this.updateUnreadCount();
             } catch (err) {
                 console.error(err);
-                showToast('Không thể gửi phản hồi lời mời lúc này.');
+                const message = err?.message || 'Không thể gửi phản hồi lời mời lúc này.';
+                showToast(message);
                 this.loadNotifications(false);
             }
         }

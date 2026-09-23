@@ -150,6 +150,12 @@ $studentClass = !empty($student['class']) ? $student['class'] : 'Chưa cập nh�
                                         <button type="button" class="learner-btn learner-btn--outline learner-btn--block" data-invite-decision="decline"><?= learner_icon('x', 17); ?> Từ chối</button>
                                         <p class="learner-form-error" role="alert" hidden data-invite-error style="margin:0;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;color:#dc2626;font-size:0.78rem;"></p>
                                     </div>
+                                <?php elseif ($isAccepted && $applicationId !== '' && $appStatus === 'accepted'): ?>
+                                    <div class="learner-invite-respond" data-invite-respond data-application-id="<?= learner_escape($applicationId); ?>" data-enterprise-name="<?= learner_escape((string) $opportunity['partner_name']); ?>" style="display:grid;gap:10px;margin-bottom:12px;">
+                                        <a class="learner-btn learner-btn--primary learner-btn--block" href="ecosystem.php?tab=applications#applications-tracker-title"><?= learner_icon('file-text', 17); ?> Xem hồ sơ ứng tuyển</a>
+                                        <button type="button" class="learner-btn learner-btn--outline learner-btn--block" data-invite-decision="decline"><?= learner_icon('x', 17); ?> Hủy xác nhận vị trí</button>
+                                        <p class="learner-form-error" role="alert" hidden data-invite-error style="margin:0;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;color:#dc2626;font-size:0.78rem;"></p>
+                                    </div>
                                 <?php else: ?>
                                     <a class="learner-btn learner-btn--primary learner-btn--block" href="ecosystem.php?tab=applications#applications-tracker-title"><?= learner_icon('file-text', 17); ?> Xem hồ sơ ứng tuyển</a>
                                 <?php endif; ?>

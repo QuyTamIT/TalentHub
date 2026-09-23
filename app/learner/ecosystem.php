@@ -524,6 +524,10 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
                                                         <button class="learner-btn--danger-outline" type="button" data-withdraw-btn data-withdraw-id="<?= learner_escape($app['id']); ?>">
                                                             Rút hồ sơ
                                                         </button>
+                                                    <?php elseif ($appStatus === 'accepted'): ?>
+                                                        <button class="learner-btn--danger-outline" type="button" data-cancel-accepted-btn data-application-id="<?= learner_escape($app['id']); ?>" data-enterprise-name="<?= learner_escape((string) ($app['partner_name'] ?? '')); ?>">
+                                                            Hủy xác nhận
+                                                        </button>
                                                     <?php endif; ?>
                                                 </div>
                                             </div>

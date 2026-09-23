@@ -43,6 +43,74 @@
         });
 
         tracker.addEventListener('click', async (event) => {
+            const cancelAcceptedBtn = event.target.closest('[data-cancel-accepted-btn]');
+            if (cancelAcceptedBtn && !cancelAcceptedBtn.disabled) {
+                const appId = cancelAcceptedBtn.dataset.applicationId;
+                if (!appId) return;
+                const confirmed = window.confirm('Bạn chắc chắn muốn hủy xác nhận vị trí này để có thể nhận lời mời khác?');
+                if (!confirmed) return;
+
+                cancelAcceptedBtn.disabled = true;
+                const originalText = cancelAcceptedBtn.textContent;
+                cancelAcceptedBtn.textContent = 'Đang xử lý...';
+
+                try {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                        || document.getElementById('learner-session-boot')?.textContent && (() => {
+                            try {
+                                return JSON.parse(document.getElementById('learner-session-boot').textContent || '{}').csrfToken || '';
+                            } catch {
+                                return '';
+                            }
+                        })()
+                        || '';
+                    let client = null;
+                    if (global.TalentHubLearnerApi?.createLearnerApiClient) {
+                        client = global.TalentHubLearnerApi.createLearnerApiClient({
+                            baseUrl: '/app/learner/api/v1',
+                            csrfToken,
+                        });
+                    }
+                    const response = client
+                        ? await client.send('PATCH', '/notifications.php', {
+                            action: 'respond-invitation',
+                            applicationId: appId,
+                            decision: 'decline',
+                        })
+                        : null;
+                    if (!response || response.status !== 'declined') {
+                        throw new Error('Không thể hủy xác nhận vị trí.');
+                    }
+
+                    const card = cancelAcceptedBtn.closest('[data-app-card]');
+                    if (card) {
+                        const statusBadge = card.querySelector('[data-app-status-badge]');
+                        if (statusBadge) {
+                            statusBadge.className = 'learner-status-badge is-declined';
+                            statusBadge.innerHTML = '<span class="dot" aria-hidden="true"></span> Đã từ chối';
+                        }
+                        const banner = card.querySelector('.learner-app-accepted-banner');
+                        if (banner) banner.remove();
+                    }
+                    cancelAcceptedBtn.remove();
+                    if (typeof global.showToast === 'function') {
+                        global.showToast('Đã hủy xác nhận vị trí. Bạn có thể chấp nhận lời mời khác.', 'warning');
+                    } else {
+                        alert('Đã hủy xác nhận vị trí. Bạn có thể chấp nhận lời mời khác.');
+                    }
+                } catch (err) {
+                    cancelAcceptedBtn.disabled = false;
+                    cancelAcceptedBtn.textContent = originalText;
+                    const msg = err?.message || 'Không thể hủy xác nhận vị trí.';
+                    if (typeof global.showToast === 'function') {
+                        global.showToast(msg, 'error');
+                    } else {
+                        alert(msg);
+                    }
+                }
+                return;
+            }
+
             const withdrawBtn = event.target.closest('[data-withdraw-btn]');
             if (!withdrawBtn || withdrawBtn.disabled) return;
 

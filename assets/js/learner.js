@@ -683,6 +683,11 @@
                     return;
                 }
 
+                if (decision === 'decline' && button.textContent.includes('Hủy xác nhận')) {
+                    const confirmed = global.confirm('Bạn chắc chắn muốn hủy xác nhận vị trí này để có thể nhận lời mời khác?');
+                    if (!confirmed) return;
+                }
+
                 inviteRespond.querySelectorAll('[data-invite-decision]').forEach((btn) => {
                     btn.disabled = true;
                 });
@@ -713,9 +718,10 @@
                             iconEl.style.color = '#16a34a';
                         }
                         showToast(response?.message || `Bạn đã chấp nhận lời mời thực tập từ ${enterpriseName}!`, 'success');
+                        inviteRespond.outerHTML = '<a class="learner-btn learner-btn--primary learner-btn--block" href="ecosystem.php?tab=applications#applications-tracker-title">Xem hồ sơ ứng tuyển</a>';
                     } else {
                         if (titleEl) titleEl.textContent = 'Bạn đã từ chối lời mời';
-                        if (descEl) descEl.textContent = `Bạn đã từ chối lời mời thực tập từ ${enterpriseName}.`;
+                        if (descEl) descEl.textContent = `Bạn đã hủy / từ chối vị trí thực tập từ ${enterpriseName}. Bạn có thể chấp nhận lời mời khác.`;
                         if (statusLabel) {
                             statusLabel.textContent = 'Đã từ chối lời mời';
                             statusLabel.style.color = '#dc2626';
@@ -724,19 +730,32 @@
                             iconEl.style.background = '#fef2f2';
                             iconEl.style.color = '#dc2626';
                         }
-                        showToast(response?.message || 'Bạn đã từ chối lời mời thực tập.', 'warning');
+                        showToast(response?.message || 'Đã hủy xác nhận / từ chối lời mời thực tập.', 'warning');
+                        inviteRespond.outerHTML = '<a class="learner-btn learner-btn--primary learner-btn--block" href="ecosystem.php?tab=applications#applications-tracker-title">Xem hồ sơ ứng tuyển</a>';
                     }
-
-                    inviteRespond.outerHTML = '<a class="learner-btn learner-btn--primary learner-btn--block" href="ecosystem.php?tab=applications#applications-tracker-title">Xem hồ sơ ứng tuyển</a>';
                 } catch (error) {
                     inviteRespond.querySelectorAll('[data-invite-decision]').forEach((btn) => {
                         btn.disabled = false;
                     });
+                    let message = error?.message || 'Không thể phản hồi lời mời.';
+                    const details = error?.details && typeof error.details === 'object' ? error.details : null;
+                    const blockingUrl = details?.blockingOpportunityUrl || '';
+                    if (error?.code === 'INTERNSHIP_PLACEMENT_LOCKED' && blockingUrl) {
+                        message += ' Mở vị trí đang khóa để hủy xác nhận trước.';
+                    }
                     if (errorEl) {
                         errorEl.hidden = false;
-                        errorEl.textContent = error?.message || 'Không thể phản hồi lời mời.';
+                        errorEl.textContent = message;
+                        if (blockingUrl) {
+                            const link = document.createElement('a');
+                            link.href = blockingUrl;
+                            link.textContent = ' Mở vị trí đang giữ chỗ →';
+                            link.style.cssText = 'display:inline-block;margin-top:6px;color:#1d4ed8;font-weight:600;';
+                            errorEl.appendChild(document.createElement('br'));
+                            errorEl.appendChild(link);
+                        }
                     }
-                    showToast(error?.message || 'Không thể phản hồi lời mời.', 'error');
+                    showToast(message, 'error');
                 }
             });
         });
