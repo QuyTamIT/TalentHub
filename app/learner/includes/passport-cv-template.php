@@ -257,7 +257,6 @@ $renderCvSupportingSection = static function (string $section) use ($cv, $isAppl
         </div>
     </main>
     <?php if (!$isApplicationSnapshot): ?>
-    <script src="<?= app_href('/assets/vendor/qrcodejs/qrcode.min.js'); ?>"></script>
     <script src="<?= app_href('/assets/js/learner-passport-cv.js'); ?>?v=<?= @filemtime(dirname(__DIR__, 3) . '/assets/js/learner-passport-cv.js') ?: time(); ?>"></script>
     <?php endif; ?>
 </body>

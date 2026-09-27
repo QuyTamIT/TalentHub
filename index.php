@@ -162,7 +162,7 @@ $audiences = [
                     Đăng nhập
                 </a>
                 
-                <a href="<?= htmlspecialchars(app_href('/role-selection.php')) ?>" class="btn btn-primary site-header__app-btn" style="display: flex; align-items: center; gap: 8px;">
+                <a href="<?= htmlspecialchars(app_href('/role-selection.php')) ?>" class="btn btn-primary site-header__app-btn">
                     Đăng ký
                     <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -231,7 +231,7 @@ $audiences = [
                                 </svg>
                             </a>
                             <a href="#modules" class="btn btn-secondary">
-                                Xem 8 module
+                                Khám phá tính năng
                                 <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M19 9l-7 7-7-7"/>
                                 </svg>
@@ -358,9 +358,9 @@ $audiences = [
             <div class="container">
                 <div class="section-header">
                     <span class="section-tag">Tính năng Cốt lõi</span>
-                    <h2 class="section-title">Hệ thống 8 mô-đun trọng tâm</h2>
+                    <h2 class="section-title">Hệ thống tính năng trọng tâm</h2>
                     <p class="section-description">
-                        Giải pháp toàn diện số hóa lộ trình phát triển tài năng. Hiện tại 6/8 module đã sẵn sàng phục vụ.
+                        Giải pháp toàn diện số hóa lộ trình phát triển tài năng.
                     </p>
                 </div>
 
@@ -590,7 +590,7 @@ $audiences = [
                     <ul class="footer-links">
                         <li><a href="#hero">Về FTalentHub</a></li>
                         <li><a href="#statistics">Thống kê nền tảng</a></li>
-                        <li><a href="#modules">8 mô-đun hệ thống</a></li>
+                        <li><a href="#modules">Tính năng hệ thống</a></li>
                         <li><a href="#audiences">Đối tượng người dùng</a></li>
                     </ul>
                 </div>

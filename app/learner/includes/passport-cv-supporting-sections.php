@@ -77,14 +77,9 @@
                             </div>
                             <?php if ($cvVerificationUrl !== ''): ?>
                             <div class="cv-seal-qr-wrap">
-                                <div class="cv-seal-qr" id="cv-seal-qr" data-qr-url="<?= $escapeCv($cvVerificationUrl); ?>" role="img" aria-label="Mã QR xác thực CV FTalentHub">
-                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&amp;data=<?= urlencode($cvVerificationUrl); ?>" alt="QR xác thực CV" class="cv-seal-qr-img" width="58" height="58">
-                                </div>
+                                <div class="cv-seal-qr" id="cv-seal-qr" role="img" aria-label="Mã QR xác thực CV FTalentHub"><?= \TalentHub\Support\QrCode::svg($cvVerificationUrl, 'M', 4); ?></div>
                             </div>
                             <?php endif; ?>
-                            <div class="cv-seal-id">Mã số: <?= $escapeCv($cv['passport_code']); ?></div>
-                            <?php if (!empty($cv['is_verified'])): ?><div class="cv-seal-status">✓ CÓ NĂNG LỰC ĐƯỢC XÁC THỰC</div><?php endif; ?>
-                            <div class="cv-seal-org">Hệ sinh thái Giáo dục FTalentHub</div>
                         </div>
                     </div>
                     <?php endif; ?>

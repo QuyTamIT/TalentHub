@@ -131,7 +131,240 @@ final class SchoolDashboardService
             'topTalents'    => $topTalents,
             'classes'       => $this->presentClasses($classes, $school),
             'recentActivity'=> $recent,
+            'overview'      => $this->overview($school, (int) ($metrics['activeStudents'] ?? 0)),
         ];
+    }
+
+    /** @return array{stats:list<array<string,mixed>>,talents:list<array<string,mixed>>,monthly:list<array<string,mixed>>,topGroups:list<array<string,mixed>>} */
+    public static function emptyOverview(): array
+    {
+        $monthly = [];
+        $cursor = new \DateTimeImmutable('first day of this month');
+        for ($i = 5; $i >= 0; $i--) {
+            $monthly[] = ['label' => 'T' . (int) $cursor->modify("-{$i} month")->format('n'), 'registered' => 0, 'completed' => 0];
+        }
+        return [
+            'stats' => [
+                ['key' => 'students', 'label' => 'Học sinh hoạt động', 'value' => '0', 'delta' => 0.0, 'unit' => '%'],
+                ['key' => 'activities', 'label' => 'Hoạt động/tháng', 'value' => '0', 'delta' => 0.0, 'unit' => '%'],
+                ['key' => 'participation', 'label' => 'Tỷ lệ tham gia', 'value' => '0%', 'delta' => 0.0, 'unit' => '%'],
+                ['key' => 'completion', 'label' => 'Tỷ lệ hoàn thành', 'value' => '0%', 'delta' => 0.0, 'unit' => '%'],
+            ],
+            'talents'   => [],
+            'monthly'   => $monthly,
+            'topGroups' => [],
+        ];
+    }
+
+    /** @param array<string,mixed> $school */
+    private function overview(array $school, int $activeStudents): array
+    {
+        $schoolId   = (string) $school['id'];
+        $monthStart = (new \DateTimeImmutable('first day of this month'))->setTime(0, 0);
+        $prevStart  = $monthStart->modify('-1 month');
+        $rangeStart = $monthStart->modify('-5 month');
+        $fmt        = 'Y-m-d H:i:s';
+
+        $scalar = function (string $sql, array $params): float {
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            return (float) $stmt->fetchColumn();
+        };
+        $pct = static fn (float $now, float $prev): float => $prev > 0 ? round(($now - $prev) * 100 / $prev, 1) : ($now > 0 ? 100.0 : 0.0);
+
+        $studentsBefore = $scalar(
+            "SELECT COUNT(*) FROM student_profiles sp
+             INNER JOIN users u ON u.id = sp.userId
+             INNER JOIN classes c ON c.id = sp.classId
+             WHERE c.schoolId = :sid AND sp.studyStatus = 'active' AND u.status = 'active' AND sp.createdAt < :before",
+            ['sid' => $schoolId, 'before' => $monthStart->format($fmt)]
+        );
+
+        $regSql = "SELECT COUNT(*) FROM activity_registrations ar
+                   INNER JOIN activities a ON a.id = ar.activityId
+                   WHERE a.schoolId = :sid AND ar.registeredAt >= :from AND ar.registeredAt < :to";
+        $regNow  = $scalar($regSql, ['sid' => $schoolId, 'from' => $monthStart->format($fmt), 'to' => $monthStart->modify('+1 month')->format($fmt)]);
+        $regPrev = $scalar($regSql, ['sid' => $schoolId, 'from' => $prevStart->format($fmt), 'to' => $monthStart->format($fmt)]);
+
+        $participantSql = "SELECT COUNT(DISTINCT ar.studentId) FROM activity_registrations ar
+                           INNER JOIN activities a ON a.id = ar.activityId
+                           INNER JOIN student_profiles sp ON sp.id = ar.studentId
+                           WHERE a.schoolId = :sid AND sp.studyStatus = 'active'
+                             AND ar.status IN ('approved','attended','no_show') AND ar.registeredAt < :before";
+        $farFuture = '9999-12-31 00:00:00';
+        $participantsNow  = $scalar($participantSql, ['sid' => $schoolId, 'before' => $farFuture]);
+        $participantsPrev = $scalar($participantSql, ['sid' => $schoolId, 'before' => $monthStart->format($fmt)]);
+        $participationNow  = $activeStudents > 0 ? min(100.0, $participantsNow * 100 / $activeStudents) : 0.0;
+        $participationPrev = $studentsBefore > 0 ? min(100.0, $participantsPrev * 100 / $studentsBefore) : 0.0;
+
+        $completionSql = "SELECT SUM(ar.status = 'attended'), SUM(ar.status IN ('approved','attended','no_show'))
+                          FROM activity_registrations ar
+                          INNER JOIN activities a ON a.id = ar.activityId
+                          WHERE a.schoolId = :sid AND ar.registeredAt < :before";
+        $completionRate = function (string $before) use ($completionSql, $schoolId): float {
+            $stmt = $this->pdo->prepare($completionSql);
+            $stmt->execute(['sid' => $schoolId, 'before' => $before]);
+            [$done, $total] = array_map('floatval', $stmt->fetch(PDO::FETCH_NUM) ?: [0, 0]);
+            return $total > 0 ? $done * 100 / $total : 0.0;
+        };
+        $completionNow  = $completionRate($farFuture);
+        $completionPrev = $completionRate($monthStart->format($fmt));
+
+        $stats = [
+            ['key' => 'students', 'label' => 'Học sinh hoạt động', 'value' => number_format($activeStudents), 'delta' => $pct((float) $activeStudents, $studentsBefore), 'unit' => '%'],
+            ['key' => 'activities', 'label' => 'Hoạt động/tháng', 'value' => number_format((int) $regNow), 'delta' => $pct($regNow, $regPrev), 'unit' => '%'],
+            ['key' => 'participation', 'label' => 'Tỷ lệ tham gia', 'value' => (int) round($participationNow) . '%', 'delta' => round($participationNow - $participationPrev, 1), 'unit' => '%'],
+            ['key' => 'completion', 'label' => 'Tỷ lệ hoàn thành', 'value' => (int) round($completionNow) . '%', 'delta' => round($completionNow - $completionPrev, 1), 'unit' => '%'],
+        ];
+
+        $monthly = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $m = $monthStart->modify("-{$i} month");
+            $monthly[$m->format('Y-m')] = ['label' => 'T' . $m->format('n'), 'registered' => 0, 'completed' => 0];
+        }
+        $range = ['sid' => $schoolId, 'from' => $rangeStart->format($fmt), 'to' => $monthStart->modify('+1 month')->format($fmt)];
+        $regMonthly = $this->pdo->prepare(
+            "SELECT DATE_FORMAT(ar.registeredAt, '%Y-%m') AS ym, COUNT(*) AS cnt
+             FROM activity_registrations ar
+             INNER JOIN activities a ON a.id = ar.activityId
+             WHERE a.schoolId = :sid AND ar.registeredAt >= :from AND ar.registeredAt < :to
+             GROUP BY ym"
+        );
+        $regMonthly->execute($range);
+        foreach ($regMonthly->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            if (isset($monthly[$row['ym']])) {
+                $monthly[$row['ym']]['registered'] = (int) $row['cnt'];
+            }
+        }
+        $doneMonthly = $this->pdo->prepare(
+            "SELECT DATE_FORMAT(COALESCE(ci.confirmedAt, ci.checkedInAt, ci.createdAt), '%Y-%m') AS ym, COUNT(*) AS cnt
+             FROM checkins ci
+             INNER JOIN activity_registrations ar ON ar.id = ci.registrationId
+             INNER JOIN activities a ON a.id = ar.activityId
+             WHERE a.schoolId = :sid AND ci.status = 'confirmed'
+               AND COALESCE(ci.confirmedAt, ci.checkedInAt, ci.createdAt) >= :from
+               AND COALESCE(ci.confirmedAt, ci.checkedInAt, ci.createdAt) < :to
+             GROUP BY ym"
+        );
+        $doneMonthly->execute($range);
+        foreach ($doneMonthly->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            if (isset($monthly[$row['ym']])) {
+                $monthly[$row['ym']]['completed'] = (int) $row['cnt'];
+            }
+        }
+
+        return [
+            'stats'     => $stats,
+            'talents'   => $this->talentDistribution($schoolId),
+            'monthly'   => array_values($monthly),
+            'topGroups' => $this->topParticipationGroups($school, 3),
+        ];
+    }
+
+    /** @return list<array{key:string,label:string,count:int,percentage:int}> */
+    private function talentDistribution(string $schoolId): array
+    {
+        $groups = [
+            'technical' => 'Kỹ thuật',
+            'academic'  => 'Học thuật',
+            'business'  => 'Kinh doanh',
+            'arts'      => 'Nghệ thuật',
+            'sports'    => 'Thể thao',
+        ];
+        $skillMap = [
+            'technical' => 'technical', 'tech' => 'technical', 'data' => 'technical',
+            'academic' => 'academic', 'soft' => 'academic', 'soft_skill' => 'academic',
+            'business' => 'business', 'marketing' => 'business', 'operations' => 'business',
+            'creative' => 'arts', 'arts' => 'arts',
+            'sports' => 'sports',
+        ];
+        $activityMap = [
+            'career_technical' => 'technical',
+            'career_business' => 'business',
+            'career_arts' => 'arts',
+            'career_sports_academic' => 'sports',
+        ];
+
+        $counts = array_fill_keys(array_keys($groups), 0);
+        $stmt = $this->pdo->prepare(
+            "SELECT LOWER(sk.category) AS category, COUNT(DISTINCT ss.id) AS cnt
+             FROM student_skills ss
+             INNER JOIN skills sk ON sk.id = ss.skillId
+             INNER JOIN student_profiles sp ON sp.id = ss.studentId
+             INNER JOIN classes c ON c.id = sp.classId
+             WHERE c.schoolId = :sid AND sp.studyStatus = 'active' AND ss.verificationStatus = 'verified'
+             GROUP BY LOWER(sk.category)"
+        );
+        $stmt->execute(['sid' => $schoolId]);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $key = $skillMap[(string) $row['category']] ?? null;
+            if ($key !== null) {
+                $counts[$key] += (int) $row['cnt'];
+            }
+        }
+
+        $stmt = $this->pdo->prepare(
+            "SELECT LOWER(a.category) AS category, COUNT(*) AS cnt
+             FROM activity_registrations ar
+             INNER JOIN activities a ON a.id = ar.activityId
+             WHERE a.schoolId = :sid AND ar.status IN ('approved','attended')
+             GROUP BY LOWER(a.category)"
+        );
+        $stmt->execute(['sid' => $schoolId]);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $key = $activityMap[(string) $row['category']] ?? null;
+            if ($key !== null) {
+                $counts[$key] += (int) $row['cnt'];
+            }
+        }
+
+        $total = array_sum($counts);
+        $out = [];
+        foreach ($groups as $key => $label) {
+            $out[] = [
+                'key'        => $key,
+                'label'      => $label,
+                'count'      => $counts[$key],
+                'percentage' => $total > 0 ? (int) round($counts[$key] * 100 / $total) : 0,
+            ];
+        }
+        usort($out, static fn (array $a, array $b): int => $b['count'] <=> $a['count']);
+        return $out;
+    }
+
+    /** @param array<string,mixed> $school @return list<array{name:string,subtitle:string,completed:int,progress:int}> */
+    private function topParticipationGroups(array $school, int $limit): array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT c.id, c.name, c.gradeLevel,
+                    SUM(ar.status = 'attended') AS completed,
+                    COUNT(DISTINCT ar.studentId) AS participants
+             FROM classes c
+             INNER JOIN student_profiles sp ON sp.classId = c.id
+             INNER JOIN activity_registrations ar ON ar.studentId = sp.id
+             INNER JOIN activities a ON a.id = ar.activityId AND a.schoolId = c.schoolId
+             WHERE c.schoolId = :sid AND c.status = 'active'
+             GROUP BY c.id, c.name, c.gradeLevel
+             HAVING completed > 0
+             ORDER BY completed DESC, participants DESC, c.name ASC
+             LIMIT " . (int) $limit
+        );
+        $stmt->execute(['sid' => (string) $school['id']]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $max = $rows ? max(array_map(static fn (array $r): int => (int) $r['completed'], $rows)) : 0;
+        $tier = $this->detectSchoolTier($school);
+
+        return array_map(function (array $row) use ($max, $tier): array {
+            $completed = (int) $row['completed'];
+            $grade = (string) ($row['gradeLevel'] ?? '');
+            return [
+                'name'      => (string) $row['name'],
+                'subtitle'  => sprintf('%d lượt hoàn thành · %d HS tham gia', $completed, (int) $row['participants']),
+                'grade'     => $grade !== '' ? $this->buildGradeLabel($grade, $tier) : '',
+                'completed' => $completed,
+                'progress'  => $max > 0 ? (int) round($completed * 100 / $max) : 0,
+            ];
+        }, $rows);
     }
 
     private function usesLegacySchoolSchema(): bool

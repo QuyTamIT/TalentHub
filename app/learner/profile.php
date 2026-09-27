@@ -498,7 +498,7 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                 </label>
 
                 <div class="learner-modal__actions" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-                    <a class="learner-btn learner-btn--outline" href="talent-passport-cv.php" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.875rem;" title="Xem trước và tải bản CV A4">
+                    <a class="learner-btn learner-btn--outline" href="talent-passport-cv.php" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center;" title="Xem trước và tải bản CV A4">
                         <?= learner_icon('file-text', 16); ?> Xem trước &amp; Tải CV
                     </a>
                     <div style="display: flex; gap: 0.5rem;">

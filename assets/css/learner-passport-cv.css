@@ -309,23 +309,13 @@ body {
     justify-content: center;
     align-items: center;
     background: #ffffff;
-    padding: 0.6mm;
     border: 1px solid #e2e8f0;
     border-radius: 4px;
 }
-.cv-seal-qr img,
-.cv-seal-qr canvas {
+.cv-seal-qr svg {
     display: block;
-    width: 52px !important;
-    height: 52px !important;
-    max-width: 52px !important;
-    max-height: 52px !important;
-}
-.cv-seal-qr [style*="display: none"],
-.cv-seal-qr [style*="display:none"],
-.cv-seal-qr img[hidden],
-.cv-seal-qr canvas[hidden] {
-    display: none !important;
+    width: 36mm;
+    height: 36mm;
 }
 .cv-seal-id {
     font-size: 7.1pt;

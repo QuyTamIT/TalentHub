@@ -3075,3 +3075,124 @@ body.landing-page {
         gap: var(--space-4);
     }
 }
+
+.landing-page .site-header__app-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+@media (max-width: 1024px) {
+    .landing-page .hero-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .landing-page .hero-content {
+        max-width: 680px;
+        margin-inline: auto;
+    }
+
+    .landing-page .hero-title {
+        max-width: 16ch;
+        margin-inline: auto;
+    }
+
+    .landing-page .hero-description {
+        margin-inline: auto;
+    }
+
+    .landing-page .hero-visual {
+        width: 100%;
+        max-width: 560px;
+        margin-inline: auto;
+        transform: none;
+    }
+
+    .landing-page .hero-window-frame:hover {
+        transform: translateY(-3px);
+    }
+}
+
+@media (max-width: 639.98px) {
+    .landing-page .site-header__actions .site-header__app-btn {
+        display: none;
+    }
+
+    .landing-page .site-header__container {
+        height: 4rem;
+    }
+
+    .landing-page .site-header__logo-img {
+        height: 36px;
+        max-width: 150px;
+    }
+}
+
+@media (min-width: 400px) and (max-width: 640px) {
+    .landing-page .stats-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-6) var(--space-4);
+    }
+
+    .landing-page .stat-col,
+    .landing-page .stat-col:last-child {
+        padding-bottom: 0;
+        border-bottom: none;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .landing-page .container {
+        padding-left: var(--space-4);
+        padding-right: var(--space-4);
+    }
+
+    .landing-page .hero-title {
+        font-size: clamp(2rem, 9vw, 2.5rem);
+    }
+
+    .landing-page .window-bar {
+        padding: 0.625rem 0.875rem;
+        gap: 0.5rem;
+    }
+
+    .landing-page .window-address-bar {
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .landing-page .window-tag {
+        display: none;
+    }
+
+    .landing-page .window-content {
+        padding: 1rem;
+    }
+
+    .landing-page .hero-preview-header {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .landing-page .user-profile-preview {
+        min-width: 0;
+    }
+
+    .landing-page .audience-panel {
+        padding: var(--space-4);
+    }
+
+    .landing-page .panel-title {
+        font-size: 1.375rem;
+    }
+
+    .landing-page .panel-footer .btn {
+        width: 100%;
+        justify-content: center;
+        white-space: normal;
+        text-align: center;
+    }
+}

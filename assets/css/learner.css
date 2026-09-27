@@ -19731,3 +19731,16 @@ img.admin-sidebar__logo-img {
         border-bottom: 0.5pt solid #999 !important;
     }
 }
+
+#learner-share-modal .learner-btn {
+    min-height: 34px !important;
+    padding: 6px 12px !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.2 !important;
+    gap: 6px !important;
+    white-space: nowrap;
+}
+
+#learner-share-modal .learner-copy-field .learner-btn {
+    flex: 0 0 auto;
+}
