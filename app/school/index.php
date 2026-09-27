@@ -229,6 +229,7 @@ ob_start();
                 </div>
                 <a href="./classes.php" class="school-section-box__link">Quản lý lớp</a>
             </div>
+            <div class="table-scroll school-class-table-wrap">
             <table class="school-class-table">
                 <thead>
                     <tr>
@@ -243,11 +244,11 @@ ob_start();
                     <?php if (!empty($classes)): ?>
                         <?php foreach ($classes as $class): ?>
                             <tr>
-                                <td><strong><?= htmlspecialchars($class['name']); ?></strong></td>
-                                <td><?= htmlspecialchars($class['grade']); ?></td>
-                                <td><?= htmlspecialchars((string) $class['students']); ?> HS</td>
-                                <td><?= htmlspecialchars($class['academicYear']); ?></td>
-                                <td>
+                                <td data-label="Lớp"><strong><?= htmlspecialchars($class['name']); ?></strong></td>
+                                <td data-label="Khối"><?= htmlspecialchars($class['grade']); ?></td>
+                                <td data-label="Sĩ số"><?= htmlspecialchars((string) $class['students']); ?> HS</td>
+                                <td data-label="Niên khóa"><?= htmlspecialchars($class['academicYear']); ?></td>
+                                <td data-label="Trạng thái">
                                     <span class="school-class-badge school-class-badge--<?= htmlspecialchars($class['status']); ?>">
                                         <?= htmlspecialchars($class['statusText']); ?>
                                     </span>
@@ -263,6 +264,7 @@ ob_start();
                     <?php endif; ?>
                 </tbody>
             </table>
+            </div>
         </section>
     </div>
 

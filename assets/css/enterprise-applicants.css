@@ -485,6 +485,40 @@
     .ent-applicants-page .applicants-job__title-group { flex-basis: 100%; }
     .ent-applicants-page .applicant-entry__assessment { gap: 0.75rem; }
 }
+@media (max-width: 980px) {
+    .ent-applicants-page .applicants-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ent-applicants-page .applicants-field--search { grid-column: 1 / -1; }
+}
+@media (max-width: 800px) {
+    .ent-applicants-page .applicant-entry { grid-template-columns: minmax(0, 1fr) 9rem; gap: 1.25rem; }
+    .ent-applicants-page .applicant-entry__identity { grid-column: 1; grid-row: 1; }
+    .ent-applicants-page .applicant-entry__details { grid-column: 1; grid-row: 2; padding-left: calc(48px + 0.875rem); }
+    .ent-applicants-page .applicant-entry__actions { grid-column: 2; grid-row: 1 / 3; }
+    .ent-applicants-page .applicants-job__facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 580px) {
+    .ent-applicants-page .applicants-job,
+    .ent-applicants-page .applicants-panel { --app-inset: 1rem; }
+    .ent-applicants-page .applicants-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ent-applicants-page .applicants-field:last-child { grid-column: 1 / -1; }
+    .ent-applicants-page .applicant-entry { grid-template-columns: minmax(0, 1fr); }
+    .ent-applicants-page .applicant-entry__details { padding-left: 0; }
+    .ent-applicants-page .applicant-entry__actions {
+        grid-column: 1;
+        grid-row: 3;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        padding-top: 1rem;
+        border-top: 1px solid var(--app-border);
+    }
+    .ent-applicants-page .applicants-input,
+    .ent-applicants-page select.typeui-select { font-size: 1rem; }
+}
+@media (max-width: 400px) {
+    .ent-applicants-page .applicants-filters { grid-template-columns: minmax(0, 1fr); }
+    .ent-applicants-page .applicants-job__title-group { flex-basis: 100%; }
+    .ent-applicants-page .applicant-entry__assessment { gap: 0.75rem; }
+}
 @media (prefers-reduced-motion: reduce) {
     .ent-applicants-page :is(.ent-pipeline-tab, .applicants-action) { transition: none; }
 }

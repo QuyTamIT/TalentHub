@@ -3198,7 +3198,8 @@ body.teacher-sidebar-open { overflow: hidden; }
 }
 
 @media (max-width: 767.98px) {
-    .teacher-header { padding: 0 1rem; min-height: var(--header-height); height: auto; gap: 0.5rem; padding: 0.5rem 0.75rem; }
+    .teacher-header { flex-wrap: wrap; padding: 0 1rem; min-height: var(--header-height); height: auto; gap: 0.5rem; padding: 0.5rem 0.75rem; }
+    .teacher-qr-reveal { grid-template-columns: 1fr; }
     .teacher-header__left { gap: 0.5rem; max-width: calc(100% - 7rem); }
     .teacher-header__right { gap: 0.5rem; }
     .teacher-header__user-info { display: none; }
@@ -3279,11 +3280,14 @@ body.teacher-sidebar-open { overflow: hidden; }
 .teacher-header__toggle,
 .teacher-header__icon-btn,
 .teacher-header__account,
-.teacher-account-menu__item,
+.teacher-account-menu__item {
+    min-height: 44px;
+}
+
 .teacher-dashboard .btn,
 .teacher-grading-button,
 .teacher-qr-revoke-button {
-    min-height: 44px;
+    min-height: 40px;
 }
 
 .teacher-header__toggle,

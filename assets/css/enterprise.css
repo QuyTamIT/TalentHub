@@ -2701,6 +2701,7 @@ body.ent-sidebar-open {
 
 .ent-results-control-bar {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
@@ -5583,7 +5584,7 @@ body.ent-sidebar-open {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
 }
 
 .ent-search-toolbar .ent-search-input,
@@ -6130,7 +6131,8 @@ body.ent-sidebar-open {
 /* 1. Candidate Horizontal Snapshot Bar */
 .ats-snapshot-bar {
     display: grid;
-    grid-template-columns: 1fr auto 1fr auto 1fr auto 1.15fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
     align-items: center;
     background: #F8FAFC;
     border: 1px solid var(--border);
@@ -6170,6 +6172,7 @@ body.ent-sidebar-open {
 }
 
 .ats-snapshot-divider {
+    display: none;
     width: 1px;
     height: 24px;
     background-color: #E2E8F0;
@@ -7161,7 +7164,7 @@ body.ent-sidebar-open {
 .ats-action-btn,
 .ats-footer-btn,
 .ent-btn-view-applicants {
-    font-size: var(--text-base);
+    font-size: var(--text-sm);
     font-weight: var(--font-semibold);
     line-height: var(--leading-tight);
 }
@@ -7788,6 +7791,17 @@ body.ent-sidebar-open {
     font-weight: var(--font-medium);
     flex-shrink: 0;
     min-width: 140px;
+}
+
+@media (max-width: 640px) {
+    .ent-info-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .ent-info-row__label {
+        min-width: 0;
+    }
 }
 
 .ent-info-row__label-icon {
@@ -8827,9 +8841,15 @@ body.ent-sidebar-open {
         gap: 12px;
     }
 
-    .ent-search-input-wrapper {
+    .ent-search-toolbar .ent-internship-filter-row {
+        flex-wrap: wrap;
+    }
+
+    .ent-search-input-wrapper,
+    .ent-search-toolbar .ent-search-input-wrapper {
         flex: 1 1 100%;
         width: 100%;
+        min-width: 0;
     }
 
     .ent-filter-select-wrapper {
@@ -8977,10 +8997,13 @@ body.ent-sidebar-open {
 .ent-header__toggle,
 .ent-header__icon-btn,
 .ent-header__account,
-.ent-account-menu__item,
+.ent-account-menu__item {
+    min-height: 44px;
+}
+
 .enterprise-dashboard .btn,
 .enterprise-dashboard [class*="ent-btn"] {
-    min-height: 44px;
+    min-height: 40px;
 }
 
 .ent-header__toggle,

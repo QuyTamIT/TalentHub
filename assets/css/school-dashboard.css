@@ -51,14 +51,17 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: 0.12em;
     font-weight: 900;
-    line-height: 1.05;
+    line-height: 1.25;
     letter-spacing: 0.01em;
     text-transform: uppercase;
 }
 
 .sd-hero__line {
     font-size: clamp(28px, 4.2vw, 52px);
+    line-height: 1.25;
+    padding-block: 0.06em;
     color: var(--sd-navy);
 }
 
@@ -443,6 +446,15 @@
     .sd-charts {
         grid-template-columns: 1fr;
     }
+
+    .sd-donut {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .sd-donut__label {
+        white-space: normal;
+    }
 }
 
 @media (max-width: 767.98px) {
@@ -472,5 +484,10 @@
 
     .sd-bars__bar {
         width: 12px;
+    }
+
+    .sd-bars__plot {
+        padding-left: 28px;
+        height: 180px;
     }
 }

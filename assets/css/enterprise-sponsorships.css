@@ -1173,6 +1173,10 @@
 }
 
 @media (max-width: 480px) {
+    .spon-preset-grid {
+        grid-template-columns: 1fr;
+    }
+
     .ent-hero-banner-light > div {
         width: 100%;
         min-width: 0 !important;

@@ -1592,8 +1592,10 @@ body.school-sidebar-open {
     }
 
     .school-header {
+        flex-wrap: wrap;
         padding: 0 1rem;
-        height: 3.75rem;
+        height: auto;
+        min-height: 3.75rem;
     }
 
     .school-header__user-info {
@@ -1729,6 +1731,9 @@ body.school-sidebar-open {
     }
     .school-class-table {
         font-size: var(--text-sm);
+    }
+    .school-class-table thead {
+        display: none;
     }
     .school-class-table tr {
         display: block;
@@ -1890,9 +1895,12 @@ textarea:focus-visible {
 .school-header__toggle,
 .school-header__icon-btn,
 .school-header__account,
-.school-account-menu__item,
-.school-dashboard .btn {
+.school-account-menu__item {
     min-height: 44px;
+}
+
+.school-dashboard .btn {
+    min-height: 40px;
 }
 
 .school-header__toggle,
@@ -2578,6 +2586,16 @@ textarea:focus-visible {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
+}
+
+@media (max-width: 991.98px) {
+    .school-grid-2col,
+    .school-grid-2col.school-grid-2col--reports,
+    .school-grid-2col.school-grid-2col--teachers,
+    .school-grid-3col,
+    .school-form__grid.school-form__grid--2col {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* ── Date input ─────────────────────────────────────────────────────────── */
@@ -6029,7 +6047,21 @@ body.school-dashboard,
 }
 
 /* ─── EE. Responsive table (mobile stacked) ─── */
-@media (max-width: 640px) {
+.school-dashboard .school-grid-layout__main,
+.school-dashboard .school-grid-layout__sidebar {
+    min-width: 0;
+}
+
+@media (max-width: 768px) {
+    .school-dashboard .school-class-table-wrap {
+        overflow: visible;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+    }
+    .school-dashboard .school-class-table {
+        min-width: 0;
+    }
     .school-dashboard .school-class-table thead {
         display: none;
     }
@@ -6039,6 +6071,16 @@ body.school-dashboard,
     .school-dashboard .school-class-table td {
         display: block;
         width: 100%;
+    }
+    .school-dashboard .school-class-table tbody td[colspan] {
+        justify-content: center;
+        text-align: center;
+    }
+    .school-dashboard .school-class-table tbody td[colspan]::before {
+        display: none;
+    }
+    .school-dashboard .school-class-table tbody tr:hover {
+        background: var(--surface, #FFFFFF);
     }
     .school-dashboard .school-class-table tbody tr {
         margin-bottom: 12px;
@@ -6061,6 +6103,12 @@ body.school-dashboard,
     }
     .school-dashboard .school-class-table tbody td:last-child {
         border-bottom: none;
+    }
+    .school-dashboard .school-class-table tbody tr:last-child td:not(:last-child) {
+        border-bottom: 1px solid #F5EFE9;
+    }
+    .school-dashboard .school-class-table tbody td > * {
+        text-align: right;
     }
     .school-dashboard .school-class-table tbody td::before {
         content: attr(data-label);

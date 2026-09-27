@@ -526,7 +526,7 @@ $fieldLabelMap = [
                         </section>
                     </div>
 
-                    <section class="learner-card learner-ai-insights-card" aria-labelledby="learner-ai-title" data-ai-insights-card>
+                    <!-- <section class="learner-card learner-ai-insights-card" aria-labelledby="learner-ai-title" data-ai-insights-card>
                         <header class="learner-ai-insights-card__header">
                             <span class="learner-ai-insights-card__icon" aria-hidden="true"><?= learner_icon('sparkles', 26); ?></span>
                             <div>
@@ -553,7 +553,7 @@ $fieldLabelMap = [
                                 </ul>
                             </div>
                         </div>
-                    </section>
+                    </section> -->
                 </div>
             </main>
         </div>

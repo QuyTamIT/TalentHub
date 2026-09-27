@@ -1487,6 +1487,13 @@
     }
 }
 
+@media (max-width: 900px) {
+    .act-timeline-pipeline {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
 @media (max-width: 768px) {
     .act-split-grid {
         grid-template-columns: 1fr;

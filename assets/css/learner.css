@@ -2062,7 +2062,7 @@ body.learner-app,
     gap: 9px;
 }
 
-.learner-checkin-actions .learner-btn { min-height: 43px; }
+.learner-checkin-actions .learner-btn { min-height: 38px; }
 
 .learner-checkin-side-column {
     display: grid;
@@ -4713,7 +4713,8 @@ body.learner-sidebar-open {
     }
 
     .learner-page-activities .learner-search {
-        width: 34vw;
+        width: 100%;
+        max-width: none;
         padding: 0 9px;
     }
 
@@ -8409,9 +8410,18 @@ body.has-roadmap-editor {
 
 @media (max-width: 768px) {
     .learner-assessment-sticky-header {
+        flex-wrap: wrap;
         padding: 10px 14px;
         border-radius: 12px;
         gap: 10px;
+    }
+    .learner-assessment-progress-bar {
+        max-width: 100%;
+        flex: 1 1 100%;
+    }
+    .learner-assessment-sticky-header__right {
+        width: 100%;
+        justify-content: flex-end;
     }
     .learner-assessment-progress-text {
         font-size: var(--text-lg);
@@ -8431,6 +8441,12 @@ body.has-roadmap-editor {
     margin-top: 18px;
     grid-template-columns: repeat(2, 1fr);
     gap: 9px;
+}
+
+@media (max-width: 480px) {
+    .learner-assessment-submit-summary {
+        grid-template-columns: 1fr;
+    }
 }
 
 .learner-assessment-submit-summary span {
@@ -8733,6 +8749,11 @@ body.has-roadmap-editor {
     .learner-result-dimension-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+@media (max-width: 480px) {
+    .learner-result-dimension-grid { grid-template-columns: 1fr; }
+    .learner-question-navigator__grid { grid-template-columns: repeat(3, 1fr); }
+}
+
 @media (max-width: 620px) {
     .learner-assessment-intro { padding: 18px; gap: 24px; }
     .learner-assessment-intro__visual { min-height: 210px; }
@@ -8751,7 +8772,7 @@ body.has-roadmap-editor {
     .learner-question-card__actions .learner-btn { flex: 1; padding-right: 9px; padding-left: 9px; }
     .learner-question-card__actions [data-assessment-open-submit] { flex-basis: 100%; }
     .learner-question-navigator { padding: 16px; }
-    .learner-question-navigator__grid { grid-template-columns: repeat(6, 1fr); }
+    .learner-question-navigator__grid { grid-template-columns: repeat(4, 1fr); }
     .learner-result-hero { padding: 20px; grid-template-columns: 1fr; }
     .learner-result-hero__code { width: 82px; height: 82px; border-radius: 22px; font-size: var(--text-2xl); }
     .learner-result-hero__actions { grid-column: auto; flex-direction: column; }
@@ -9000,9 +9021,9 @@ body.has-roadmap-editor {
 }
 
 .learner-page-discover .learner-assessment-card > .learner-btn {
-    min-height: 40px;
+    min-height: 38px;
     border-radius: var(--radius-sm);
-    font-size: var(--text-base);
+    font-size: var(--text-sm);
     font-weight: 600;
 }
 
@@ -9622,7 +9643,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 }
 
 .learner-app :where(button, .learner-btn):not(.learner-icon-button):not(.learner-roadmap-task__control) {
-    min-height: 44px;
+    min-height: 38px;
 }
 
 .learner-app .learner-roadmap-task__control {
@@ -9746,7 +9767,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 }
 
 .learner-page-ai .learner-roadmap .learner-btn {
-    min-height: 44px;
+    min-height: 38px;
 }
 
 .learner-page-ai .learner-roadmap-state {
@@ -10892,8 +10913,8 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 }
 
 .learner-page-overview .learner-welcome__actions .learner-btn {
-    min-height: 46px;
-    padding-inline: 20px;
+    min-height: 40px;
+    padding-inline: 18px;
     border-radius: var(--radius-sm);
 }
 
@@ -14797,7 +14818,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     line-height: 1.65;
 }
 .learner-job-position__actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
-.learner-job-position__actions .learner-btn { padding: 10px 22px; font-size: var(--text-sm); font-weight: 650; }
+.learner-job-position__actions .learner-btn { padding: 8px 18px; font-size: var(--text-sm); font-weight: 650; }
 .learner-job-ai__near-match { display: grid; }
 .learner-job-near-match { padding: 0; overflow: hidden; border-color: #fecaca; }
 .learner-job-near-match__banner { display: flex; padding: 17px 20px; align-items: center; justify-content: space-between; gap: 14px; background: #fff7ed; border-bottom: 1px solid #fed7aa; }
@@ -15164,6 +15185,12 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     }
 }
 
+@media (max-width: 480px) {
+    .learner-opportunity-ai__progress-stages {
+        grid-template-columns: 1fr;
+    }
+}
+
 @keyframes learner-opportunity-ai-skeleton {
     from { background-position: 100% 0; }
     to { background-position: -100% 0; }
@@ -15496,8 +15523,8 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 
 .learner-opportunity-ai-card__actions .learner-btn {
     width: auto;
-    min-height: 40px;
-    padding: 10px 22px;
+    min-height: 36px;
+    padding: 8px 18px;
     font-size: var(--text-sm);
     font-weight: 650;
     line-height: 1.25;
@@ -17017,9 +17044,9 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
 }
 
 .learner-page-ai .learner-skill-gap__activity .learner-btn {
-    min-height: 40px;
-    padding: 8px 12px;
-    font-size: var(--text-base);
+    min-height: 36px;
+    padding: 7px 12px;
+    font-size: var(--text-sm);
 }
 
 .learner-page-ai button:focus-visible,
@@ -17115,7 +17142,7 @@ body.learner-app.learner-page-discover .learner-directions--gradient .learner-pr
     }
 
     .learner-page-ai .learner-roadmap-plan__controls .learner-btn {
-        min-height: 44px;
+        min-height: 40px;
         justify-content: center;
     }
 
@@ -19584,8 +19611,8 @@ body.learner-app,
 
 /* ── Button Spacing ── */
 .learner-btn {
-    padding: var(--space-3) var(--space-5);
-    min-height: var(--touch-target);
+    padding: var(--space-2) var(--space-4);
+    min-height: 38px;
 }
 
 /* ── Responsive Typography ── */

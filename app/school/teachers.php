@@ -88,7 +88,7 @@ include __DIR__ . '/includes/page-banner.php';
 
 <?php if ($pendingTeachers !== []): ?>
     <section class="school-section-box" style="margin-bottom: 1.5rem; border-left: 4px solid var(--primary, #0284c7); background: #f8fafc;">
-        <div class="school-section-box__header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="school-section-box__header" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem;">
             <div>
                 <h3 class="school-section-box__title" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
                     <span>Hồ sơ giảng viên chờ duyệt</span>

@@ -1082,6 +1082,15 @@ body.auth-demo-modal-open {
     .auth-panel__inner--wide { max-width: 680px; }
 }
 
+@media (max-width: 768px) {
+    .auth-form-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .auth-field--full { grid-column: auto; }
+}
+
 @media (max-width: 620px) {
     .auth-panel { padding: 24px 16px 32px; }
     .auth-mobile-logo { margin-bottom: 32px; }

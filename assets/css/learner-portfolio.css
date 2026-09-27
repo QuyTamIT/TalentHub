@@ -7,6 +7,11 @@
 .portfolio-panel button{padding:10px 15px;border:1px solid var(--primary,#173d66);border-radius:var(--radius-xs,6px);background:var(--primary,#173d66);color:var(--text-inverse,#fff);cursor:pointer}.portfolio-panel button:disabled{opacity:.5;cursor:wait}
 .portfolio-card [role=alert]{color:var(--color-danger,#991b1b)}.portfolio-panel details{margin-top:12px}.portfolio-review-page{max-width:1050px;margin:24px auto;padding:0 16px;font-family:var(--font-sans,system-ui,sans-serif)}
 @media print{.portfolio-panel{display:none!important}}
+@media (max-width: 640px){
+.portfolio-compact-grid{grid-template-columns:1fr}
+.portfolio-compact-actions{flex-direction:column;align-items:stretch}
+.portfolio-panel{padding:16px}
+}
 
 /* Compact cards styling for completed showcase */
 .portfolio-compact-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:1rem;margin-top:0.75rem}
