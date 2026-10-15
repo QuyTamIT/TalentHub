@@ -58,6 +58,12 @@ final class PortalGuard
             $cached = $session->user();
             $currentRole = (string) ($cached['role'] ?? $_SESSION['role'] ?? $_SESSION['user']['role'] ?? '');
             $currentCanonical = RoleCodes::canonical($currentRole);
+            // NOTE: This intentionally allows a school admin or platform admin who already has
+            // an active session to also browse the teacher portal. This is a business decision
+            // (school admins may need to review teacher content); it does NOT grant the school
+            // admin a "teacher" identity. Access is read-only through the teacher's dashboard
+            // for supervisory purposes. If this cross-role access is not desired, remove
+            // the $isTeacherAllowed block and let the role mismatch screen handle it.
             $isTeacherAllowed = ($role === RoleCodes::TEACHER && in_array($currentCanonical, [RoleCodes::TEACHER, RoleCodes::SCHOOL, RoleCodes::PLATFORM_ADMIN], true));
             $isRoleAllowed = RoleCodes::matches($currentRole, $role) || $isTeacherAllowed;
 
@@ -128,19 +134,20 @@ final class PortalGuard
 
     private static function allowsDemoAutologin(): bool
     {
-        $environment = Environment::appEnvironment();
-        if (!in_array($environment, ['local', 'test'], true)
-            || !Environment::boolean('TALENTHUB_ALLOW_DEMO_AUTOLOGIN', false)
-        ) {
-            return false;
-        }
-
+        // SECURITY: demo autologin is disabled for all web requests. It may only be
+        // used in CLI context (e.g. artisan commands, cron jobs) where a real user
+        // identity is not required. This prevents accidental bypass of authentication
+        // in browser-based environments.
         if (PHP_SAPI === 'cli') {
+            $environment = Environment::appEnvironment();
+            if (!in_array($environment, ['local', 'test'], true)
+                || !Environment::boolean('TALENTHUB_ALLOW_DEMO_AUTOLOGIN', false)
+            ) {
+                return false;
+            }
             return true;
         }
-
-        $remoteAddress = trim((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
-        return in_array($remoteAddress, ['127.0.0.1', '::1'], true);
+        return false;
     }
 
     private static function redirectToLogin(string $fallbackPath, string $requiredRole): never

@@ -23,34 +23,42 @@ $error = null;
 
 $session = new SessionManager(require __DIR__ . '/config/session.php');
 $session->start();
+$orgCsrfToken = $session->csrfToken();
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    foreach (array_keys($values) as $field) {
-        $values[$field] = trim((string) ($_POST[$field] ?? ''));
+    try {
+        $session->assertCsrf(is_string($_POST['csrfToken'] ?? null) ? $_POST['csrfToken'] : null);
+    } catch (\TalentHub\Http\ApiException $csrfException) {
+        $error = $csrfException->getMessage();
     }
+    if ($error === null) {
+        foreach (array_keys($values) as $field) {
+            $values[$field] = trim((string) ($_POST[$field] ?? ''));
+        }
 
-    $password = (string) ($_POST['password'] ?? '');
-    $schoolLevel = (string) ($_POST['schoolLevel'] ?? '');
+        $password = (string) ($_POST['password'] ?? '');
+        $schoolLevel = (string) ($_POST['schoolLevel'] ?? '');
 
-    if (!hash_equals($password, (string) ($_POST['passwordConfirmation'] ?? ''))) {
-        $error = 'Mật khẩu nhập lại chưa khớp.';
-    } else {
-        try {
-            $result = (new OrganizationRegistrationService(
-                (new Connection(require __DIR__ . '/config/database.php'))->connect()
-            ))->register([
-                ...$values,
-                'type' => $type,
-                'password' => $password,
-            ]);
-            $_SESSION['authFlash'] = [
-                'type' => 'registered-pending',
-                'email' => $result['email'],
-            ];
-            header('Location: ./login.php');
-            exit;
-        } catch (Throwable $exception) {
-            $error = $exception->getMessage();
+        if (!hash_equals($password, (string) ($_POST['passwordConfirmation'] ?? ''))) {
+            $error = 'Mật khẩu nhập lại chưa khớp.';
+        } else {
+            try {
+                $result = (new OrganizationRegistrationService(
+                    (new Connection(require __DIR__ . '/config/database.php'))->connect()
+                ))->register([
+                    ...$values,
+                    'type' => $type,
+                    'password' => $password,
+                ]);
+                $_SESSION['authFlash'] = [
+                    'type' => 'registered-pending',
+                    'email' => $result['email'],
+                ];
+                header('Location: ./login.php');
+                exit;
+            } catch (Throwable $exception) {
+                $error = $exception->getMessage();
+            }
         }
     }
 }
@@ -125,6 +133,7 @@ $label = $type === 'school' ? 'Nhà trường' : 'Doanh nghiệp';
 
             <form class="auth-form" method="post" data-auth-form>
                 <input type="hidden" name="type" value="<?= oe($type) ?>">
+                <input type="hidden" name="csrfToken" value="<?= oe($orgCsrfToken) ?>">
                 <div class="auth-form-grid">
                     <div class="auth-field auth-field--full">
                         <label for="organizationName">Tên <?= oe($label) ?></label>

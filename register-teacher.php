@@ -19,6 +19,7 @@ $schools = [];
 
 $session = new SessionManager(require __DIR__ . '/config/session.php');
 $session->start();
+$teacherCsrfToken = $session->csrfToken();
 
 try {
     $pdo = (new Connection(require __DIR__ . '/config/database.php'))->connect();
@@ -30,32 +31,39 @@ try {
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    foreach (array_keys($values) as $field) {
-        $values[$field] = trim((string) ($_POST[$field] ?? ''));
+    try {
+        $session->assertCsrf(is_string($_POST['csrfToken'] ?? null) ? $_POST['csrfToken'] : null);
+    } catch (\TalentHub\Http\ApiException $csrfException) {
+        $error = $csrfException->getMessage();
     }
+    if ($error === null) {
+        foreach (array_keys($values) as $field) {
+            $values[$field] = trim((string) ($_POST[$field] ?? ''));
+        }
 
-    $password = (string) ($_POST['password'] ?? '');
-    $confirmation = (string) ($_POST['passwordConfirmation'] ?? '');
+        $password = (string) ($_POST['password'] ?? '');
+        $confirmation = (string) ($_POST['passwordConfirmation'] ?? '');
 
-    if (!hash_equals($password, $confirmation)) {
-        $error = 'Mật khẩu nhập lại chưa khớp.';
-    } elseif (isset($pdo)) {
-        try {
-            $result = (new TeacherRegistrationService($pdo))->register([
-                ...$values,
-                'password' => $password,
-            ]);
-            $_SESSION['authFlash'] = [
-                'type' => 'registered-pending',
-                'role' => 'teacher',
-                'email' => $result['email'],
-                'schoolId' => $result['schoolId'] ?? '',
-                'schoolName' => $result['schoolName'] ?? '',
-            ];
-            header('Location: ./login.php');
-            exit;
-        } catch (Throwable $exception) {
-            $error = $exception->getMessage();
+        if (!hash_equals($password, $confirmation)) {
+            $error = 'Mật khẩu nhập lại chưa khớp.';
+        } elseif (isset($pdo)) {
+            try {
+                $result = (new TeacherRegistrationService($pdo))->register([
+                    ...$values,
+                    'password' => $password,
+                ]);
+                $_SESSION['authFlash'] = [
+                    'type' => 'registered-pending',
+                    'role' => 'teacher',
+                    'email' => $result['email'],
+                    'schoolId' => $result['schoolId'] ?? '',
+                    'schoolName' => $result['schoolName'] ?? '',
+                ];
+                header('Location: ./login.php');
+                exit;
+            } catch (Throwable $exception) {
+                $error = $exception->getMessage();
+            }
         }
     }
 }
@@ -120,7 +128,15 @@ function teacherEscape(mixed $value): string
                 <div class="auth-alert auth-alert--error" role="alert" tabindex="-1" data-error-summary><?= teacherEscape($error) ?></div>
             <?php endif; ?>
 
+            <?php if ($schools === []): ?>
+                <div class="auth-alert auth-alert--info" role="status">
+                    <strong>Chưa thể đăng ký giáo viên lúc này.</strong>
+                    <p>Hệ thống chưa có nhà trường đang hoạt động để liên kết hồ sơ. Vui lòng quay lại sau.</p>
+                </div>
+            <?php endif; ?>
+
             <form class="auth-form" method="post" data-auth-form>
+                <input type="hidden" name="csrfToken" value="<?= teacherEscape($teacherCsrfToken) ?>">
                 <div class="auth-form-grid">
                     <div class="auth-field auth-field--full">
                         <label for="fullName">Họ và tên</label>

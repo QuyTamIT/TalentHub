@@ -20,7 +20,7 @@ final class OrganizationRegistrationService
         $fullName=trim($input['fullName']??'');$email=strtolower(trim($input['email']??''));
         $phone=trim($input['phone']??'');$address=trim($input['address']??'');
         $schoolLevel=trim($input['schoolLevel']??'');$password=$input['password']??'';
-        if(!in_array($type,['school','enterprise'],true)||mb_strlen($name)<2||mb_strlen($fullName)<2||!filter_var($email,FILTER_VALIDATE_EMAIL)||mb_strlen($phone)<6||mb_strlen($address)<5||strlen($password)<12){throw new RuntimeException('Vui lòng điền đầy đủ thông tin hợp lệ; mật khẩu tối thiểu 12 ký tự.');}
+        if(!in_array($type,['school','enterprise'],true)||mb_strlen($name)<2||mb_strlen($fullName)<2||!filter_var($email,FILTER_VALIDATE_EMAIL)||mb_strlen($phone)<6||!preg_match('/^[0-9+() .-]+$/',$phone)||mb_strlen($address)<5||strlen($password)<12){throw new RuntimeException('Vui lòng điền đầy đủ thông tin hợp lệ; mật khẩu tối thiểu 12 ký tự.');}
         if($type==='school'&&!in_array($schoolLevel,['cap2','cap3','cao_dang_dai_hoc'],true)){throw new RuntimeException('Vui lòng chọn cấp bậc nhà trường hợp lệ.');}
         $this->purgeExpired();
         $used=$this->pdo->prepare('SELECT COUNT(*) FROM users WHERE email=?');$used->execute([$email]);

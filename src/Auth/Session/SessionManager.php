@@ -48,37 +48,33 @@ final class SessionManager
 
     public static function writeUserToRoleSession(array $user, array $baseConfig): void
     {
-        $currentSid = session_status() === PHP_SESSION_ACTIVE ? session_id() : '';
-        $roleSessionName = self::sessionNameForRole($user['role'] ?? null);
-
-        if ($currentSid !== '' && !headers_sent()) {
-            $path = '/';
-            $secure = self::isHttps() && (isset($baseConfig['secure']) ? (bool)$baseConfig['secure'] : true);
-            $sameSite = $baseConfig['sameSite'] ?? 'Lax';
-            $lifetime = (int) ($baseConfig['lifetime'] ?? (86400 * 7));
-            $cookieOptions = [
-                'expires' => time() + $lifetime,
-                'path' => $path,
-                'domain' => $baseConfig['domain'] ?? '',
-                'secure' => $secure,
-                'httponly' => true,
-                'samesite' => $sameSite,
-            ];
-
-            $allNames = [
-                self::SESSION_DEFAULT,
-                $roleSessionName,
-                self::SESSION_STUDENT,
-                self::SESSION_ENTERPRISE,
-                self::SESSION_SCHOOL,
-                self::SESSION_TEACHER,
-                self::SESSION_ADMIN,
-            ];
-
-            foreach (array_unique($allNames) as $sName) {
-                setcookie($sName, $currentSid, $cookieOptions);
-            }
+        // SECURITY: previously this method fanned out the same SID to every role cookie,
+        // which meant an admin login would also mint learner/school/teacher/enterprise
+        // cookies pointing at the admin session. That effectively bypassed the
+        // per-role login requirement. The correct behaviour is to only refresh the
+        // cookie that matches the user's role; the destination portal's guard will
+        // re-derive its own session on the next request.
+        if (headers_sent()) {
+            return;
         }
+        $roleSessionName = self::sessionNameForRole($user['role'] ?? null);
+        $path = '/';
+        $secure = self::isHttps() && (isset($baseConfig['secure']) ? (bool)$baseConfig['secure'] : true);
+        $sameSite = $baseConfig['sameSite'] ?? 'Lax';
+        $lifetime = (int) ($baseConfig['lifetime'] ?? (86400 * 7));
+        $sid = session_status() === PHP_SESSION_ACTIVE ? session_id() : '';
+        if ($sid === '') {
+            return;
+        }
+        // Only set the cookie for this specific role; no cross-role SID pollution.
+        setcookie($roleSessionName, $sid, [
+            'expires' => time() + $lifetime,
+            'path' => $path,
+            'domain' => $baseConfig['domain'] ?? '',
+            'secure' => $secure,
+            'httponly' => true,
+            'samesite' => $sameSite,
+        ]);
     }
 
     public function start(): void
@@ -89,22 +85,13 @@ final class SessionManager
         $this->configureStorage();
         $sessionName = $this->config['name'] ?? self::SESSION_DEFAULT;
 
-        if (!isset($_COOKIE[$sessionName])) {
-            $allKnownCookies = [
-                self::SESSION_DEFAULT,
-                self::SESSION_ENTERPRISE,
-                self::SESSION_STUDENT,
-                self::SESSION_SCHOOL,
-                self::SESSION_TEACHER,
-                self::SESSION_ADMIN,
-                'TALENTHUB_STUDENT_SESSION',
-                'TALENTHUB_ENTERPRISE_SESSION',
-                'TALENTHUB_SCHOOL_SESSION',
-                'TALENTHUB_TEACHER_SESSION',
-                'TALENTHUB_ADMIN_SESSION',
-                'PHPSESSID',
-            ];
-            foreach ($allKnownCookies as $alias) {
+        // SECURITY: do NOT swap SID from other role cookies. Each session name must
+        // map to its own session storage so that, for example, an admin cookie
+        // cannot authenticate a learner request. Aliases (e.g. PHPSESSID) are only
+        // honored when the session name has not been explicitly overridden by config.
+        if (!isset($_COOKIE[$sessionName]) && $sessionName === self::SESSION_DEFAULT) {
+            $defaultFallbackAliases = ['PHPSESSID'];
+            foreach ($defaultFallbackAliases as $alias) {
                 if (isset($_COOKIE[$alias]) && is_string($_COOKIE[$alias]) && $_COOKIE[$alias] !== '') {
                     $_COOKIE[$sessionName] = $_COOKIE[$alias];
                     if (!headers_sent()) {
@@ -140,16 +127,15 @@ final class SessionManager
 
         $this->open();
         $_SESSION['lastSeenAt'] = time();
+        // Normalise CSRF token key to a single canonical name.
         if (!isset($_SESSION['csrfToken']) && !isset($_SESSION['csrf_token'])) {
             $token = bin2hex(random_bytes(32));
             $_SESSION['csrfToken'] = $token;
             $_SESSION['csrf_token'] = $token;
-        } else {
-            $token = (string) ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '');
-            if ($token !== '') {
-                $_SESSION['csrfToken'] = $token;
-                $_SESSION['csrf_token'] = $token;
-            }
+        } elseif (isset($_SESSION['csrf_token']) && !isset($_SESSION['csrfToken'])) {
+            $_SESSION['csrfToken'] = $_SESSION['csrf_token'];
+        } elseif (isset($_SESSION['csrfToken']) && !isset($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = $_SESSION['csrfToken'];
         }
     }
 

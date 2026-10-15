@@ -64,6 +64,9 @@ final class AuthRepository
     /** @param array<string,mixed> $row @return array<string,mixed> */
     private function enrichRole(array $row): array
     {
+        // SECURITY: the role must come from a canonical source (roles table via JOIN),
+        // not guessed from an email pattern. Email-based heuristics are disabled.
+        // This method only handles the legacy schema case where the JOIN returns no role.
         if (!empty($row['role'])) {
             return $row;
         }
@@ -94,18 +97,10 @@ final class AuthRepository
                 }
             } catch (\Throwable) {}
         }
-        $email = (string) ($row['email'] ?? '');
-        if (str_contains($email, 'teacher') || str_contains($email, 'gv.')) {
-            $row['role'] = \TalentHub\Rbac\RoleCodes::TEACHER;
-        } elseif (str_contains($email, 'school') || str_contains($email, 'bgh')) {
-            $row['role'] = \TalentHub\Rbac\RoleCodes::SCHOOL;
-        } elseif (str_contains($email, 'enterprise') || str_contains($email, 'business') || str_contains($email, 'careers')) {
-            $row['role'] = \TalentHub\Rbac\RoleCodes::ENTERPRISE;
-        } elseif (str_contains($email, 'admin')) {
-            $row['role'] = \TalentHub\Rbac\RoleCodes::PLATFORM_ADMIN;
-        } else {
-            $row['role'] = \TalentHub\Rbac\RoleCodes::STUDENT;
-        }
+        // Email-based role inference is removed. If no canonical role was found via
+        // JOIN or profile-table lookup, return with role=student as a safe default
+        // only for accounts that genuinely have no other identifier.
+        $row['role'] = \TalentHub\Rbac\RoleCodes::STUDENT;
         return $row;
     }
 

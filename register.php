@@ -12,12 +12,15 @@ use TalentHub\Support\Id\RequestId;
 
 $session=new SessionManager(require __DIR__.'/config/session.php');$session->start();
 if(($current=$session->user())!==null){header('Location: '.app_href(AuthPortalRouter::destination((string)$current['role'])));exit;}
+$registerCsrfToken=$session->csrfToken();
 
 $values=['fullName'=>'','email'=>'','phone'=>'','dateOfBirth'=>'','schoolId'=>'','classId'=>''];$fieldErrors=[];$errorMessage=null;$classes=[];$repository=null;
 try{$pdo=(new Connection(require __DIR__.'/config/database.php'))->connect();$repository=new AuthRepository($pdo);$classes=$repository->registrationClasses();}
 catch(Throwable $e){error_log('[Register DB Load Error] '.$e->getMessage());$errorMessage='Chưa thể tải danh sách trường và lớp. Vui lòng thử lại sau.';}
 
 if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
+    try{$session->assertCsrf(is_string($_POST['csrfToken']??null)?$_POST['csrfToken']:null);}catch(\TalentHub\Http\ApiException $csrfException){$errorMessage=$csrfException->getMessage();}
+    if($errorMessage===null){
     foreach(array_keys($values) as $field){$values[$field]=trim((string)($_POST[$field]??''));}
     $password=(string)($_POST['password']??'');$confirmation=(string)($_POST['passwordConfirmation']??'');
     if(!hash_equals($password,$confirmation)){$fieldErrors['passwordConfirmation']='Mật khẩu nhập lại chưa khớp.';}
@@ -41,6 +44,7 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
         }catch(ApiException $exception){$errorMessage=$exception->getMessage();foreach($exception->details as $detail){$fieldErrors[$detail['field']]=$detail['message'];}}
         catch(\PDOException $pdoException){error_log('[Registration SQL Error] '.$pdoException->getMessage()."\n".$pdoException->getTraceAsString());$errorMessage='Chưa thể hoàn tất đăng ký lúc này. Vui lòng thử lại sau.';}
         catch(Throwable $e){error_log('[Registration Error] '.$e->getMessage()."\n".$e->getTraceAsString());$errorMessage='Chưa thể hoàn tất đăng ký lúc này. Vui lòng thử lại sau.';}
+    }
     }
 }
 
@@ -90,8 +94,10 @@ $schools=[];foreach($classes as $class){$schools[$class['schoolId']]=['id'=>$cla
                 <img src="<?= htmlspecialchars(function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : './assets/images/talenthub-logo.png'); ?>" alt="FTalentHub Logo" class="auth-mobile-logo__img">
             </a>
             <div class="auth-heading"><div class="auth-heading__row"><div><p class="auth-kicker">Tài khoản mới</p><h2 id="register-title">Đăng ký học viên</h2></div><span class="auth-role-badge">Học viên</span></div><p>Điền đúng thông tin đang sử dụng tại trường của bạn.</p></div>
+            <?php if($classes===[]): ?><div class="auth-alert auth-alert--info" role="status"><strong>Chưa thể đăng ký học viên lúc này.</strong><p>Hệ thống chưa có lớp đang hoạt động để gắn hồ sơ. Vui lòng liên hệ nhà trường hoặc quản trị viên để được hỗ trợ.</p></div><?php endif; ?>
             <?php if($errorMessage!==null||$fieldErrors!==[]): ?><div class="auth-alert auth-alert--error" role="alert" tabindex="-1" data-error-summary><strong><?=registerEscape($errorMessage??'Vui lòng kiểm tra lại thông tin đăng ký.')?></strong><?php if($fieldErrors!==[]): ?><ul><?php foreach($fieldErrors as $field=>$message): ?><li><a href="#<?=registerEscape($field)?>"><?=registerEscape($message)?></a></li><?php endforeach; ?></ul><?php endif; ?></div><?php endif; ?>
             <form class="auth-form auth-form--register" method="post" action="<?= app_href('/register.php') ?>" data-auth-form>
+                <input type="hidden" name="csrfToken" value="<?=registerEscape($registerCsrfToken)?>">
                 <div class="auth-form-grid">
                     <div class="auth-form-section auth-field--full"><span>01</span><div><strong>Thông tin cá nhân</strong><small>Nhập thông tin cơ bản của học viên</small></div></div>
                     <div class="auth-field auth-field--full"><label for="fullName">Họ và tên</label><input id="fullName" name="fullName" value="<?=registerEscape($values['fullName'])?>" autocomplete="name" minlength="2" maxlength="150" required <?php if(isset($fieldErrors['fullName'])): ?>aria-invalid="true" aria-describedby="fullName-error"<?php endif; ?>><?php if(isset($fieldErrors['fullName'])): ?><span class="auth-field__error" id="fullName-error"><?=registerEscape($fieldErrors['fullName'])?></span><?php endif; ?></div>
