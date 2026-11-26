@@ -17,7 +17,7 @@ require_once 'app/learner/data/Service/ActivityRegistrationService.php';
 $repo = new \TalentHub\Learner\Data\Database\DatabaseActivityCommandRepository($pdo);
 $service = new \TalentHub\Learner\Data\Service\ActivityRegistrationService($repo);
 
-try {
+try {   
     $result = $service->register(
         $student['id'],
         $student['userId'],
